@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Professional Location Sketch Maker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #34495e;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+
+        /* --- TWO LAYER PC & MOBILE OPTIMIZED TOP MENU --- */
+        .top-menu {
+            background-color: #f1f3f4;
+            border-bottom: 1px solid #dadce0;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column; 
+            gap: 8px;
+            z-index: 100;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+
+        .menu-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            overflow-x: auto; 
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+            width: 100%;
+        }
+
+
+        .menu-row::-webkit-scrollbar {
+            display: none;
+        }
+
+
+        .menu-tab {
+            background: white;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            padding: 5px 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0; 
+        }
+
+
+        .tab-title {
+            font-size: 13px;
+            font-weight: bold;
+            color: #5f6368;
+        }
+
+
+        select, button, input {
+            padding: 5px 8px;
+            font-size: 13px;
+            border-radius: 4px;
+            border: 1px solid #dadce0;
+            background: white;
+            cursor: pointer;
+            box-sizing: border-box;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        
+        button {
+            font-weight: bold;
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+        }
+        button:hover { background-color: #1557b0; }
+        
+        .toggle-btn { background-color: #5f6368; }
+        .danger-btn { background-color: #d93025; }
+        .danger-btn:hover { background-color: #b31412; }
+        .success-btn { background-color: #1e8e3e; }
+        .success-btn:hover { background-color: #137333; }
+
+
+        #rotateToggleBtn {
+            background-color: #7f8c8d;
+            color: white;
+        }
+
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #5f6368;
+        }
+
+
+        .action-group {
+            display: inline-flex;
+            gap: 6px;
+            flex-shrink: 0;
+            margin-left: auto; 
+        }
+
+
+        /* Workspace Wrapper */
+        .workspace-wrapper {
+            flex-grow: 1;
+            overflow: hidden;
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+
+        .workspace-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column; 
+            justify-content: flex-start;
+            align-items: center;
+            transform-origin: 0 0;
+            padding-top: 15px;
+        }
+
+
+        /* Pure White A4 Page Size */
+        .a4-page {
+            width: 794px; 
+            height: 1123px; 
+            background-color: white;
+            box-shadow: 0 0 20px rgba(0,0,0,0.4);
+            position: relative;
+            flex-shrink: 0;
+        }
+
+
+        .screen-metadata {
+            margin-top: 15px;
+            margin-bottom: 30px;
+            color: #ffffff;
+            font-size: 16px;
+            font-weight: bold;
+            background-color: rgba(0, 0, 0, 0.4);
+            padding: 8px 20px;
+            border-radius: 20px;
+            text-align: center;
+            letter-spacing: 0.5px;
+            user-select: none;
+            display: block; 
+        }
+
+
+        .canvas-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden; 
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            touch-action: none; 
+        }
+
+
+        /* Draggable & Rotatable Items */
+        .draggable-item {
+            position: absolute;
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 50;
+        }
+        .draggable-item:active { cursor: grabbing; }
+        
+        .rotate-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.05s linear;
+        }
+
+
+        .draggable-icon-style {
+            font-size: 32px;
+            line-height: 1.2;
+        }
+        
+        .draggable-text-style {
+            font-weight: bold;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 2px 6px;
+            border: 1px dashed #7f8c8d;
+            border-radius: 3px;
+            white-space: nowrap;
+        }
+
+
+        .rotation-slider {
+            width: 65px !important;
+            margin-top: 5px;
+            cursor: pointer;
+            display: none; 
+        }
+
+
+        .icon-label {
+            font-size: 11px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 3px;
+            padding: 1px 3px;
+            display: block;
+            margin-top: -2px;
+            font-weight: bold;
+            border: 1px solid #ccc;
+        }
+        
+        .delete-btn {
+            position: absolute;
+            top: -12px;
+            right: -12px;
+            background: #d93025;
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 11px;
+            line-height: 18px;
+            text-align: center;
+            cursor: pointer;
+            display: none;
+            font-weight: bold;
+            z-index: 60;
+        }
+        .draggable-item:hover .delete-btn { display: block; }
+
+
+        /* Magnifier */
+        #magnifier {
+            position: fixed;
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            border: 3px solid #1a73e8;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            display: none;
+            pointer-events: none;
+            z-index: 9999;
+            overflow: hidden;
+            background-color: white;
+        }
+        #magnifierCanvas { width: 140px; height: 140px; }
+    </style>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+
+
+    <!-- TOP TAB CONTROL PANEL (TWO LAYERS) -->
+    <div class="top-menu">
+        
+        <!-- LAYER 1: Core Modes & Line Settings -->
+        <div class="menu-row">
+            <div class="menu-tab">
+                <button id="drawToggleBtn" class="toggle-btn" onclick="toggleDrawMode()">🔒 Draw Mode: OFF</button>
+                <button id="viewModeBtn" style="background-color: #8e44ad;" onclick="toggleViewMode()">👉 Items</button>
+                <button id="rotateToggleBtn" onclick="toggleRotateTab()">🔄 Rotate Tab: OFF</button>
+            </div>
+
+
+            <div class="menu-tab">
+                <span class="tab-title">✏️ Line Style:</span>
+                <select id="roadType" style="width: 120px;">
+                    <option value="main">Main Road</option>
+                    <option value="panchayat">Panchayat</option>
+                    <option value="mud">Tracks Mud</option>
+                    <option value="path">🚶 Footpath</option>
+                    <option value="railway">🚂 Railway</option>
+                    <option value="plotLine">🟥 Plot Line</option>
+                    <option value="squarePlot">🟩 Square Plot</option>
+                </select>
+                <label class="checkbox-row">
+                    <input type="checkbox" id="straightMode" checked> Straight
+                </label>
+                <button class="toggle-btn" onclick="undoLast()">↩️ Undo Line</button>
+            </div>
+        </div>
+
+
+        <!-- LAYER 2: Symbols, Custom Text & File Tools -->
+        <div class="menu-row">
+            <div class="menu-tab">
+                <span class="tab-title">🏠 Symbol:</span>
+                <select id="iconSelect" style="width: 110px;">
+                    <option value="🚩|Main Plot">🚩 Main Plot</option>
+                    <option value="🏠|House">🏠 House</option>
+                    <option value="🏢|Building">🏢 Building</option>
+                    <option value="🛕|Temple">🛕 Temple</option>
+                    <option value="🕌|Mosque">🕌 Mosque</option>
+                    <option value="⛪|Church">⛪ Church</option>
+                    <option value="⚡|Electric Post">⚡ Post</option>
+                    <option value="🌳|Tree">🌳 Tree</option>
+                    <option value="🏞️|Pond">🏞️ Pond</option>
+                    <option value="🕳️|Well">🕳️ Well</option>
+                    <option value="🛑|Junction">🛑 Junction</option>
+                </select>
+                <button class="success-btn" onclick="addIcon()">➕ Symbol</button>
+            </div>
+
+
+            <div class="menu-tab">
+                <span class="tab-title">📝 Text:</span>
+                <input type="text" id="customTextInput" placeholder="Type text..." style="width: 90px;">
+                <select id="fontSizeSelect" style="width: 75px;">
+                    <option value="14px">Small</option>
+                    <option value="18px" selected>Medium</option>
+                    <option value="24px">Large</option>
+                    <option value="32px">XL</option>
+                </select>
+                <button class="success-btn" onclick="addCustomText()">➕ Text</button>
+            </div>
+
+
+            <div class="menu-tab">
+                <span class="tab-title">🖼️ Upload PDF / Image:</span>
+                <input type="file" id="bgUploader" accept="image/*,application/pdf" style="width: 140px;">
+            </div>
+
+
+            <div class="action-group">
+                <button onclick="resetZoomAndPan()">🖥️ Fit</button>
+                <button class="danger-btn" onclick="clearMap()">🗑️ Clear</button>
+                <button class="success-btn" onclick="compileAndSavePDF()">💾 Save as PDF</button>
+            </div>
+        </div>
+
+
+    </div>
+
+
+    <!-- Panning Viewport Container -->
+    <div class="workspace-wrapper" id="wrapper">
+        <div class="workspace-container" id="container">
+            <div class="a4-page" id="a4Page">
+                <div class="canvas-container" id="canvasContainer">
+                    <canvas id="mapCanvas" width="794" height="1123"></canvas>
+                </div>
+            </div>
+            
+            <div class="screen-metadata">👤 Muraleedharan P | 📞 9400849115</div>
+        </div>
+    </div>
+
+
+    <!-- Magnifier -->
+    <div id="magnifier">
+        <canvas id="magnifierCanvas" width="140" height="140"></canvas>
+    </div>
+
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+
+        const wrapper = document.getElementById('wrapper');
+        const container = document.getElementById('container');
+        const canvas = document.getElementById('mapCanvas');
+
+
+        let zoomScale = 1; let panX = 0; let panY = 0;
+        let isPanning = false; let startX = 0; let startY = 0;
+        let initialPinchDistance = null; let initialScale = 1;
+        let offSubMode = 'items'; 
+        let rotateTabActive = false; 
+
+
+        function updateTransform() {
+            container.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
+        }
+
+
+        function resetZoomAndPan() {
+            const wRect = wrapper.getBoundingClientRect();
+            zoomScale = (wRect.height - 80) / 1123;
+            if(zoomScale > 1) zoomScale = 1;
+            panX = (wRect.width - (794 * zoomScale)) / 2;
+            panY = 15;
+            updateTransform();
+        }
+
+
+        window.onload = resetZoomAndPan;
+        window.onresize = resetZoomAndPan;
+
+
+        let drawModeOn = false;
+        const drawToggleBtn = document.getElementById('drawToggleBtn');
+        const viewModeBtn = document.getElementById('viewModeBtn');
+        const rotateToggleBtn = document.getElementById('rotateToggleBtn');
+
+
+        function toggleDrawMode() {
+            drawModeOn = !drawModeOn;
+            if (drawModeOn) {
+                drawToggleBtn.innerHTML = "✏️ Draw Mode: ON";
+                drawToggleBtn.style.backgroundColor = "#27ae60";
+                canvas.style.cursor = "crosshair";
+                viewModeBtn.style.backgroundColor = "#7f8c8d";
+            } else {
+                drawToggleBtn.innerHTML = "🔒 Draw Mode: OFF";
+                drawToggleBtn.style.backgroundColor = "#5f6368";
+                canvas.style.cursor = "default";
+                setSubMode(offSubMode);
+            }
+        }
+
+
+        function toggleViewMode() {
+            if (drawModeOn) toggleDrawMode(); 
+            if (offSubMode === 'items') setSubMode('page');
+            else setSubMode('items');
+        }
+
+
+        function setSubMode(mode) {
+            offSubMode = mode;
+            if (mode === 'page') {
+                viewModeBtn.innerHTML = "🔍 Layout/Zoom";
+                viewModeBtn.style.backgroundColor = "#ffc107";
+                viewModeBtn.style.color = "#000";
+            } else {
+                offSubMode = 'items';
+                viewModeBtn.innerHTML = "👉 Items";
+                viewModeBtn.style.backgroundColor = "#8e44ad";
+                viewModeBtn.style.color = "#fff";
+            }
+        }
+
+
+        function toggleRotateTab() {
+            rotateTabActive = !rotateTabActive;
+            const sliders = document.querySelectorAll('.rotation-slider');
+            if (rotateTabActive) {
+                rotateToggleBtn.innerHTML = "🔄 Rotate Tab: ON";
+                rotateToggleBtn.style.backgroundColor = "#27ae60";
+                sliders.forEach(s => s.style.display = "block");
+            } else {
+                rotateToggleBtn.innerHTML = "🔄 Rotate Tab: OFF";
+                rotateToggleBtn.style.backgroundColor = "#7f8c8d";
+                sliders.forEach(s => s.style.display = "none");
+            }
+        }
+
+
+        wrapper.addEventListener('touchstart', (e) => {
+            if (drawModeOn || offSubMode !== 'page') return; 
+            if (e.touches.length === 1) {
+                isPanning = true;
+                startX = e.touches[0].clientX - panX;
+                startY = e.touches[0].clientY - panY;
+            } else if (e.touches.length === 2) {
+                isPanning = false;
+                initialPinchDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                initialScale = zoomScale;
+            }
+        }, {passive: true});
+
+
+        wrapper.addEventListener('touchmove', (e) => {
+            if (drawModeOn || offSubMode !== 'page') return;
+            if (isPanning && e.touches.length === 1) {
+                panX = e.touches[0].clientX - startX;
+                panY = e.touches[0].clientY - startY;
+                updateTransform();
+            } else if (e.touches.length === 2 && initialPinchDistance) {
+                const currentDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                const factor = currentDistance / initialPinchDistance;
+                zoomScale = Math.max(0.2, Math.min(3, initialScale * factor));
+                updateTransform();
+            }
+        }, {passive: true});
+
+
+        wrapper.addEventListener('touchend', () => { isPanning = false; initialPinchDistance = null; });
+
+
+        const ctx = canvas.getContext('2d');
+        const magnifier = document.getElementById('magnifier');
+        const magCanvas = document.getElementById('magnifierCanvas');
+        const magCtx = magCanvas.getContext('2d');
+
+
+        let isDrawing = false; let paths = []; let currentPath = []; let bgImage = null;
+        let activePathIndex = null; // Tracks if we are snapping and appending to an existing path element
+
+
+        const roadStyles = {
+            main: { outerWidth: 16, outerColor: 'black', innerWidth: 12, innerColor: 'white', isBox: false },
+            panchayat: { outerWidth: 10, outerColor: 'black', innerWidth: 6, innerColor: 'white', isBox: false },
+            mud: { outerWidth: 10, outerColor: '#8B4513', innerWidth: 6, innerColor: '#F5DEB3', dash: [10, 10], isBox: false },
+            path: { outerWidth: 4, outerColor: 'black', innerWidth: 0, innerColor: 'transparent', dash: [6, 6], isBox: false },
+            plotLine: { outerWidth: 3, outerColor: 'red', innerWidth: 0, innerColor: 'transparent', isBox: false },
+            railway: { outerWidth: 10, outerColor: 'black', innerWidth: 6, innerColor: 'white', dash: [10, 10], isBox: false },
+            squarePlot: { outerWidth: 3, outerColor: 'red', innerWidth: 0, innerColor: 'transparent', isBox: true }
+        };
+
+
+        document.getElementById('bgUploader').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            if (file.type === "application/pdf") {
+                reader.onload = function(event) {
+                    const typedarray = new Uint8Array(event.target.result);
+                    pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
+                        pdf.getPage(1).then(function(page) {
+                            const viewport = page.getViewport({ scale: 2.0 });
+                            const renderCanvas = document.createElement('canvas');
+                            const rCtx = renderCanvas.getContext('2d');
+                            renderCanvas.width = viewport.width;
+                            renderCanvas.height = viewport.height;
+                            const renderContext = { canvasContext: rCtx, viewport: viewport };
+                            page.render(renderContext).promise.then(function() {
+                                bgImage = new Image();
+                                bgImage.onload = function() { redrawAll(); };
+                                bgImage.src = renderCanvas.toDataURL('image/png');
+                            });
+                        });
+                    });
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                reader.onload = function(event) {
+                    bgImage = new Image();
+                    bgImage.onload = function() { redrawAll(); };
+                    bgImage.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+
+        function getCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: (clientX - rect.left) * (canvas.width / rect.width),
+                y: (clientY - rect.top) * (canvas.height / rect.height)
+            };
+        }
+
+
+        function showMagnifier(e, coord) {
+            if (!drawModeOn || !isDrawing) { magnifier.style.display = 'none'; return; }
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+
+            magnifier.style.display = 'block';
+            magnifier.style.left = (clientX - 70) + 'px';
+            magnifier.style.top = (clientY - 160) + 'px';
+
+
+            magCtx.clearRect(0, 0, 140, 140);
+            magCtx.drawImage(canvas, coord.x - 28, coord.y - 28, 56, 56, 0, 0, 140, 140);
+            
+            magCtx.strokeStyle = 'red'; magCtx.lineWidth = 1; ctx.beginPath();
+            magCtx.moveTo(70, 60); magCtx.lineTo(70, 80); magCtx.moveTo(60, 70); magCtx.lineTo(80, 70); magCtx.stroke();
+        }
+
+
+        function startDrawing(e) {
+            if (!drawModeOn || e.target !== canvas) return;
+            e.preventDefault(); isDrawing = true;
+            let coord = getCoordinates(e);
+            activePathIndex = null;
+
+
+            // --- 🦾 DYNAMIC CONTINUOUS VECTOR MERGING PATTERN ---
+            if(document.getElementById('straightMode').checked && paths.length > 0) {
+                const currentSelectedType = document.getElementById('roadType').value;
+                
+                // Scan the existing path matrix to see if new start touches any terminal path node of the SAME line type
+                for (let i = paths.length - 1; i >= 0; i--) {
+                    if (paths[i].type === currentSelectedType && !roadStyles[currentSelectedType].isBox) {
+                        let pts = paths[i].points;
+                        let lastPt = pts[pts.length - 1];
+                        let distance = Math.hypot(coord.x - lastPt.x, coord.y - lastPt.y);
+                        
+                        // If within snap threshold, lock target index to merge them into a single mathematical array
+                        if (distance < 35) {
+                            coord = { x: lastPt.x, y: lastPt.y };
+                            activePathIndex = i; // Save path reference index
+                            break;
+                        }
+                    }
+                }
+            }
+            
+            currentPath = [coord];
+            showMagnifier(e, coord);
+        }
+
+
+        function draw(e) {
+            if (!isDrawing || !drawModeOn) return;
+            e.preventDefault(); const currentPt = getCoordinates(e);
+            const activeType = document.getElementById('roadType').value;
+            
+            if (roadStyles[activeType].isBox || document.getElementById('straightMode').checked) {
+                currentPath = [currentPath[0], currentPt];
+            } else {
+                currentPath.push(currentPt);
+            }
+            redrawAll(); showMagnifier(e, currentPt);
+        }
+
+
+        function stopDrawing() {
+            if (isDrawing && currentPath.length > 1) {
+                if (activePathIndex !== null) {
+                    // Append the new straight point directly into the historical segmented lane array
+                    paths[activePathIndex].points.push(currentPath[1]);
+                } else {
+                    // Create a completely fresh isolated track path array references
+                    paths.push({ type: document.getElementById('roadType').value, points: currentPath });
+                }
+            }
+            isDrawing = false; currentPath = []; activePathIndex = null; magnifier.style.display = 'none'; redrawAll();
+        }
+
+
+        canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); window.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('touchstart', startDrawing, {passive: false}); canvas.addEventListener('touchmove', draw, {passive: false}); window.addEventListener('touchend', stopDrawing);
+
+
+        function drawPass(points, type, layer) {
+            if (points.length < 2) return;
+            const style = roadStyles[type];
+            
+            ctx.lineCap = 'butt'; 
+            ctx.lineJoin = 'miter'; // Miter joints perfectly lock angular outer limits together securely
+            ctx.miterLimit = 10;
+            ctx.beginPath();
+            
+            if (style.isBox) {
+                let startPt = points[0]; let endPt = points[1];
+                ctx.rect(startPt.x, startPt.y, endPt.x - startPt.x, endPt.y - startPt.y);
+            } else {
+                ctx.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+            }
+
+
+            if (layer === 'outer' && style.outerWidth > 0) {
+                ctx.lineWidth = style.outerWidth;
+                ctx.strokeStyle = style.outerColor;
+                ctx.setLineDash(type === 'path' ? style.dash : []);
+                ctx.stroke();
+            }
+            
+            if (layer === 'inner' && style.innerWidth > 0 && type !== 'path' && !style.isBox && type !== 'plotLine') {
+                ctx.lineWidth = style.innerWidth;
+                ctx.strokeStyle = style.innerColor;
+                ctx.setLineDash(style.dash || []);
+                ctx.stroke();
+            }
+        }
+
+
+        function redrawAll() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (bgImage) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+            let allPaths = [];
+            
+            // Re-compile working active paths array lists to map active preview data accurately
+            paths.forEach((p, idx) => {
+                if (idx === activePathIndex && isDrawing && currentPath.length > 0) {
+                    let combinedPts = [...p.points, currentPath[1]];
+                    allPaths.push({ type: p.type, points: combinedPts });
+                } else {
+                    allPaths.push(p);
+                }
+            });
+
+
+            if (activePathIndex === null && isDrawing && currentPath.length > 0) {
+                allPaths.push({ type: document.getElementById('roadType').value, points: currentPath });
+            }
+            
+            allPaths.forEach(p => drawPass(p.points, p.type, 'outer'));
+            allPaths.forEach(p => drawPass(p.points, p.type, 'inner'));
+        }
+
+
+        function undoLast() { 
+            if(paths.length === 0) return;
+            let lastPath = paths[paths.length - 1];
+            if(lastPath.points.length > 2) {
+                // If it's a merged complex chained row path, pop out only the final single point branch node
+                lastPath.points.pop();
+            } else {
+                // Completely drop the vector branch if it contains only basic start/stop segments
+                paths.pop();
+            }
+            redrawAll(); 
+        }
+
+
+        const itemContainer = document.getElementById('canvasContainer');
+        let draggedElement = null;
+
+
+        function makeElementDraggable(el) {
+            el.addEventListener('mousedown', startDrag); el.addEventListener('touchstart', startDrag, {passive: false});
+        }
+
+
+        function startDrag(e) {
+            if(drawModeOn || offSubMode !== 'items' || e.target.className === 'delete-btn' || e.target.className === 'rotation-slider') return; 
+            e.preventDefault(); draggedElement = this;
+        }
+
+
+        function onDrag(e) {
+            if (!draggedElement || drawModeOn || offSubMode !== 'items') return;
+            e.preventDefault();
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const containerRect = itemContainer.getBoundingClientRect();
+            
+            let x = (clientX - containerRect.left) / zoomScale;
+            let y = (clientY - containerRect.top) / zoomScale;
+
+
+            draggedElement.style.left = x + 'px'; draggedElement.style.top = y + 'px';
+        }
+
+
+        window.addEventListener('mousemove', onDrag); window.addEventListener('mouseup', () => draggedElement = null);
+        window.addEventListener('touchmove', onDrag, {passive: false}); window.addEventListener('touchend', () => draggedElement = null);
+
+
+        function addIcon() {
+            const val = document.getElementById('iconSelect').value.split('|');
+            const el = document.createElement('div'); el.className = 'draggable-item';
+            el.style.left = '50%'; el.style.top = '50%';
+            const displayState = rotateTabActive ? "block" : "none";
+
+
+            el.innerHTML = `
+                <div class="rotate-wrapper">
+                    <div class="draggable-icon-style">${val[0]}</div>
+                    <span class="icon-label">${val[1]}</span>
+                    <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
+                </div>
+                <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
+            `;
+            makeElementDraggable(el); itemContainer.appendChild(el);
+        }
+
+
+        function addCustomText() {
+            const textValue = document.getElementById('customTextInput').value.trim();
+            const fontSize = document.getElementById('fontSizeSelect').value;
+            if (textValue === "") return;
+
+
+            const el = document.createElement('div'); el.className = 'draggable-item';
+            el.style.left = '50%'; el.style.top = '50%';
+            const displayState = rotateTabActive ? "block" : "none";
+
+
+            el.innerHTML = `
+                <div class="rotate-wrapper">
+                    <div class="draggable-text-style" style="font-size: ${fontSize};">${textValue}</div>
+                    <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
+                </div>
+                <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
+            `;
+            makeElementDraggable(el); itemContainer.appendChild(el);
+            document.getElementById('customTextInput').value = ""; 
+        }
+
+
+        function rotateElement(slider) {
+            slider.previousElementSibling.style.transform = `rotate(${slider.value}deg)`;
+        }
+
+
+        function clearMap() {
+            if(confirm("Are you sure you want to clear the sketch?")) {
+                paths = []; bgImage = null; activePathIndex = null; document.getElementById('bgUploader').value = ""; redrawAll();
+                document.querySelectorAll('.draggable-item').forEach(item => item.remove());
+                resetZoomAndPan(); setSubMode('items');
+                if (rotateTabActive) toggleRotateTab();
+            }
+        }
+
+
+        function compileAndSavePDF() {
+            const pdfCanvas = document.createElement('canvas');
+            pdfCanvas.width = 794; pdfCanvas.height = 1123;
+            const pCtx = pdfCanvas.getContext('2d');
+            pCtx.fillStyle = '#ffffff'; pCtx.fillRect(0, 0, pdfCanvas.width, pdfCanvas.height);
+            
+            pCtx.drawImage(canvas, 0, 0);
+            
+            const items = document.querySelectorAll('.draggable-item');
+            items.forEach(item => {
+                const posX = parseFloat(item.style.left); const posY = parseFloat(item.style.top);
+                const textNode = item.querySelector('.draggable-text-style');
+                const iconNode = item.querySelector('.draggable-icon-style');
+                const labelNode = item.querySelector('.icon-label');
+                const sliderNode = item.querySelector('.rotation-slider');
+                const angleDeg = sliderNode ? parseInt(sliderNode.value) : 0;
+                
+                pCtx.save(); pCtx.translate(posX, posY);
+                if(angleDeg !== 0) pCtx.rotate((angleDeg * Math.PI) / 180);
+                
+                if (textNode) {
+                    const compFont = window.getComputedStyle(textNode);
+                    pCtx.font = `bold ${compFont.fontSize} Arial`; pCtx.textAlign = "center"; pCtx.textBaseline = "middle";
+                    const text = textNode.innerText; const metrics = pCtx.measureText(text);
+                    pCtx.fillStyle = "white"; pCtx.fillRect(-metrics.width/2 - 6, -12, metrics.width + 12, 24);
+                    pCtx.fillStyle = "black"; pCtx.fillText(text, 0, 0);
+                } else if (iconNode) {
+                    pCtx.font = "32px Arial"; pCtx.textAlign = "center"; pCtx.textBaseline = "middle"; pCtx.fillStyle = "black";
+                    pCtx.fillText(iconNode.innerText, 0, -10);
+                    if (labelNode) { pCtx.font = "bold 11px Arial"; pCtx.fillText(labelNode.innerText, 0, 15); }
+                }
+                pCtx.restore();
+            });
+            
+            const imgData = pdfCanvas.toDataURL('image/jpeg', 1.0);
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            doc.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+            doc.save('Location_Sketch_With_PDF.pdf');
+        }
+    </script>
+</body>
+</html>
+
