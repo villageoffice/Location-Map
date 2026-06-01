@@ -202,12 +202,6 @@
             align-items: center;
             transition: transform 0.05s linear;
         }
-
-
-        .draggable-icon-style {
-            font-size: 32px;
-            line-height: 1.2;
-        }
         
         .draggable-text-style {
             font-weight: bold;
@@ -233,7 +227,7 @@
             border-radius: 3px;
             padding: 1px 3px;
             display: block;
-            margin-top: -2px;
+            margin-top: 2px;
             font-weight: bold;
             border: 1px solid #ccc;
         }
@@ -273,6 +267,14 @@
             background-color: white;
         }
         #magnifierCanvas { width: 140px; height: 140px; }
+
+
+        /* Custom Vector Pole SVG Styling container */
+        .vector-pole-svg {
+            width: 45px;
+            height: 45px;
+            display: block;
+        }
     </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -295,12 +297,13 @@
 
             <div class="menu-tab">
                 <span class="tab-title">✏️ Line Style:</span>
-                <select id="roadType" style="width: 120px;">
+                <select id="roadType" style="width: 130px;">
                     <option value="main">Main Road</option>
                     <option value="panchayat">Panchayat</option>
                     <option value="mud">Tracks Mud</option>
                     <option value="path">🚶 Footpath</option>
                     <option value="railway">🚂 Railway</option>
+                    <option value="electricLine">⚡ Electric Line</option>
                     <option value="plotLine">🟥 Plot Line</option>
                     <option value="squarePlot">🟩 Square Plot</option>
                 </select>
@@ -316,14 +319,14 @@
         <div class="menu-row">
             <div class="menu-tab">
                 <span class="tab-title">🏠 Symbol:</span>
-                <select id="iconSelect" style="width: 110px;">
+                <select id="iconSelect" style="width: 120px;">
                     <option value="🚩|Main Plot">🚩 Main Plot</option>
+                    <option value="UTILITY_POLE|Electric Post">⚡ Electric Post</option>
                     <option value="🏠|House">🏠 House</option>
                     <option value="🏢|Building">🏢 Building</option>
                     <option value="🛕|Temple">🛕 Temple</option>
                     <option value="🕌|Mosque">🕌 Mosque</option>
                     <option value="⛪|Church">⛪ Church</option>
-                    <option value="⚡|Electric Post">⚡ Post</option>
                     <option value="🌳|Tree">🌳 Tree</option>
                     <option value="🏞️|Pond">🏞️ Pond</option>
                     <option value="🕳️|Well">🕳️ Well</option>
@@ -522,7 +525,7 @@
 
 
         let isDrawing = false; let paths = []; let currentPath = []; let bgImage = null;
-        let activePathIndex = null; // Tracks if we are snapping and appending to an existing path element
+        let activePathIndex = null; 
 
 
         const roadStyles = {
@@ -532,6 +535,7 @@
             path: { outerWidth: 4, outerColor: 'black', innerWidth: 0, innerColor: 'transparent', dash: [6, 6], isBox: false },
             plotLine: { outerWidth: 3, outerColor: 'red', innerWidth: 0, innerColor: 'transparent', isBox: false },
             railway: { outerWidth: 10, outerColor: 'black', innerWidth: 6, innerColor: 'white', dash: [10, 10], isBox: false },
+            electricLine: { outerWidth: 2, outerColor: '#e67e22', innerWidth: 0, innerColor: 'transparent', dash: [8, 8], isBox: false, isElectric: true },
             squarePlot: { outerWidth: 3, outerColor: 'red', innerWidth: 0, innerColor: 'transparent', isBox: true }
         };
 
@@ -608,21 +612,18 @@
             activePathIndex = null;
 
 
-            // --- 🦾 DYNAMIC CONTINUOUS VECTOR MERGING PATTERN ---
             if(document.getElementById('straightMode').checked && paths.length > 0) {
                 const currentSelectedType = document.getElementById('roadType').value;
                 
-                // Scan the existing path matrix to see if new start touches any terminal path node of the SAME line type
                 for (let i = paths.length - 1; i >= 0; i--) {
                     if (paths[i].type === currentSelectedType && !roadStyles[currentSelectedType].isBox) {
                         let pts = paths[i].points;
                         let lastPt = pts[pts.length - 1];
                         let distance = Math.hypot(coord.x - lastPt.x, coord.y - lastPt.y);
                         
-                        // If within snap threshold, lock target index to merge them into a single mathematical array
                         if (distance < 35) {
                             coord = { x: lastPt.x, y: lastPt.y };
-                            activePathIndex = i; // Save path reference index
+                            activePathIndex = i; 
                             break;
                         }
                     }
@@ -651,10 +652,8 @@
         function stopDrawing() {
             if (isDrawing && currentPath.length > 1) {
                 if (activePathIndex !== null) {
-                    // Append the new straight point directly into the historical segmented lane array
                     paths[activePathIndex].points.push(currentPath[1]);
                 } else {
-                    // Create a completely fresh isolated track path array references
                     paths.push({ type: document.getElementById('roadType').value, points: currentPath });
                 }
             }
@@ -671,7 +670,7 @@
             const style = roadStyles[type];
             
             ctx.lineCap = 'butt'; 
-            ctx.lineJoin = 'miter'; // Miter joints perfectly lock angular outer limits together securely
+            ctx.lineJoin = 'miter'; 
             ctx.miterLimit = 10;
             ctx.beginPath();
             
@@ -687,8 +686,22 @@
             if (layer === 'outer' && style.outerWidth > 0) {
                 ctx.lineWidth = style.outerWidth;
                 ctx.strokeStyle = style.outerColor;
-                ctx.setLineDash(type === 'path' ? style.dash : []);
+                ctx.setLineDash(style.dash || []);
                 ctx.stroke();
+
+
+                if (style.isElectric) {
+                    ctx.save();
+                    ctx.font = "12px Arial";
+                    ctx.fillStyle = "#e67e22";
+                    ctx.textAlign = "center";
+                    ctx.textBaseline = "middle";
+                    for (let i = 0; i < points.length - 1; i++) {
+                        let p1 = points[i]; let p2 = points[i+1];
+                        ctx.fillText("⚡", (p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+                    }
+                    ctx.restore();
+                }
             }
             
             if (layer === 'inner' && style.innerWidth > 0 && type !== 'path' && !style.isBox && type !== 'plotLine') {
@@ -700,16 +713,66 @@
         }
 
 
+        // Native 2D Context drawing blueprint mirroring "70159.png" vector specs directly
+        function drawVectorUtilityPole(pCtx, x, y) {
+            pCtx.save();
+            pCtx.strokeStyle = "black";
+            pCtx.fillStyle = "black";
+            pCtx.lineWidth = 2.5;
+
+
+            // Main vertical pole structure shaft
+            pCtx.beginPath();
+            pCtx.moveTo(x, y + 16);
+            pCtx.lineTo(x, y - 18);
+            pCtx.stroke();
+
+
+            // Main horizontal primary cross-arm section beam
+            pCtx.lineWidth = 3.5;
+            pCtx.beginPath();
+            pCtx.moveTo(x - 16, y - 10);
+            pCtx.lineTo(x + 16, y - 10);
+            pCtx.stroke();
+
+
+            // Mini upper cross-bar beam structure
+            pCtx.lineWidth = 2;
+            pCtx.beginPath();
+            pCtx.moveTo(x - 8, y - 17);
+            pCtx.lineTo(x + 8, y - 17);
+            pCtx.stroke();
+
+
+            // Render 4 tiny round insulator ring loops on top of cross bars
+            pCtx.lineWidth = 1;
+            const insulatorPositions = [
+                {rx: x - 14, ry: y - 12}, {rx: x - 5, ry: y - 19},
+                {rx: x + 5, ry: y - 19}, {rx: x + 14, ry: y - 12}
+            ];
+            insulatorPositions.forEach(pos => {
+                pCtx.beginPath();
+                pCtx.arc(pos.rx, pos.ry, 2, 0, Math.PI * 2);
+                pCtx.stroke();
+            });
+
+
+            // Transformer box body overlay patch module
+            pCtx.fillRect(x + 2, y - 4, 7, 9);
+
+
+            pCtx.restore();
+        }
+
+
         function redrawAll() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             if (bgImage) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
             let allPaths = [];
             
-            // Re-compile working active paths array lists to map active preview data accurately
             paths.forEach((p, idx) => {
                 if (idx === activePathIndex && isDrawing && currentPath.length > 0) {
-                    let combinedPts = [...p.points, currentPath[1]];
-                    allPaths.push({ type: p.type, points: combinedPts });
+                    allPaths.push({ type: p.type, points: [...p.points, currentPath[1]] });
                 } else {
                     allPaths.push(p);
                 }
@@ -728,13 +791,7 @@
         function undoLast() { 
             if(paths.length === 0) return;
             let lastPath = paths[paths.length - 1];
-            if(lastPath.points.length > 2) {
-                // If it's a merged complex chained row path, pop out only the final single point branch node
-                lastPath.points.pop();
-            } else {
-                // Completely drop the vector branch if it contains only basic start/stop segments
-                paths.pop();
-            }
+            if(lastPath.points.length > 2) { lastPath.points.pop(); } else { paths.pop(); }
             redrawAll(); 
         }
 
@@ -760,11 +817,8 @@
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
             let clientY = e.touches ? e.touches[0].clientY : e.clientY;
             const containerRect = itemContainer.getBoundingClientRect();
-            
             let x = (clientX - containerRect.left) / zoomScale;
             let y = (clientY - containerRect.top) / zoomScale;
-
-
             draggedElement.style.left = x + 'px'; draggedElement.style.top = y + 'px';
         }
 
@@ -780,14 +834,40 @@
             const displayState = rotateTabActive ? "block" : "none";
 
 
-            el.innerHTML = `
-                <div class="rotate-wrapper">
-                    <div class="draggable-icon-style">${val[0]}</div>
-                    <span class="icon-label">${val[1]}</span>
-                    <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
-                </div>
-                <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
-            `;
+            if (val[0] === "UTILITY_POLE") {
+                // Inline SVG render matrix mapping "70159.png" blueprint layout components perfectly onto the viewport DOM layer
+                el.innerHTML = `
+                    <div class="rotate-wrapper">
+                        <svg class="vector-pole-svg" viewBox="0 0 40 40">
+                            <!-- Main trunk bar line -->
+                            <line x1="20" y1="36" x2="20" y2="4" stroke="black" stroke-width="2.5" />
+                            <!-- Cross-arm primary rail line -->
+                            <line x1="4" y1="12" x2="36" y2="12" stroke="black" stroke-width="3.5" />
+                            <!-- Upper brace support rail line -->
+                            <line x1="12" y1="6" x2="28" y2="6" stroke="black" stroke-width="2" />
+                            <!-- Insulator anchor point loops -->
+                            <circle cx="6" cy="10" r="1.5" stroke="black" stroke-width="1" fill="none" />
+                            <circle cx="15" cy="4" r="1.5" stroke="black" stroke-width="1" fill="none" />
+                            <circle cx="25" cy="4" r="1.5" stroke="black" stroke-width="1" fill="none" />
+                            <circle cx="34" cy="10" r="1.5" stroke="black" stroke-width="1" fill="none" />
+                            <!-- Transformer structural container grid block -->
+                            <rect x="22" y="16" width="7" height="9" fill="black" />
+                        </svg>
+                        <span class="icon-label">${val[1]}</span>
+                        <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
+                    </div>
+                    <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
+                `;
+            } else {
+                el.innerHTML = `
+                    <div class="rotate-wrapper">
+                        <div class="draggable-icon-style">${val[0]}</div>
+                        <span class="icon-label">${val[1]}</span>
+                        <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
+                    </div>
+                    <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
+                `;
+            }
             makeElementDraggable(el); itemContainer.appendChild(el);
         }
 
@@ -843,6 +923,7 @@
                 const posX = parseFloat(item.style.left); const posY = parseFloat(item.style.top);
                 const textNode = item.querySelector('.draggable-text-style');
                 const iconNode = item.querySelector('.draggable-icon-style');
+                const svgNode = item.querySelector('.vector-pole-svg');
                 const labelNode = item.querySelector('.icon-label');
                 const sliderNode = item.querySelector('.rotation-slider');
                 const angleDeg = sliderNode ? parseInt(sliderNode.value) : 0;
@@ -856,6 +937,13 @@
                     const text = textNode.innerText; const metrics = pCtx.measureText(text);
                     pCtx.fillStyle = "white"; pCtx.fillRect(-metrics.width/2 - 6, -12, metrics.width + 12, 24);
                     pCtx.fillStyle = "black"; pCtx.fillText(text, 0, 0);
+                } else if (svgNode) {
+                    // Flatten vector utility pole canvas mapping natively on target print context layer directly
+                    drawVectorUtilityPole(pCtx, 0, -6);
+                    if (labelNode) {
+                        pCtx.font = "bold 11px Arial"; pCtx.fillStyle = "black"; pCtx.textAlign = "center";
+                        pCtx.fillText(labelNode.innerText, 0, 18);
+                    }
                 } else if (iconNode) {
                     pCtx.font = "32px Arial"; pCtx.textAlign = "center"; pCtx.textBaseline = "middle"; pCtx.fillStyle = "black";
                     pCtx.fillText(iconNode.innerText, 0, -10);
