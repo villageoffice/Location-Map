@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Google Drawing Style Location Sketch Maker</title>
+    <title>Professional Location Sketch Maker</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -16,22 +16,31 @@
             overflow: hidden;
         }
 
-        /* --- SINGLE LINE SCROLLABLE TOP MENU --- */
+        /* --- TWO LAYER PC & MOBILE OPTIMIZED TOP MENU --- */
         .top-menu {
             background-color: #f1f3f4;
             border-bottom: 1px solid #dadce0;
-            padding: 6px 10px;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column; /* Forces 2 layers */
+            gap: 8px;
+            z-index: 100;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* Each layer row style */
+        .menu-row {
             display: flex;
             align-items: center;
             gap: 12px;
-            z-index: 100;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            overflow-x: auto;
+            overflow-x: auto; /* Keeps scroll active on small mobile screens */
             white-space: nowrap;
-            -webkit-overflow-scrolling: touch; 
+            -webkit-overflow-scrolling: touch;
+            width: 100%;
         }
 
-        .top-menu::-webkit-scrollbar {
+        /* Hide scrollbars for clean look */
+        .menu-row::-webkit-scrollbar {
             display: none;
         }
 
@@ -96,6 +105,7 @@
             display: inline-flex;
             gap: 6px;
             flex-shrink: 0;
+            margin-left: auto; /* Pushes action items to the right on PC */
         }
 
         /* Workspace Wrapper */
@@ -131,7 +141,6 @@
             flex-shrink: 0;
         }
 
-        /* Screen-only Metadata Element */
         .screen-metadata {
             margin-top: 15px;
             margin-bottom: 30px;
@@ -249,91 +258,90 @@
         #magnifierCanvas { width: 140px; height: 140px; }
     </style>
     
-    <!-- PDF RENDERING LOGIC LIBRARY (PDF.js) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    <!-- EMBEDDED HIGH RELIABILITY PDF GENERATION ENGINE LIBRARY -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
-    <!-- TOP TAB CONTROL PANEL -->
+    <!-- TOP TAB CONTROL PANEL (TWO LAYERS) -->
     <div class="top-menu">
         
-        <!-- Modes Block -->
-        <div class="menu-tab">
-            <button id="drawToggleBtn" class="toggle-btn" onclick="toggleDrawMode()">🔒 Draw Mode: OFF</button>
-            <button id="viewModeBtn" style="background-color: #8e44ad;" onclick="toggleViewMode()">👉 Items</button>
-            <button id="rotateToggleBtn" onclick="toggleRotateTab()">🔄 Rotate Tab: OFF</button>
+        <!-- LAYER 1: Core Modes & Line Settings -->
+        <div class="menu-row">
+            <div class="menu-tab">
+                <button id="drawToggleBtn" class="toggle-btn" onclick="toggleDrawMode()">🔒 Draw Mode: OFF</button>
+                <button id="viewModeBtn" style="background-color: #8e44ad;" onclick="toggleViewMode()">👉 Items</button>
+                <button id="rotateToggleBtn" onclick="toggleRotateTab()">🔄 Rotate Tab: OFF</button>
+            </div>
+
+            <div class="menu-tab">
+                <span class="tab-title">✏️ Line Style:</span>
+                <select id="roadType" style="width: 120px;">
+                    <option value="main">Main Road</option>
+                    <option value="panchayat">Panchayat</option>
+                    <option value="mud">Tracks Mud</option>
+                    <option value="path">🚶 Footpath</option>
+                    <option value="railway">🚂 Railway</option>
+                    <option value="plotLine">🟥 Plot Line</option>
+                    <option value="squarePlot">🟩 Square Plot</option>
+                </select>
+                <label class="checkbox-row">
+                    <input type="checkbox" id="straightMode"> Straight
+                </label>
+                <button class="toggle-btn" onclick="undoLast()">↩️ Undo Line</button>
+            </div>
         </div>
 
-        <!-- Lines and Plots Tab -->
-        <div class="menu-tab">
-            <span class="tab-title">✏️ Line:</span>
-            <select id="roadType" style="width: 115px;">
-                <option value="main">Main Road</option>
-                <option value="panchayat">Panchayat</option>
-                <option value="mud">Tracks Mud</option>
-                <option value="path">🚶 Footpath</option>
-                <option value="railway">🚂 Railway</option>
-                <option value="plotLine">🟥 Plot Line</option>
-                <option value="squarePlot">🟩 Square Plot</option>
-            </select>
-            <label class="checkbox-row">
-                <input type="checkbox" id="straightMode"> Straight
-            </label>
-            <button class="toggle-btn" onclick="undoLast()">↩️ Undo</button>
+        <!-- LAYER 2: Symbols, Custom Text & File Tools -->
+        <div class="menu-row">
+            <div class="menu-tab">
+                <span class="tab-title">🏠 Symbol:</span>
+                <select id="iconSelect" style="width: 110px;">
+                    <option value="🚩|Main Plot">🚩 Main Plot</option>
+                    <option value="🏠|House">🏠 House</option>
+                    <option value="🏢|Building">🏢 Building</option>
+                    <option value="🛕|Temple">🛕 Temple</option>
+                    <option value="🕌|Mosque">🕌 Mosque</option>
+                    <option value="⛪|Church">⛪ Church</option>
+                    <option value="⚡|Electric Post">⚡ Post</option>
+                    <option value="🌳|Tree">🌳 Tree</option>
+                    <option value="🏞️|Pond">🏞️ Pond</option>
+                    <option value="🕳️|Well">🕳️ Well</option>
+                    <option value="🛑|Junction">🛑 Junction</option>
+                </select>
+                <button class="success-btn" onclick="addIcon()">➕ Symbol</button>
+            </div>
+
+            <div class="menu-tab">
+                <span class="tab-title">📝 Text:</span>
+                <input type="text" id="customTextInput" placeholder="Type text..." style="width: 90px;">
+                <select id="fontSizeSelect" style="width: 75px;">
+                    <option value="14px">Small</option>
+                    <option value="18px" selected>Medium</option>
+                    <option value="24px">Large</option>
+                    <option value="32px">XL</option>
+                </select>
+                <button class="success-btn" onclick="addCustomText()">➕ Text</button>
+            </div>
+
+            <div class="menu-tab">
+                <span class="tab-title">🖼️ Upload PDF / Image:</span>
+                <input type="file" id="bgUploader" accept="image/*,application/pdf" style="width: 140px;">
+            </div>
+
+            <!-- Global Action Actions -->
+            <div class="action-group">
+                <button onclick="resetZoomAndPan()">🖥️ Fit</button>
+                <button class="danger-btn" onclick="clearMap()">🗑️ Clear</button>
+                <button class="success-btn" onclick="compileAndSavePDF()">💾 Save as PDF</button>
+            </div>
         </div>
 
-        <!-- Symbols Tab -->
-        <div class="menu-tab">
-            <span class="tab-title">🏠 Symbol:</span>
-            <select id="iconSelect" style="width: 100px;">
-                <option value="🚩|Main Plot">🚩 Main Plot</option>
-                <option value="🏠|House">🏠 House</option>
-                <option value="🏢|Building">🏢 Building</option>
-                <option value="🛕|Temple">🛕 Temple</option>
-                <option value="🕌|Mosque">🕌 Mosque</option>
-                <option value="⛪|Church">⛪ Church</option>
-                <option value="⚡|Electric Post">⚡ Post</option>
-                <option value="🌳|Tree">🌳 Tree</option>
-                <option value="🏞️|Pond">🏞️ Pond</option>
-                <option value="🕳️|Well">🕳️ Well</option>
-                <option value="🛑|Junction">🛑 Junction</option>
-            </select>
-            <button class="success-btn" onclick="addIcon()">➕ Add</button>
-        </div>
-
-        <!-- Free Text Tab -->
-        <div class="menu-tab">
-            <span class="tab-title">📝 Text:</span>
-            <input type="text" id="customTextInput" placeholder="Text..." style="width: 80px;">
-            <select id="fontSizeSelect" style="width: 70px;">
-                <option value="14px">Small</option>
-                <option value="18px" selected>Medium</option>
-                <option value="24px">Large</option>
-                <option value="32px">XL</option>
-            </select>
-            <button class="success-btn" onclick="addCustomText()">➕ Text</button>
-        </div>
-
-        <!-- UPDATED PDF/IMAGE MAP LOADER TAB -->
-        <div class="menu-tab">
-            <span class="tab-title">🖼️ Upload PDF / Image:</span>
-            <input type="file" id="bgUploader" accept="image/*,application/pdf" style="width: 150px;">
-        </div>
-
-        <!-- Action Buttons Group -->
-        <div class="action-group">
-            <button onclick="resetZoomAndPan()">🖥️ Fit</button>
-            <button class="danger-btn" onclick="clearMap()">🗑️ Clear</button>
-            <button class="success-btn" onclick="compileAndSavePDF()">💾 Save as PDF</button>
-        </div>
     </div>
 
     <!-- Panning Viewport Container -->
     <div class="workspace-wrapper" id="wrapper">
         <div class="workspace-container" id="container">
-            <!-- A4 Target Layout Sheet -->
             <div class="a4-page" id="a4Page">
                 <div class="canvas-container" id="canvasContainer">
                     <canvas id="mapCanvas" width="794" height="1123"></canvas>
@@ -350,10 +358,8 @@
     </div>
 
     <script>
-        // Set worker for PDF.js library natively
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-        // --- TRANSLATE SCALE MATRICES ENGINE ---
         const wrapper = document.getElementById('wrapper');
         const container = document.getElementById('container');
         const canvas = document.getElementById('mapCanvas');
@@ -380,7 +386,6 @@
         window.onload = resetZoomAndPan;
         window.onresize = resetZoomAndPan;
 
-        // --- NAVIGATION INTERACTION CONTROL SYSTEMS ---
         let drawModeOn = false;
         const drawToggleBtn = document.getElementById('drawToggleBtn');
         const viewModeBtn = document.getElementById('viewModeBtn');
@@ -435,7 +440,6 @@
             }
         }
 
-        // --- VIEWPORT DRAG MATRIX TRIGGERS ---
         wrapper.addEventListener('touchstart', (e) => {
             if (drawModeOn || offSubMode !== 'page') return; 
             if (e.touches.length === 1) {
@@ -471,7 +475,6 @@
 
         wrapper.addEventListener('touchend', () => { isPanning = false; initialPinchDistance = null; });
 
-        // --- CORE CANVAS RENDERING ENGINE ---
         const ctx = canvas.getContext('2d');
         const magnifier = document.getElementById('magnifier');
         const magCanvas = document.getElementById('magnifierCanvas');
@@ -489,34 +492,22 @@
             squarePlot: { outerWidth: 3, outerColor: 'red', innerWidth: 0, innerColor: 'transparent', dash: [], isBox: true }
         };
 
-        // --- ADVANCED ADVANCED FILE UPLOADER (SUPPORTS PDF AND IMAGES) ---
         document.getElementById('bgUploader').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
-            
-            // Check if file is a PDF
             if (file.type === "application/pdf") {
                 reader.onload = function(event) {
                     const typedarray = new Uint8Array(event.target.result);
-                    
-                    // Render first page of the uploaded PDF via pdfJS
                     pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
                         pdf.getPage(1).then(function(page) {
-                            const viewport = page.getViewport({ scale: 2.0 }); // High-quality render scale
+                            const viewport = page.getViewport({ scale: 2.0 });
                             const renderCanvas = document.createElement('canvas');
                             const rCtx = renderCanvas.getContext('2d');
                             renderCanvas.width = viewport.width;
                             renderCanvas.height = viewport.height;
-
-                            const renderContext = {
-                                canvasContext: rCtx,
-                                viewport: viewport
-                            };
-                            
+                            const renderContext = { canvasContext: rCtx, viewport: viewport };
                             page.render(renderContext).promise.then(function() {
-                                // Save rendered PDF snapshot onto main background image variable
                                 bgImage = new Image();
                                 bgImage.onload = function() { redrawAll(); };
                                 bgImage.src = renderCanvas.toDataURL('image/png');
@@ -526,7 +517,6 @@
                 };
                 reader.readAsArrayBuffer(file);
             } else {
-                // If it is a normal image file
                 reader.onload = function(event) {
                     bgImage = new Image();
                     bgImage.onload = function() { redrawAll(); };
@@ -625,7 +615,6 @@
 
         function undoLast() { paths.pop(); redrawAll(); }
 
-        // --- DRAGGABLE & ROTATABLE ITEMS ---
         const itemContainer = document.getElementById('canvasContainer');
         let draggedElement = null;
 
@@ -704,73 +693,44 @@
             }
         }
 
-        // --- 💾 SAVE AS PDF LOGIC (CAPTURES BACKGROUND PDF + DRAG DROP ITEMS) ---
         function compileAndSavePDF() {
             const pdfCanvas = document.createElement('canvas');
-            pdfCanvas.width = 794;
-            pdfCanvas.height = 1123;
+            pdfCanvas.width = 794; pdfCanvas.height = 1123;
             const pCtx = pdfCanvas.getContext('2d');
-            
-            pCtx.fillStyle = '#ffffff';
-            pCtx.fillRect(0, 0, pdfCanvas.width, pdfCanvas.height);
-            
-            // Render baseline layers (including newly rendered background PDF image)
+            pCtx.fillStyle = '#ffffff'; pCtx.fillRect(0, 0, pdfCanvas.width, pdfCanvas.height);
             pCtx.drawImage(canvas, 0, 0);
             
-            // Extract and plot positioned overlays
             const items = document.querySelectorAll('.draggable-item');
             items.forEach(item => {
-                const posX = parseFloat(item.style.left);
-                const posY = parseFloat(item.style.top);
+                const posX = parseFloat(item.style.left); const posY = parseFloat(item.style.top);
                 const textNode = item.querySelector('.draggable-text-style');
                 const iconNode = item.querySelector('.draggable-icon-style');
                 const labelNode = item.querySelector('.icon-label');
                 const sliderNode = item.querySelector('.rotation-slider');
                 const angleDeg = sliderNode ? parseInt(sliderNode.value) : 0;
                 
-                pCtx.save();
-                pCtx.translate(posX, posY);
+                pCtx.save(); pCtx.translate(posX, posY);
                 if(angleDeg !== 0) pCtx.rotate((angleDeg * Math.PI) / 180);
                 
                 if (textNode) {
                     const compFont = window.getComputedStyle(textNode);
-                    pCtx.font = `bold ${compFont.fontSize} Arial`;
-                    pCtx.textAlign = "center";
-                    pCtx.textBaseline = "middle";
-                    
-                    const text = textNode.innerText;
-                    const metrics = pCtx.measureText(text);
-                    
-                    pCtx.fillStyle = "white";
-                    pCtx.fillRect(-metrics.width/2 - 6, -12, metrics.width + 12, 24);
-                    
-                    pCtx.fillStyle = "black";
-                    pCtx.fillText(text, 0, 0);
+                    pCtx.font = `bold ${compFont.fontSize} Arial`; pCtx.textAlign = "center"; pCtx.textBaseline = "middle";
+                    const text = textNode.innerText; const metrics = pCtx.measureText(text);
+                    pCtx.fillStyle = "white"; pCtx.fillRect(-metrics.width/2 - 6, -12, metrics.width + 12, 24);
+                    pCtx.fillStyle = "black"; pCtx.fillText(text, 0, 0);
                 } else if (iconNode) {
-                    pCtx.font = "32px Arial";
-                    pCtx.textAlign = "center";
-                    pCtx.textBaseline = "middle";
-                    pCtx.fillStyle = "black";
+                    pCtx.font = "32px Arial"; pCtx.textAlign = "center"; pCtx.textBaseline = "middle"; pCtx.fillStyle = "black";
                     pCtx.fillText(iconNode.innerText, 0, -10);
-                    
-                    if (labelNode) {
-                        pCtx.font = "bold 11px Arial";
-                        pCtx.fillText(labelNode.innerText, 0, 15);
-                    }
+                    if (labelNode) { pCtx.font = "bold 11px Arial"; pCtx.fillText(labelNode.innerText, 0, 15); }
                 }
                 pCtx.restore();
             });
             
             const imgData = pdfCanvas.toDataURL('image/jpeg', 1.0);
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({
-                orientation: 'portrait',
-                unit: 'mm',
-                format: 'a4'
-            });
-            
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
             doc.addImage(imgData, 'JPEG', 0, 0, 210, 297);
-            doc.save('Location_Sketch_With_Uploaded_PDF.pdf');
+            doc.save('Location_Sketch_With_PDF.pdf');
         }
     </script>
 </body>
