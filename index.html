@@ -16,7 +16,6 @@
             overflow: hidden;
         }
 
-
         /* --- TWO LAYER PC & MOBILE OPTIMIZED TOP MENU --- */
         .top-menu {
             background-color: #f1f3f4;
@@ -29,7 +28,6 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
-
         .menu-row {
             display: flex;
             align-items: center;
@@ -40,11 +38,9 @@
             width: 100%;
         }
 
-
         .menu-row::-webkit-scrollbar {
             display: none;
         }
-
 
         .menu-tab {
             background: white;
@@ -57,13 +53,11 @@
             flex-shrink: 0; 
         }
 
-
         .tab-title {
             font-size: 13px;
             font-weight: bold;
             color: #5f6368;
         }
-
 
         select, button, input {
             padding: 5px 8px;
@@ -91,12 +85,10 @@
         .success-btn { background-color: #1e8e3e; }
         .success-btn:hover { background-color: #137333; }
 
-
         #rotateToggleBtn {
             background-color: #7f8c8d;
             color: white;
         }
-
 
         .checkbox-row {
             display: flex;
@@ -107,14 +99,12 @@
             color: #5f6368;
         }
 
-
         .action-group {
             display: inline-flex;
             gap: 6px;
             flex-shrink: 0;
             margin-left: auto; 
         }
-
 
         /* Workspace Wrapper */
         .workspace-wrapper {
@@ -124,7 +114,6 @@
             width: 100%;
             height: 100%;
         }
-
 
         .workspace-container {
             position: absolute;
@@ -140,7 +129,6 @@
             padding-top: 15px;
         }
 
-
         /* Pure White A4 Page Size */
         .a4-page {
             width: 794px; 
@@ -150,7 +138,6 @@
             position: relative;
             flex-shrink: 0;
         }
-
 
         .screen-metadata {
             margin-top: 15px;
@@ -167,7 +154,6 @@
             display: block; 
         }
 
-
         .canvas-container {
             width: 100%;
             height: 100%;
@@ -182,7 +168,6 @@
             height: 100%;
             touch-action: none; 
         }
-
 
         /* Draggable & Rotatable Items */
         .draggable-item {
@@ -212,14 +197,12 @@
             white-space: nowrap;
         }
 
-
         .rotation-slider {
             width: 65px !important;
             margin-top: 5px;
             cursor: pointer;
             display: none; 
         }
-
 
         .icon-label {
             font-size: 11px;
@@ -251,7 +234,6 @@
         }
         .draggable-item:hover .delete-btn { display: block; }
 
-
         /* Magnifier */
         #magnifier {
             position: fixed;
@@ -268,7 +250,6 @@
         }
         #magnifierCanvas { width: 140px; height: 140px; }
 
-
         /* Custom Vector Pole SVG Styling container */
         .vector-pole-svg {
             width: 45px;
@@ -282,7 +263,6 @@
 </head>
 <body>
 
-
     <!-- TOP TAB CONTROL PANEL (TWO LAYERS) -->
     <div class="top-menu">
         
@@ -293,7 +273,6 @@
                 <button id="viewModeBtn" style="background-color: #8e44ad;" onclick="toggleViewMode()">👉 Items</button>
                 <button id="rotateToggleBtn" onclick="toggleRotateTab()">🔄 Rotate Tab: OFF</button>
             </div>
-
 
             <div class="menu-tab">
                 <span class="tab-title">✏️ Line Style:</span>
@@ -313,7 +292,6 @@
                 <button class="toggle-btn" onclick="undoLast()">↩️ Undo Line</button>
             </div>
         </div>
-
 
         <!-- LAYER 2: Symbols, Custom Text & File Tools -->
         <div class="menu-row">
@@ -335,7 +313,6 @@
                 <button class="success-btn" onclick="addIcon()">➕ Symbol</button>
             </div>
 
-
             <div class="menu-tab">
                 <span class="tab-title">📝 Text:</span>
                 <input type="text" id="customTextInput" placeholder="Type text..." style="width: 90px;">
@@ -348,12 +325,10 @@
                 <button class="success-btn" onclick="addCustomText()">➕ Text</button>
             </div>
 
-
             <div class="menu-tab">
                 <span class="tab-title">🖼️ Upload PDF / Image:</span>
                 <input type="file" id="bgUploader" accept="image/*,application/pdf" style="width: 140px;">
             </div>
-
 
             <div class="action-group">
                 <button onclick="resetZoomAndPan()">🖥️ Fit</button>
@@ -362,9 +337,7 @@
             </div>
         </div>
 
-
     </div>
-
 
     <!-- Panning Viewport Container -->
     <div class="workspace-wrapper" id="wrapper">
@@ -379,21 +352,17 @@
         </div>
     </div>
 
-
     <!-- Magnifier -->
     <div id="magnifier">
         <canvas id="magnifierCanvas" width="140" height="140"></canvas>
     </div>
 
-
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
-
 
         const wrapper = document.getElementById('wrapper');
         const container = document.getElementById('container');
         const canvas = document.getElementById('mapCanvas');
-
 
         let zoomScale = 1; let panX = 0; let panY = 0;
         let isPanning = false; let startX = 0; let startY = 0;
@@ -401,11 +370,9 @@
         let offSubMode = 'items'; 
         let rotateTabActive = false; 
 
-
         function updateTransform() {
             container.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
         }
-
 
         function resetZoomAndPan() {
             const wRect = wrapper.getBoundingClientRect();
@@ -416,16 +383,13 @@
             updateTransform();
         }
 
-
         window.onload = resetZoomAndPan;
         window.onresize = resetZoomAndPan;
-
 
         let drawModeOn = false;
         const drawToggleBtn = document.getElementById('drawToggleBtn');
         const viewModeBtn = document.getElementById('viewModeBtn');
         const rotateToggleBtn = document.getElementById('rotateToggleBtn');
-
 
         function toggleDrawMode() {
             drawModeOn = !drawModeOn;
@@ -442,13 +406,11 @@
             }
         }
 
-
         function toggleViewMode() {
             if (drawModeOn) toggleDrawMode(); 
             if (offSubMode === 'items') setSubMode('page');
             else setSubMode('items');
         }
-
 
         function setSubMode(mode) {
             offSubMode = mode;
@@ -464,7 +426,6 @@
             }
         }
 
-
         function toggleRotateTab() {
             rotateTabActive = !rotateTabActive;
             const sliders = document.querySelectorAll('.rotation-slider');
@@ -478,7 +439,6 @@
                 sliders.forEach(s => s.style.display = "none");
             }
         }
-
 
         wrapper.addEventListener('touchstart', (e) => {
             if (drawModeOn || offSubMode !== 'page') return; 
@@ -495,7 +455,6 @@
                 initialScale = zoomScale;
             }
         }, {passive: true});
-
 
         wrapper.addEventListener('touchmove', (e) => {
             if (drawModeOn || offSubMode !== 'page') return;
@@ -514,19 +473,15 @@
             }
         }, {passive: true});
 
-
         wrapper.addEventListener('touchend', () => { isPanning = false; initialPinchDistance = null; });
-
 
         const ctx = canvas.getContext('2d');
         const magnifier = document.getElementById('magnifier');
         const magCanvas = document.getElementById('magnifierCanvas');
         const magCtx = magCanvas.getContext('2d');
 
-
         let isDrawing = false; let paths = []; let currentPath = []; let bgImage = null;
         let activePathIndex = null; 
-
 
         const roadStyles = {
             main: { outerWidth: 16, outerColor: 'black', innerWidth: 12, innerColor: 'white', isBox: false },
@@ -538,7 +493,6 @@
             electricLine: { outerWidth: 2, outerColor: '#e67e22', innerWidth: 0, innerColor: 'transparent', dash: [8, 8], isBox: false, isElectric: true },
             squarePlot: { outerWidth: 3, outerColor: 'red', innerWidth: 0, innerColor: 'transparent', isBox: true }
         };
-
 
         document.getElementById('bgUploader').addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -574,7 +528,6 @@
             }
         });
 
-
         function getCoordinates(e) {
             const rect = canvas.getBoundingClientRect();
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -585,17 +538,14 @@
             };
         }
 
-
         function showMagnifier(e, coord) {
             if (!drawModeOn || !isDrawing) { magnifier.style.display = 'none'; return; }
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
             let clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-
             magnifier.style.display = 'block';
             magnifier.style.left = (clientX - 70) + 'px';
             magnifier.style.top = (clientY - 160) + 'px';
-
 
             magCtx.clearRect(0, 0, 140, 140);
             magCtx.drawImage(canvas, coord.x - 28, coord.y - 28, 56, 56, 0, 0, 140, 140);
@@ -604,13 +554,11 @@
             magCtx.moveTo(70, 60); magCtx.lineTo(70, 80); magCtx.moveTo(60, 70); magCtx.lineTo(80, 70); magCtx.stroke();
         }
 
-
         function startDrawing(e) {
             if (!drawModeOn || e.target !== canvas) return;
             e.preventDefault(); isDrawing = true;
             let coord = getCoordinates(e);
             activePathIndex = null;
-
 
             if(document.getElementById('straightMode').checked && paths.length > 0) {
                 const currentSelectedType = document.getElementById('roadType').value;
@@ -634,7 +582,6 @@
             showMagnifier(e, coord);
         }
 
-
         function draw(e) {
             if (!isDrawing || !drawModeOn) return;
             e.preventDefault(); const currentPt = getCoordinates(e);
@@ -648,7 +595,6 @@
             redrawAll(); showMagnifier(e, currentPt);
         }
 
-
         function stopDrawing() {
             if (isDrawing && currentPath.length > 1) {
                 if (activePathIndex !== null) {
@@ -660,10 +606,8 @@
             isDrawing = false; currentPath = []; activePathIndex = null; magnifier.style.display = 'none'; redrawAll();
         }
 
-
         canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); window.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('touchstart', startDrawing, {passive: false}); canvas.addEventListener('touchmove', draw, {passive: false}); window.addEventListener('touchend', stopDrawing);
-
 
         function drawPass(points, type, layer) {
             if (points.length < 2) return;
@@ -682,13 +626,11 @@
                 for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
             }
 
-
             if (layer === 'outer' && style.outerWidth > 0) {
                 ctx.lineWidth = style.outerWidth;
                 ctx.strokeStyle = style.outerColor;
                 ctx.setLineDash(style.dash || []);
                 ctx.stroke();
-
 
                 if (style.isElectric) {
                     ctx.save();
@@ -712,7 +654,6 @@
             }
         }
 
-
         // Native 2D Context drawing blueprint mirroring "70159.png" vector specs directly
         function drawVectorUtilityPole(pCtx, x, y) {
             pCtx.save();
@@ -720,13 +661,11 @@
             pCtx.fillStyle = "black";
             pCtx.lineWidth = 2.5;
 
-
             // Main vertical pole structure shaft
             pCtx.beginPath();
             pCtx.moveTo(x, y + 16);
             pCtx.lineTo(x, y - 18);
             pCtx.stroke();
-
 
             // Main horizontal primary cross-arm section beam
             pCtx.lineWidth = 3.5;
@@ -735,14 +674,12 @@
             pCtx.lineTo(x + 16, y - 10);
             pCtx.stroke();
 
-
             // Mini upper cross-bar beam structure
             pCtx.lineWidth = 2;
             pCtx.beginPath();
             pCtx.moveTo(x - 8, y - 17);
             pCtx.lineTo(x + 8, y - 17);
             pCtx.stroke();
-
 
             // Render 4 tiny round insulator ring loops on top of cross bars
             pCtx.lineWidth = 1;
@@ -756,14 +693,11 @@
                 pCtx.stroke();
             });
 
-
             // Transformer box body overlay patch module
             pCtx.fillRect(x + 2, y - 4, 7, 9);
 
-
             pCtx.restore();
         }
-
 
         function redrawAll() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -778,7 +712,6 @@
                 }
             });
 
-
             if (activePathIndex === null && isDrawing && currentPath.length > 0) {
                 allPaths.push({ type: document.getElementById('roadType').value, points: currentPath });
             }
@@ -787,7 +720,6 @@
             allPaths.forEach(p => drawPass(p.points, p.type, 'inner'));
         }
 
-
         function undoLast() { 
             if(paths.length === 0) return;
             let lastPath = paths[paths.length - 1];
@@ -795,21 +727,17 @@
             redrawAll(); 
         }
 
-
         const itemContainer = document.getElementById('canvasContainer');
         let draggedElement = null;
-
 
         function makeElementDraggable(el) {
             el.addEventListener('mousedown', startDrag); el.addEventListener('touchstart', startDrag, {passive: false});
         }
 
-
         function startDrag(e) {
             if(drawModeOn || offSubMode !== 'items' || e.target.className === 'delete-btn' || e.target.className === 'rotation-slider') return; 
             e.preventDefault(); draggedElement = this;
         }
-
 
         function onDrag(e) {
             if (!draggedElement || drawModeOn || offSubMode !== 'items') return;
@@ -822,17 +750,14 @@
             draggedElement.style.left = x + 'px'; draggedElement.style.top = y + 'px';
         }
 
-
         window.addEventListener('mousemove', onDrag); window.addEventListener('mouseup', () => draggedElement = null);
         window.addEventListener('touchmove', onDrag, {passive: false}); window.addEventListener('touchend', () => draggedElement = null);
-
 
         function addIcon() {
             const val = document.getElementById('iconSelect').value.split('|');
             const el = document.createElement('div'); el.className = 'draggable-item';
             el.style.left = '50%'; el.style.top = '50%';
             const displayState = rotateTabActive ? "block" : "none";
-
 
             if (val[0] === "UTILITY_POLE") {
                 // Inline SVG render matrix mapping "70159.png" blueprint layout components perfectly onto the viewport DOM layer
@@ -871,17 +796,14 @@
             makeElementDraggable(el); itemContainer.appendChild(el);
         }
 
-
         function addCustomText() {
             const textValue = document.getElementById('customTextInput').value.trim();
             const fontSize = document.getElementById('fontSizeSelect').value;
             if (textValue === "") return;
 
-
             const el = document.createElement('div'); el.className = 'draggable-item';
             el.style.left = '50%'; el.style.top = '50%';
             const displayState = rotateTabActive ? "block" : "none";
-
 
             el.innerHTML = `
                 <div class="rotate-wrapper">
@@ -894,11 +816,9 @@
             document.getElementById('customTextInput').value = ""; 
         }
 
-
         function rotateElement(slider) {
             slider.previousElementSibling.style.transform = `rotate(${slider.value}deg)`;
         }
-
 
         function clearMap() {
             if(confirm("Are you sure you want to clear the sketch?")) {
@@ -908,7 +828,6 @@
                 if (rotateTabActive) toggleRotateTab();
             }
         }
-
 
         function compileAndSavePDF() {
             const pdfCanvas = document.createElement('canvas');
@@ -961,4 +880,3 @@
     </script>
 </body>
 </html>
-
