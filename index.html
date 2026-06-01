@@ -114,7 +114,7 @@
             width: 100%;
             height: 100%;
             display: flex;
-            flex-direction: column; /* Set to column to allow metadata below page */
+            flex-direction: column; 
             justify-content: flex-start;
             align-items: center;
             transform-origin: 0 0;
@@ -131,7 +131,7 @@
             flex-shrink: 0;
         }
 
-        /* --- SCREEN ONLY METADATA BLOCK --- */
+        /* Screen-only Metadata Element */
         .screen-metadata {
             margin-top: 15px;
             margin-bottom: 30px;
@@ -144,7 +144,7 @@
             text-align: center;
             letter-spacing: 0.5px;
             user-select: none;
-            display: block; /* Visible on screen */
+            display: block; 
         }
 
         .canvas-container {
@@ -160,6 +160,18 @@
             width: 100%;
             height: 100%;
             touch-action: none; 
+        }
+
+        /* Temporary high-res image print overlay node */
+        #printImageOverlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 200;
+            background: white;
         }
 
         /* Draggable & Rotatable Items */
@@ -247,18 +259,36 @@
             background-color: white;
         }
         #magnifierCanvas { width: 140px; height: 140px; }
+
+        /* --- IN-PLACE PRINTER RENDERING BLUEPRINTS --- */
+        @media print {
+            body { background: none !important; overflow: visible !important; height: auto !important; }
+            .top-menu, #magnifier, .rotation-slider, .delete-btn, .screen-metadata { display: none !important; }
+            .workspace-wrapper { overflow: visible !important; display: block !important; position: static !important; }
+            
+            /* Enforce reset metrics during compilation layout render pass */
+            .workspace-container { transform: none !important; position: static !important; display: block !important; padding: 0 !important; }
+            .a4-page { box-shadow: none !important; width: 794px !important; height: 1123px !important; border: none !important; position: relative !important; display: block !important; margin: 0 auto !important; }
+            
+            #printImageOverlay { display: block !important; } /* Explicitly injection target visible */
+            .draggable-text-style { border: none !important; background: transparent !important; }
+            @page { size: A4 portrait; margin: 0; }
+        }
     </style>
 </head>
 <body>
 
+    <!-- TOP TAB CONTROL PANEL -->
     <div class="top-menu">
         
+        <!-- Modes Block -->
         <div class="menu-tab">
             <button id="drawToggleBtn" class="toggle-btn" onclick="toggleDrawMode()">🔒 Draw Mode: OFF</button>
             <button id="viewModeBtn" style="background-color: #8e44ad;" onclick="toggleViewMode()">👉 Items</button>
             <button id="rotateToggleBtn" onclick="toggleRotateTab()">🔄 Rotate Tab: OFF</button>
         </div>
 
+        <!-- Lines and Plots Tab -->
         <div class="menu-tab">
             <span class="tab-title">✏️ Line:</span>
             <select id="roadType" style="width: 115px;">
@@ -276,6 +306,7 @@
             <button class="toggle-btn" onclick="undoLast()">↩️ Undo</button>
         </div>
 
+        <!-- Symbols Tab -->
         <div class="menu-tab">
             <span class="tab-title">🏠 Symbol:</span>
             <select id="iconSelect" style="width: 100px;">
@@ -294,6 +325,7 @@
             <button class="success-btn" onclick="addIcon()">➕ Add</button>
         </div>
 
+        <!-- Free Text Tab -->
         <div class="menu-tab">
             <span class="tab-title">📝 Text:</span>
             <input type="text" id="customTextInput" placeholder="Text..." style="width: 80px;">
@@ -306,30 +338,37 @@
             <button class="success-btn" onclick="addCustomText()">➕ Text</button>
         </div>
 
+        <!-- Base Map Template -->
         <div class="menu-tab">
             <span class="tab-title">🖼️ Map:</span>
             <input type="file" id="bgUploader" accept="image/*" style="width: 120px;">
         </div>
 
+        <!-- Action Buttons Group -->
         <div class="action-group">
             <button onclick="resetZoomAndPan()">🖥️ Fit</button>
             <button class="danger-btn" onclick="clearMap()">🗑️ Clear</button>
-            <button class="success-btn" onclick="prepareAndPrintSecure()">🖨️ Print</button>
+            <button class="success-btn" onclick="prepareAndPrintInPlace()">🖨️ Print</button>
         </div>
     </div>
 
+    <!-- Panning Viewport Container -->
     <div class="workspace-wrapper" id="wrapper">
         <div class="workspace-container" id="container">
+            <!-- A4 Target Layout Sheet -->
             <div class="a4-page" id="a4Page">
                 <div class="canvas-container" id="canvasContainer">
                     <canvas id="mapCanvas" width="794" height="1123"></canvas>
+                    <img id="printImageOverlay" alt="Print Render Layout Layer">
                 </div>
             </div>
             
+            <!-- Metadata (Strictly hidden during window print calls) -->
             <div class="screen-metadata">👤 Muraleedharan P | 📞 9400849115</div>
         </div>
     </div>
 
+    <!-- Magnifier -->
     <div id="magnifier">
         <canvas id="magnifierCanvas" width="140" height="140"></canvas>
     </div>
@@ -352,7 +391,6 @@
 
         function resetZoomAndPan() {
             const wRect = wrapper.getBoundingClientRect();
-            // Scale dynamically adjusted for padding comfort constraints
             zoomScale = (wRect.height - 80) / 1123;
             if(zoomScale > 1) zoomScale = 1;
             panX = (wRect.width - (794 * zoomScale)) / 2;
@@ -655,14 +693,20 @@
             }
         }
 
-        // --- 🖨️ SECURE POPUP PRINT ENGINE (STRICT BLOB REDIRECT) ---
-        function prepareAndPrintSecure() {
+        // --- 🖨️ IN-PLACE INJECTION PRINTER COMPILATION ENGINE ---
+        function prepareAndPrintInPlace() {
+            // Backup active orientation viewport coordinates
+            const initialScaleState = zoomScale; const initialPanX = panX; const initialPanY = panY;
+            
+            // Build temporary mirror vector context canvas matching absolute pixel dimensions
             const tempCanvas = document.createElement('canvas');
             tempCanvas.width = 794; tempCanvas.height = 1123;
             const tempCtx = tempCanvas.getContext('2d');
             
+            // Render basic graphics layers
             tempCtx.drawImage(canvas, 0, 0);
             
+            // Map structural positions of all dynamic layered elements (Text / Symbols)
             const items = document.querySelectorAll('.draggable-item');
             items.forEach(item => {
                 const styleLeft = parseFloat(item.style.left);
@@ -706,33 +750,22 @@
                 tempCtx.restore();
             });
             
-            const dataUrl = tempCanvas.toDataURL('image/png');
+            // Flatten stream snapshot data matrix directly onto hidden page template overlay layer node
+            const printOverlayImg = document.getElementById('printImageOverlay');
+            printOverlayImg.src = tempCanvas.toDataURL('image/png');
             
-            // STRICT ONLY A4 CANVAS BLUPRINT - METADATA REMOVED FROM TARGET STREAM
-            const htmlContent = `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Print Location Sketch</title>
-                    <style>
-                        body, html { margin: 0; padding: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background: #fff; }
-                        img { max-width: 100%; max-height: 100%; width: 210mm; height: 297mm; object-fit: contain; }
-                        @page { size: A4 portrait; margin: 0; }
-                    </style>
-                </head>
-                <body>
-                    <img src="${dataUrl}" onload="window.print(); window.close();">
-                </body>
-                </html>
-            `;
+            // Force reset transform scaling metrics to prevent frame clippings inside native browser print systems
+            container.style.transform = "none";
             
-            const blob = new Blob([htmlContent], { type: 'text/html' });
-            const blobUrl = URL.createObjectURL(blob);
-            
-            const printWindow = window.open(blobUrl, '_blank');
-            if (!printWindow) {
-                alert("Please allow popups for this browser to trigger the printing sequence window.");
-            }
+            // Safely pass downstream window event routines to physical system channels
+            setTimeout(() => {
+                window.print();
+                
+                // Tear down compilation variables to restore smooth interactive baseline states
+                printOverlayImg.src = "";
+                zoomScale = initialScaleState; panX = initialPanX; panY = initialPanY;
+                updateTransform();
+            }, 300);
         }
     </script>
 </body>
