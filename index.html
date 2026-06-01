@@ -22,24 +22,22 @@
             border-bottom: 1px solid #dadce0;
             padding: 8px 12px;
             display: flex;
-            flex-direction: column; /* Forces 2 layers */
+            flex-direction: column; 
             gap: 8px;
             z-index: 100;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
-        /* Each layer row style */
         .menu-row {
             display: flex;
             align-items: center;
             gap: 12px;
-            overflow-x: auto; /* Keeps scroll active on small mobile screens */
+            overflow-x: auto; 
             white-space: nowrap;
             -webkit-overflow-scrolling: touch;
             width: 100%;
         }
 
-        /* Hide scrollbars for clean look */
         .menu-row::-webkit-scrollbar {
             display: none;
         }
@@ -105,7 +103,7 @@
             display: inline-flex;
             gap: 6px;
             flex-shrink: 0;
-            margin-left: auto; /* Pushes action items to the right on PC */
+            margin-left: auto; 
         }
 
         /* Workspace Wrapper */
@@ -286,7 +284,7 @@
                     <option value="squarePlot">🟩 Square Plot</option>
                 </select>
                 <label class="checkbox-row">
-                    <input type="checkbox" id="straightMode"> Straight
+                    <input type="checkbox" id="straightMode" checked> Straight
                 </label>
                 <button class="toggle-btn" onclick="undoLast()">↩️ Undo Line</button>
             </div>
@@ -329,7 +327,6 @@
                 <input type="file" id="bgUploader" accept="image/*,application/pdf" style="width: 140px;">
             </div>
 
-            <!-- Global Action Actions -->
             <div class="action-group">
                 <button onclick="resetZoomAndPan()">🖥️ Fit</button>
                 <button class="danger-btn" onclick="clearMap()">🗑️ Clear</button>
@@ -481,6 +478,7 @@
         const magCtx = magCanvas.getContext('2d');
 
         let isDrawing = false; let paths = []; let currentPath = []; let bgImage = null;
+        let lastEndPoint = null; // Caches the terminal point of the previous line
 
         const roadStyles = {
             main: { outerWidth: 16, outerColor: 'black', innerWidth: 12, innerColor: 'white', dash: [], isBox: false },
@@ -555,7 +553,18 @@
         function startDrawing(e) {
             if (!drawModeOn || e.target !== canvas) return;
             e.preventDefault(); isDrawing = true;
-            const coord = getCoordinates(e); currentPath = [coord];
+            let coord = getCoordinates(e);
+            
+            // AUTOMATIC ANGLE CONTINUATION SNAP LOGIC
+            if(document.getElementById('straightMode').checked && lastEndPoint) {
+                let distance = Math.hypot(coord.x - lastEndPoint.x, coord.y - lastEndPoint.y);
+                // If new click is within 30 pixels of the previous line end point, snap it!
+                if(distance < 30) {
+                    coord = { x: lastEndPoint.x, y: lastEndPoint.y };
+                }
+            }
+            
+            currentPath = [coord];
             showMagnifier(e, coord);
         }
 
@@ -575,6 +584,12 @@
         function stopDrawing() {
             if (isDrawing && currentPath.length > 1) {
                 paths.push({ type: document.getElementById('roadType').value, points: currentPath });
+                // Cache final coordinate vector to enable immediate chained continuation segment loops
+                if(document.getElementById('straightMode').checked) {
+                    lastEndPoint = currentPath[currentPath.length - 1];
+                } else {
+                    lastEndPoint = null;
+                }
             }
             isDrawing = false; currentPath = []; magnifier.style.display = 'none'; redrawAll();
         }
@@ -613,7 +628,12 @@
             allPaths.forEach(p => drawPass(p.points, p.type, 'inner'));
         }
 
-        function undoLast() { paths.pop(); redrawAll(); }
+        function undoLast() { 
+            paths.pop(); 
+            // Clear snap cache on manual path modification
+            lastEndPoint = (paths.length > 0 && document.getElementById('straightMode').checked) ? paths[paths.length - 1].points[paths[paths.length - 1].points.length - 1] : null;
+            redrawAll(); 
+        }
 
         const itemContainer = document.getElementById('canvasContainer');
         let draggedElement = null;
@@ -686,7 +706,7 @@
 
         function clearMap() {
             if(confirm("Are you sure you want to clear the sketch?")) {
-                paths = []; bgImage = null; document.getElementById('bgUploader').value = ""; redrawAll();
+                paths = []; bgImage = null; lastEndPoint = null; document.getElementById('bgUploader').value = ""; redrawAll();
                 document.querySelectorAll('.draggable-item').forEach(item => item.remove());
                 resetZoomAndPan(); setSubMode('items');
                 if (rotateTabActive) toggleRotateTab();
