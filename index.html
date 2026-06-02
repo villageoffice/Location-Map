@@ -209,7 +209,7 @@
             border-radius: 3px;
             padding: 1px 3px;
             display: block;
-            margin-top: -2px;
+            margin-top: 2px;
             font-weight: bold;
             border: 1px solid #ccc;
         }
@@ -276,10 +276,8 @@
 </head>
 <body>
 
-    <!-- TOP TAB CONTROL PANEL (TWO LAYERS) -->
     <div class="top-menu">
         
-        <!-- LAYER 1: Core Modes & Line Settings -->
         <div class="menu-row">
             <div class="menu-tab">
                 <button id="drawToggleBtn" class="toggle-btn" onclick="toggleDrawMode()">🔒 Draw Mode: OFF</button>
@@ -312,7 +310,6 @@
             </div>
         </div>
 
-        <!-- LAYER 2: Symbols, Custom Text & File Tools -->
         <div class="menu-row">
             <div class="menu-tab">
                 <span class="tab-title">🏠 Symbol:</span>
@@ -351,7 +348,7 @@
             </div>
 
             <div class="action-group">
-                <button onclick="resetZoomAndPan()">🖥️ PC Mode</button>
+                <button id="deviceModeBtn" onclick="toggleDeviceMode()" style="background-color: #d35400;">📱 Mobile Mode</button>
                 <button class="danger-btn" onclick="clearMap()">🗑️ Clear</button>
                 <button class="success-btn" onclick="compileAndSavePDF()">💾 Save as PDF</button>
             </div>
@@ -359,7 +356,6 @@
 
     </div>
 
-    <!-- Panning Workspace Wrapper -->
     <div class="workspace-wrapper" id="wrapper">
         <div class="workspace-container" id="container">
             <div class="a4-page" id="a4Page">
@@ -372,7 +368,6 @@
         </div>
     </div>
 
-    <!-- Magnifier -->
     <div id="magnifier">
         <canvas id="magnifierCanvas" width="140" height="140"></canvas>
     </div>
@@ -392,6 +387,7 @@
         let startY = 0;
         let offSubMode = 'items'; 
         let rotateTabActive = false; 
+        let currentDeviceMode = "mobile"; // Flag: "mobile" or "pc"
 
         // Block Layer State Matricies
         let isMovingDrawingBlock = false;
@@ -400,11 +396,31 @@
         let globalDrawingTranslateX = 0; 
         let globalDrawingTranslateY = 0;
 
+        // Mobile Pinch Zoom States
+        let initialPinchDistance = null;
+        let initialScale = 1;
+        let touchStartPanX = 0;
+        let touchStartPanY = 0;
+
         function updateTransform() {
             container.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
         }
 
-        // --- 🖥️ PC MODE SCREEN CENTERING LOGIC ---
+        // --- ⚙️ TOGGLE SYSTEM ROUTER CHANNELS (MOBILE MODE VS PC MODE) ---
+        function toggleDeviceMode() {
+            const btn = document.getElementById('deviceModeBtn');
+            if (currentDeviceMode === "mobile") {
+                currentDeviceMode = "pc";
+                btn.innerHTML = "🖥️ PC Mode";
+                btn.style.backgroundColor = "#2c3e50";
+            } else {
+                currentDeviceMode = "mobile";
+                btn.innerHTML = "📱 Mobile Mode";
+                btn.style.backgroundColor = "#d35400";
+            }
+            resetZoomAndPan();
+        }
+
         function resetZoomAndPan() {
             const wWidth = wrapper.clientWidth;
             const wHeight = wrapper.clientHeight;
@@ -414,7 +430,7 @@
             
             zoomScale = Math.min(scaleX, scaleY);
             if(zoomScale > 1.2) zoomScale = 1.2;
-            if(zoomScale < 0.1) zoomScale = 0.1;
+            if(zoomScale < 0.15) zoomScale = 0.15;
             
             panX = (wWidth - (794 * zoomScale)) / 2;
             panY = (wHeight - (1123 * zoomScale)) / 2;
@@ -426,8 +442,9 @@
         window.onload = () => { setTimeout(resetZoomAndPan, 200); };
         window.onresize = resetZoomAndPan;
 
-        // --- 🎛️ MOUSE WHEEL ZOOM SYSTEM ---
+        // --- 🎛️ MOUSE WHEEL ZOOM SYSTEM (PC MODE CHANNELS) ---
         wrapper.addEventListener('wheel', (e) => {
+            if (currentDeviceMode !== "pc") return; // Enforce lock context
             e.preventDefault();
             const zoomFactor = 1.08;
             const rect = wrapper.getBoundingClientRect();
@@ -435,16 +452,13 @@
             const mouseY = e.clientY - rect.top;
             
             const currentScale = zoomScale;
-            
             if (e.deltaY < 0) {
                 zoomScale = Math.min(zoomScale * zoomFactor, 3.0); 
             } else {
                 zoomScale = Math.max(zoomScale / zoomFactor, 0.15); 
             }
-            
             panX = mouseX - (mouseX - panX) * (zoomScale / currentScale);
             panY = mouseY - (mouseY - panY) * (zoomScale / currentScale);
-            
             updateTransform();
         }, { passive: false });
 
@@ -505,19 +519,64 @@
             }
         }
 
-        // TOUCH PINCH CONTROLS
+        // --- 📱 DYNAMIC MOBILE INTERACTION PINCH AND PAN DETECTORS ---
         wrapper.addEventListener('touchstart', (e) => {
-            if (drawModeOn || offSubMode !== 'page' || e.touches.length !== 2) return; 
-            initialPinchDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-            initialScale = zoomScale;
+            if (drawModeOn) return;
+
+            if (currentDeviceMode === "mobile" && offSubMode === 'page') {
+                if (e.touches.length === 1) {
+                    isPanning = true;
+                    startX = e.touches[0].clientX - panX;
+                    startY = e.touches[0].clientY - panY;
+                } else if (e.touches.length === 2) {
+                    isPanning = false;
+                    initialPinchDistance = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    initialScale = zoomScale;
+                    touchStartPanX = panX;
+                    touchStartPanY = panY;
+                }
+            }
         }, {passive: true});
 
         wrapper.addEventListener('touchmove', (e) => {
-            if (drawModeOn || offSubMode !== 'page' || e.touches.length !== 2 || !initialPinchDistance) return;
-            const currentDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-            zoomScale = Math.max(0.15, Math.min(3.0, initialScale * (currentDistance / initialPinchDistance)));
-            updateTransform();
+            if (drawModeOn) return;
+
+            if (currentDeviceMode === "mobile" && offSubMode === 'page') {
+                if (isPanning && e.touches.length === 1) {
+                    panX = e.touches[0].clientX - startX;
+                    panY = e.touches[0].clientY - startY;
+                    updateTransform();
+                } else if (e.touches.length === 2 && initialPinchDistance) {
+                    const currentDistance = Math.hypot(
+                        e.touches[0].clientX - e.touches[1].clientX,
+                        e.touches[0].clientY - e.touches[1].clientY
+                    );
+                    
+                    const originX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                    const originY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                    const wrapperRect = wrapper.getBoundingClientRect();
+                    const pivotX = originX - wrapperRect.left;
+                    const pivotY = originY - wrapperRect.top;
+
+                    const factor = currentDistance / initialPinchDistance;
+                    const newScale = Math.max(0.15, Math.min(3.0, initialScale * factor));
+                    
+                    panX = pivotX - (pivotX - touchStartPanX) * (newScale / initialScale);
+                    panY = pivotY - (pivotY - touchStartPanY) * (newScale / initialScale);
+                    zoomScale = newScale;
+                    
+                    updateTransform();
+                }
+            }
         }, {passive: true});
+
+        wrapper.addEventListener('touchend', () => { 
+            isPanning = false; 
+            initialPinchDistance = null; 
+        });
 
         // --- CORE CANVAS RENDERING ENGINE ---
         const ctx = canvas.getContext('2d');
@@ -581,7 +640,6 @@
             }
         }
 
-        // High reliability matrix math map calculator for true drawing positions
         function getCoordinates(e) {
             const rect = canvas.getBoundingClientRect();
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -597,12 +655,10 @@
             e.preventDefault(); isDrawing = true;
             let coord = getCoordinates(e);
             
-            // --- 🦾 FIX RESOLUTION: ADJUST COORD WITH TRANSLATE FOR REAL-TIME RENDERING ---
             let targetModelCoord = {
                 x: coord.x - globalDrawingTranslateX,
                 y: coord.y - globalDrawingTranslateY
             };
-            
             activePathIndex = null;
 
             if(document.getElementById('straightMode').checked && paths.length > 0) {
@@ -620,7 +676,6 @@
                     }
                 }
             }
-            
             currentPath = [targetModelCoord];
             showMagnifier(e, coord);
         }
@@ -629,7 +684,6 @@
             if (!isDrawing || !drawModeOn) return;
             e.preventDefault(); 
             const coord = getCoordinates(e);
-            
             let targetModelCoord = {
                 x: coord.x - globalDrawingTranslateX,
                 y: coord.y - globalDrawingTranslateY
@@ -720,7 +774,6 @@
             
             ctx.save();
             ctx.translate(globalDrawingTranslateX, globalDrawingTranslateY);
-            
             let allPaths = [];
             paths.forEach((p, idx) => {
                 if (idx === activePathIndex && isDrawing && currentPath.length > 0) {
@@ -729,11 +782,9 @@
                     allPaths.push(p);
                 }
             });
-
             if (activePathIndex === null && isDrawing && currentPath.length > 0) {
                 allPaths.push({ type: document.getElementById('roadType').value, points: currentPath });
             }
-            
             allPaths.forEach(p => drawPass(p.points, p.type, 'outer'));
             allPaths.forEach(p => drawPass(p.points, p.type, 'inner'));
             ctx.restore();
@@ -746,7 +797,7 @@
             redrawAll(); 
         }
 
-        // --- 🖱️ COMPREHENSIVE INTERACTIVE ELEMENT DESKTOP ROUTER ENGINE ---
+        // --- 🖱️ INTERACTIVE MOUSE AND FINGER DRAGGING CALCULATOR ---
         const itemContainer = document.getElementById('canvasContainer');
         let draggedElement = null;
 
@@ -763,27 +814,26 @@
 
         wrapper.addEventListener('mousedown', (e) => {
             if (offSubMode !== 'items' || drawModeOn) {
-                if (e.button === 2 && !drawModeOn) {
+                if (e.button === 2 && currentDeviceMode === "pc" && !drawModeOn) {
                     isPanning = true; wrapper.style.cursor = "grabbing";
                     startX = e.clientX - panX; startY = e.clientY - panY;
                 }
                 return;
             }
-
             if (e.target === canvas && e.button === 0) {
                 isMovingDrawingBlock = true;
                 canvas.style.cursor = "move";
                 const rect = itemContainer.getBoundingClientRect();
                 blockOffsetX = (e.clientX - rect.left) / zoomScale - globalDrawingTranslateX;
                 blockOffsetY = (e.clientY - rect.top) / zoomScale - globalDrawingTranslateY;
-            } else if (e.button === 2) {
+            } else if (e.button === 2 && currentDeviceMode === "pc") {
                 isPanning = true; wrapper.style.cursor = "grabbing";
                 startX = e.clientX - panX; startY = e.clientY - panY;
             }
         });
 
         window.addEventListener('mousemove', (e) => {
-            if (isPanning) {
+            if (isPanning && currentDeviceMode === "pc") {
                 panX = e.clientX - startX;
                 panY = e.clientY - startY;
                 updateTransform();
@@ -794,24 +844,22 @@
                 redrawAll();
             } else if (draggedElement) {
                 e.preventDefault();
-                let clientX = e.clientX; let clientY = e.clientY;
                 const containerRect = itemContainer.getBoundingClientRect();
-                let x = (clientX - containerRect.left) / zoomScale;
-                let y = (clientY - containerRect.top) / zoomScale;
+                let x = (e.clientX - containerRect.left) / zoomScale;
+                let y = (e.clientY - containerRect.top) / zoomScale;
                 draggedElement.style.left = x + 'px'; draggedElement.style.top = y + 'px';
             }
         });
 
-        window.addEventListener('mouseup', (e) => {
-            if (isPanning) { isPanning = false; wrapper.style.cursor = "default"; }
-            if (isMovingDrawingBlock) { isMovingDrawingBlock = false; canvas.style.cursor = "default"; }
+        window.addEventListener('mouseup', () => {
+            isPanning = false; isMovingDrawingBlock = false; wrapper.style.cursor = "default"; canvas.style.cursor = "default";
             draggedElement = null;
         });
 
-        // TOUCH ADAPTATION FOR PHONE/TABLET IN ITEMS TARGET VIEWS
+        // --- 📱 FIXED TOUCH EQUIVALENTS CONTROL MATRIX FOR MOBILE LAYERS ---
         wrapper.addEventListener('touchstart', (e) => {
-            if (offSubMode !== 'items' || drawModeOn) return;
-            if (e.target === canvas && e.touches.length === 1) {
+            if (offSubMode !== 'items' || drawModeOn || e.touches.length !== 1) return;
+            if (e.target === canvas) {
                 isMovingDrawingBlock = true;
                 const rect = itemContainer.getBoundingClientRect();
                 blockOffsetX = (e.touches[0].clientX - rect.left) / zoomScale - globalDrawingTranslateX;
@@ -820,12 +868,13 @@
         }, {passive: true});
 
         wrapper.addEventListener('touchmove', (e) => {
-            if (isMovingDrawingBlock && e.touches.length === 1) {
+            if (drawModeOn || e.touches.length !== 1) return;
+            if (isMovingDrawingBlock) {
                 const rect = itemContainer.getBoundingClientRect();
                 globalDrawingTranslateX = (e.touches[0].clientX - rect.left) / zoomScale - blockOffsetX;
                 globalDrawingTranslateY = (e.touches[0].clientY - rect.top) / zoomScale - blockOffsetY;
                 redrawAll();
-            } else if (draggedElement && e.touches.length === 1) {
+            } else if (draggedElement) {
                 const containerRect = itemContainer.getBoundingClientRect();
                 let x = (e.touches[0].clientX - containerRect.left) / zoomScale;
                 let y = (e.touches[0].clientY - containerRect.top) / zoomScale;
