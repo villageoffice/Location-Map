@@ -276,8 +276,10 @@
 </head>
 <body>
 
+    <!-- TOP TAB CONTROL PANEL (TWO LAYERS) -->
     <div class="top-menu">
         
+        <!-- LAYER 1: Core Modes & Line Settings -->
         <div class="menu-row">
             <div class="menu-tab">
                 <button id="drawToggleBtn" class="toggle-btn" onclick="toggleDrawMode()">🔒 Draw Mode: OFF</button>
@@ -310,6 +312,7 @@
             </div>
         </div>
 
+        <!-- LAYER 2: Symbols, Custom Text & File Tools -->
         <div class="menu-row">
             <div class="menu-tab">
                 <span class="tab-title">🏠 Symbol:</span>
@@ -356,6 +359,7 @@
 
     </div>
 
+    <!-- Panning Workspace Wrapper -->
     <div class="workspace-wrapper" id="wrapper">
         <div class="workspace-container" id="container">
             <div class="a4-page" id="a4Page">
@@ -368,6 +372,7 @@
         </div>
     </div>
 
+    <!-- Magnifier -->
     <div id="magnifier">
         <canvas id="magnifierCanvas" width="140" height="140"></canvas>
     </div>
@@ -388,11 +393,11 @@
         let offSubMode = 'items'; 
         let rotateTabActive = false; 
 
-        // --- LAYER ENHANCEMENTS: BLOCK DRAGGING VALUES ---
+        // Block Layer State Matricies
         let isMovingDrawingBlock = false;
         let blockOffsetX = 0;
         let blockOffsetY = 0;
-        let globalDrawingTranslateX = 0; // Vector shift tracking for drawings block layer
+        let globalDrawingTranslateX = 0; 
         let globalDrawingTranslateY = 0;
 
         function updateTransform() {
@@ -443,7 +448,6 @@
             updateTransform();
         }, { passive: false });
 
-        // Suppress secondary menu click bounds
         wrapper.addEventListener('contextmenu', e => e.preventDefault());
 
         // --- NAVIGATION INTERACTION CONTROL SYSTEMS ---
@@ -501,7 +505,7 @@
             }
         }
 
-        // TOUCH PINCH SCALING MATRIX
+        // TOUCH PINCH CONTROLS
         wrapper.addEventListener('touchstart', (e) => {
             if (drawModeOn || offSubMode !== 'page' || e.touches.length !== 2) return; 
             initialPinchDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
@@ -577,7 +581,7 @@
             }
         }
 
-        // Adjusted to handle block displacement tracking factors explicitly
+        // High reliability matrix math map calculator for true drawing positions
         function getCoordinates(e) {
             const rect = canvas.getBoundingClientRect();
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -588,28 +592,12 @@
             };
         }
 
-        function showMagnifier(e, coord) {
-            if (!drawModeOn || !isDrawing) { magnifier.style.display = 'none'; return; }
-            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-            magnifier.style.display = 'block';
-            magnifier.style.left = (clientX - 70) + 'px';
-            magnifier.style.top = (clientY - 160) + 'px';
-
-            magCtx.clearRect(0, 0, 140, 140);
-            magCtx.drawImage(canvas, coord.x - 28, coord.y - 28, 56, 56, 0, 0, 140, 140);
-            
-            magCtx.strokeStyle = 'red'; magCtx.lineWidth = 1; ctx.beginPath();
-            magCtx.moveTo(70, 60); magCtx.lineTo(70, 80); magCtx.moveTo(60, 70); magCtx.lineTo(80, 70); magCtx.stroke();
-        }
-
         function startDrawing(e) {
             if (!drawModeOn || e.target !== canvas || e.button === 2) return; 
             e.preventDefault(); isDrawing = true;
             let coord = getCoordinates(e);
             
-            // Reverse engineering dynamic shift constants to map incoming raw pixel coordinates accurately
+            // --- 🦾 FIX RESOLUTION: ADJUST COORD WITH TRANSLATE FOR REAL-TIME RENDERING ---
             let targetModelCoord = {
                 x: coord.x - globalDrawingTranslateX,
                 y: coord.y - globalDrawingTranslateY
@@ -668,11 +656,12 @@
             isDrawing = false; currentPath = []; activePathIndex = null; magnifier.style.display = 'none'; redrawAll();
         }
 
-        // --- 🛠️ DYNAMIC LAYER MATRIX RENDER PASS ROUTINES ---
+        canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); window.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('touchstart', startDrawing, {passive: false}); canvas.addEventListener('touchmove', draw, {passive: false}); window.addEventListener('touchend', stopDrawing);
+
         function drawPass(points, type, layer) {
             if (points.length < 2) return;
             const style = roadStyles[type];
-            
             ctx.lineCap = 'butt'; ctx.lineJoin = 'miter'; ctx.miterLimit = 10;
             ctx.beginPath();
             
@@ -709,12 +698,27 @@
             }
         }
 
+        function drawVectorUtilityPole(pCtx, x, y) {
+            pCtx.save(); pCtx.strokeStyle = "black"; pCtx.fillStyle = "black"; pCtx.lineWidth = 2.5;
+            pCtx.beginPath(); pCtx.moveTo(x, y + 16); pCtx.lineTo(x, y - 18); pCtx.stroke();
+            pCtx.lineWidth = 3.5; pCtx.beginPath(); pCtx.moveTo(x - 16, y - 10); pCtx.lineTo(x + 16, y - 10); pCtx.stroke();
+            pCtx.lineWidth = 2; pCtx.beginPath(); pCtx.moveTo(x - 8, y - 17); pCtx.lineTo(x + 8, y - 17); pCtx.stroke();
+            pCtx.lineWidth = 1;
+            const insulatorPositions = [
+                {rx: x - 14, ry: y - 12}, {rx: x - 5, ry: y - 19},
+                {rx: x + 5, ry: y - 19}, {rx: x + 14, ry: y - 12}
+            ];
+            insulatorPositions.forEach(pos => {
+                pCtx.beginPath(); pCtx.arc(pos.rx, pos.ry, 2, 0, Math.PI * 2); pCtx.stroke();
+            });
+            pCtx.fillRect(x + 2, y - 4, 7, 9); pCtx.restore();
+        }
+
         function redrawAll() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             if (bgImage) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
             
             ctx.save();
-            // INJECT GLOBAL TRANSLATION MULTIPLIERS FOR BLOCK DISPLACEMENTS
             ctx.translate(globalDrawingTranslateX, globalDrawingTranslateY);
             
             let allPaths = [];
@@ -742,7 +746,7 @@
             redrawAll(); 
         }
 
-        // --- 🖱️ INTERACTIVE SYSTEM COUPLING BOTH BLOCK DRAGS AND NAVIGATION PANNINGS ---
+        // --- 🖱️ COMPREHENSIVE INTERACTIVE ELEMENT DESKTOP ROUTER ENGINE ---
         const itemContainer = document.getElementById('canvasContainer');
         let draggedElement = null;
 
@@ -757,10 +761,8 @@
             draggedElement = this;
         }
 
-        // Router method to intercept canvas clicks when dragging blocks vs panning layouts
         wrapper.addEventListener('mousedown', (e) => {
             if (offSubMode !== 'items' || drawModeOn) {
-                // Secondary fallback track right-clicks routing inside drawing views
                 if (e.button === 2 && !drawModeOn) {
                     isPanning = true; wrapper.style.cursor = "grabbing";
                     startX = e.clientX - panX; startY = e.clientY - panY;
@@ -769,14 +771,12 @@
             }
 
             if (e.target === canvas && e.button === 0) {
-                // Left click on an empty canvas space triggers WHOLE DRAWING BLOCK MOVEMENT
                 isMovingDrawingBlock = true;
                 canvas.style.cursor = "move";
                 const rect = itemContainer.getBoundingClientRect();
                 blockOffsetX = (e.clientX - rect.left) / zoomScale - globalDrawingTranslateX;
                 blockOffsetY = (e.clientY - rect.top) / zoomScale - globalDrawingTranslateY;
             } else if (e.button === 2) {
-                // Right click fallback channel inside Items View enables native world panning
                 isPanning = true; wrapper.style.cursor = "grabbing";
                 startX = e.clientX - panX; startY = e.clientY - panY;
             }
@@ -808,7 +808,7 @@
             draggedElement = null;
         });
 
-        // --- MOBILE TOUCH EQUIVALENT ROUTER MATRIX PIPELINES ---
+        // TOUCH ADAPTATION FOR PHONE/TABLET IN ITEMS TARGET VIEWS
         wrapper.addEventListener('touchstart', (e) => {
             if (offSubMode !== 'items' || drawModeOn) return;
             if (e.target === canvas && e.touches.length === 1) {
@@ -941,8 +941,6 @@
             pdfCanvas.width = 794; pdfCanvas.height = 1123;
             const pCtx = pdfCanvas.getContext('2d');
             pCtx.fillStyle = '#ffffff'; pCtx.fillRect(0, 0, pdfCanvas.width, pdfCanvas.height);
-            
-            // Flatten internal canvas block coordinates links directly
             pCtx.drawImage(canvas, 0, 0);
             
             const items = document.querySelectorAll('.draggable-item');
