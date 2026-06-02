@@ -276,10 +276,8 @@
 </head>
 <body>
 
-    <!-- TOP TAB CONTROL PANEL (TWO LAYERS) -->
     <div class="top-menu">
         
-        <!-- LAYER 1: Core Modes & Line Settings -->
         <div class="menu-row">
             <div class="menu-tab">
                 <button id="drawToggleBtn" class="toggle-btn" onclick="toggleDrawMode()">🔒 Draw Mode: OFF</button>
@@ -312,7 +310,6 @@
             </div>
         </div>
 
-        <!-- LAYER 2: Symbols, Custom Text & File Tools -->
         <div class="menu-row">
             <div class="menu-tab">
                 <span class="tab-title">🏠 Symbol:</span>
@@ -351,7 +348,6 @@
             </div>
 
             <div class="action-group">
-                <!-- UPDATED PERU: PC MODE BUTTON -->
                 <button onclick="resetZoomAndPan()">🖥️ PC Mode</button>
                 <button class="danger-btn" onclick="clearMap()">🗑️ Clear</button>
                 <button class="success-btn" onclick="compileAndSavePDF()">💾 Save as PDF</button>
@@ -360,7 +356,6 @@
 
     </div>
 
-    <!-- Panning Workspace Wrapper -->
     <div class="workspace-wrapper" id="wrapper">
         <div class="workspace-container" id="container">
             <div class="a4-page" id="a4Page">
@@ -373,7 +368,6 @@
         </div>
     </div>
 
-    <!-- Magnifier -->
     <div id="magnifier">
         <canvas id="magnifierCanvas" width="140" height="140"></canvas>
     </div>
@@ -394,11 +388,18 @@
         let offSubMode = 'items'; 
         let rotateTabActive = false; 
 
+        // --- LAYER ENHANCEMENTS: BLOCK DRAGGING VALUES ---
+        let isMovingDrawingBlock = false;
+        let blockOffsetX = 0;
+        let blockOffsetY = 0;
+        let globalDrawingTranslateX = 0; // Vector shift tracking for drawings block layer
+        let globalDrawingTranslateY = 0;
+
         function updateTransform() {
             container.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
         }
 
-        // --- 🖥️ PC MODE SCREEN PERFECT CENTERING LOGIC ---
+        // --- 🖥️ PC MODE SCREEN CENTERING LOGIC ---
         function resetZoomAndPan() {
             const wWidth = wrapper.clientWidth;
             const wHeight = wrapper.clientHeight;
@@ -442,31 +443,7 @@
             updateTransform();
         }, { passive: false });
 
-        // --- ✋ MOUSE RIGHT-CLICK DRAG PANNING ENGINE ---
-        wrapper.addEventListener('mousedown', (e) => {
-            if (e.button === 2 && !drawModeOn) {
-                isPanning = true;
-                wrapper.style.cursor = "grabbing";
-                startX = e.clientX - panX;
-                startY = e.clientY - panY;
-            }
-        });
-
-        window.addEventListener('mousemove', (e) => {
-            if (isPanning) {
-                panX = e.clientX - startX;
-                panY = e.clientY - startY;
-                updateTransform();
-            }
-        });
-
-        window.addEventListener('mouseup', (e) => {
-            if (e.button === 2) {
-                isPanning = false;
-                wrapper.style.cursor = "default";
-            }
-        });
-
+        // Suppress secondary menu click bounds
         wrapper.addEventListener('contextmenu', e => e.preventDefault());
 
         // --- NAVIGATION INTERACTION CONTROL SYSTEMS ---
@@ -524,7 +501,7 @@
             }
         }
 
-        // TOUCH COMPATIBILITY FOR MOBILE INTERACTION
+        // TOUCH PINCH SCALING MATRIX
         wrapper.addEventListener('touchstart', (e) => {
             if (drawModeOn || offSubMode !== 'page' || e.touches.length !== 2) return; 
             initialPinchDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
@@ -600,6 +577,7 @@
             }
         }
 
+        // Adjusted to handle block displacement tracking factors explicitly
         function getCoordinates(e) {
             const rect = canvas.getBoundingClientRect();
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -630,6 +608,13 @@
             if (!drawModeOn || e.target !== canvas || e.button === 2) return; 
             e.preventDefault(); isDrawing = true;
             let coord = getCoordinates(e);
+            
+            // Reverse engineering dynamic shift constants to map incoming raw pixel coordinates accurately
+            let targetModelCoord = {
+                x: coord.x - globalDrawingTranslateX,
+                y: coord.y - globalDrawingTranslateY
+            };
+            
             activePathIndex = null;
 
             if(document.getElementById('straightMode').checked && paths.length > 0) {
@@ -638,9 +623,9 @@
                     if (paths[i].type === currentSelectedType && !roadStyles[currentSelectedType].isBox) {
                         let pts = paths[i].points;
                         let lastPt = pts[pts.length - 1];
-                        let distance = Math.hypot(coord.x - lastPt.x, coord.y - lastPt.y);
+                        let distance = Math.hypot(targetModelCoord.x - lastPt.x, targetModelCoord.y - lastPt.y);
                         if (distance < 35) {
-                            coord = { x: lastPt.x, y: lastPt.y };
+                            targetModelCoord = { x: lastPt.x, y: lastPt.y };
                             activePathIndex = i; 
                             break;
                         }
@@ -648,20 +633,28 @@
                 }
             }
             
-            currentPath = [coord];
+            currentPath = [targetModelCoord];
             showMagnifier(e, coord);
         }
 
         function draw(e) {
             if (!isDrawing || !drawModeOn) return;
-            e.preventDefault(); const currentPt = getCoordinates(e);
+            e.preventDefault(); 
+            const coord = getCoordinates(e);
+            
+            let targetModelCoord = {
+                x: coord.x - globalDrawingTranslateX,
+                y: coord.y - globalDrawingTranslateY
+            };
+            
             const activeType = document.getElementById('roadType').value;
             if (roadStyles[activeType].isBox || document.getElementById('straightMode').checked) {
-                currentPath = [currentPath[0], currentPt];
+                currentPath = [currentPath[0], targetModelCoord];
             } else {
-                currentPath.push(currentPt);
+                currentPath.push(targetModelCoord);
             }
-            redrawAll(); showMagnifier(e, currentPt);
+            redrawAll(); 
+            showMagnifier(e, coord);
         }
 
         function stopDrawing(e) {
@@ -675,12 +668,11 @@
             isDrawing = false; currentPath = []; activePathIndex = null; magnifier.style.display = 'none'; redrawAll();
         }
 
-        canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); window.addEventListener('mouseup', stopDrawing);
-        canvas.addEventListener('touchstart', startDrawing, {passive: false}); canvas.addEventListener('touchmove', draw, {passive: false}); window.addEventListener('touchend', stopDrawing);
-
+        // --- 🛠️ DYNAMIC LAYER MATRIX RENDER PASS ROUTINES ---
         function drawPass(points, type, layer) {
             if (points.length < 2) return;
             const style = roadStyles[type];
+            
             ctx.lineCap = 'butt'; ctx.lineJoin = 'miter'; ctx.miterLimit = 10;
             ctx.beginPath();
             
@@ -717,25 +709,14 @@
             }
         }
 
-        function drawVectorUtilityPole(pCtx, x, y) {
-            pCtx.save(); pCtx.strokeStyle = "black"; pCtx.fillStyle = "black"; pCtx.lineWidth = 2.5;
-            pCtx.beginPath(); pCtx.moveTo(x, y + 16); pCtx.lineTo(x, y - 18); pCtx.stroke();
-            pCtx.lineWidth = 3.5; pCtx.beginPath(); pCtx.moveTo(x - 16, y - 10); pCtx.lineTo(x + 16, y - 10); pCtx.stroke();
-            pCtx.lineWidth = 2; pCtx.beginPath(); pCtx.moveTo(x - 8, y - 17); pCtx.lineTo(x + 8, y - 17); pCtx.stroke();
-            pCtx.lineWidth = 1;
-            const insulatorPositions = [
-                {rx: x - 14, ry: y - 12}, {rx: x - 5, ry: y - 19},
-                {rx: x + 5, ry: y - 19}, {rx: x + 14, ry: y - 12}
-            ];
-            insulatorPositions.forEach(pos => {
-                pCtx.beginPath(); pCtx.arc(pos.rx, pos.ry, 2, 0, Math.PI * 2); pCtx.stroke();
-            });
-            pCtx.fillRect(x + 2, y - 4, 7, 9); pCtx.restore();
-        }
-
         function redrawAll() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             if (bgImage) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+            
+            ctx.save();
+            // INJECT GLOBAL TRANSLATION MULTIPLIERS FOR BLOCK DISPLACEMENTS
+            ctx.translate(globalDrawingTranslateX, globalDrawingTranslateY);
+            
             let allPaths = [];
             paths.forEach((p, idx) => {
                 if (idx === activePathIndex && isDrawing && currentPath.length > 0) {
@@ -744,11 +725,14 @@
                     allPaths.push(p);
                 }
             });
+
             if (activePathIndex === null && isDrawing && currentPath.length > 0) {
                 allPaths.push({ type: document.getElementById('roadType').value, points: currentPath });
             }
+            
             allPaths.forEach(p => drawPass(p.points, p.type, 'outer'));
             allPaths.forEach(p => drawPass(p.points, p.type, 'inner'));
+            ctx.restore();
         }
 
         function undoLast() { 
@@ -758,7 +742,7 @@
             redrawAll(); 
         }
 
-        // --- 🖱️ FIXED HIGH-PRECISION DESKTOP MOUSE DRAG MOUSE LOGIC ---
+        // --- 🖱️ INTERACTIVE SYSTEM COUPLING BOTH BLOCK DRAGS AND NAVIGATION PANNINGS ---
         const itemContainer = document.getElementById('canvasContainer');
         let draggedElement = null;
 
@@ -773,28 +757,83 @@
             draggedElement = this;
         }
 
-        function onDrag(e) {
-            if (!draggedElement || drawModeOn || offSubMode !== 'items') return;
-            e.preventDefault();
-            
-            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            
-            // Fixed Laptop Drag Logic: Get viewport bounds relative to the matrix container
-            const containerRect = itemContainer.getBoundingClientRect();
-            
-            // Compensate accurately for dynamic zoom scale matrices AND parent panning translations
-            let x = (clientX - containerRect.left) / zoomScale;
-            let y = (clientY - containerRect.top) / zoomScale;
-            
-            draggedElement.style.left = x + 'px'; 
-            draggedElement.style.top = y + 'px';
-        }
+        // Router method to intercept canvas clicks when dragging blocks vs panning layouts
+        wrapper.addEventListener('mousedown', (e) => {
+            if (offSubMode !== 'items' || drawModeOn) {
+                // Secondary fallback track right-clicks routing inside drawing views
+                if (e.button === 2 && !drawModeOn) {
+                    isPanning = true; wrapper.style.cursor = "grabbing";
+                    startX = e.clientX - panX; startY = e.clientY - panY;
+                }
+                return;
+            }
 
-        window.addEventListener('mousemove', onDrag); 
-        window.addEventListener('mouseup', () => draggedElement = null);
-        window.addEventListener('touchmove', onDrag, {passive: false}); 
-        window.addEventListener('touchend', () => draggedElement = null);
+            if (e.target === canvas && e.button === 0) {
+                // Left click on an empty canvas space triggers WHOLE DRAWING BLOCK MOVEMENT
+                isMovingDrawingBlock = true;
+                canvas.style.cursor = "move";
+                const rect = itemContainer.getBoundingClientRect();
+                blockOffsetX = (e.clientX - rect.left) / zoomScale - globalDrawingTranslateX;
+                blockOffsetY = (e.clientY - rect.top) / zoomScale - globalDrawingTranslateY;
+            } else if (e.button === 2) {
+                // Right click fallback channel inside Items View enables native world panning
+                isPanning = true; wrapper.style.cursor = "grabbing";
+                startX = e.clientX - panX; startY = e.clientY - panY;
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isPanning) {
+                panX = e.clientX - startX;
+                panY = e.clientY - startY;
+                updateTransform();
+            } else if (isMovingDrawingBlock) {
+                const rect = itemContainer.getBoundingClientRect();
+                globalDrawingTranslateX = (e.clientX - rect.left) / zoomScale - blockOffsetX;
+                globalDrawingTranslateY = (e.clientY - rect.top) / zoomScale - blockOffsetY;
+                redrawAll();
+            } else if (draggedElement) {
+                e.preventDefault();
+                let clientX = e.clientX; let clientY = e.clientY;
+                const containerRect = itemContainer.getBoundingClientRect();
+                let x = (clientX - containerRect.left) / zoomScale;
+                let y = (clientY - containerRect.top) / zoomScale;
+                draggedElement.style.left = x + 'px'; draggedElement.style.top = y + 'px';
+            }
+        });
+
+        window.addEventListener('mouseup', (e) => {
+            if (isPanning) { isPanning = false; wrapper.style.cursor = "default"; }
+            if (isMovingDrawingBlock) { isMovingDrawingBlock = false; canvas.style.cursor = "default"; }
+            draggedElement = null;
+        });
+
+        // --- MOBILE TOUCH EQUIVALENT ROUTER MATRIX PIPELINES ---
+        wrapper.addEventListener('touchstart', (e) => {
+            if (offSubMode !== 'items' || drawModeOn) return;
+            if (e.target === canvas && e.touches.length === 1) {
+                isMovingDrawingBlock = true;
+                const rect = itemContainer.getBoundingClientRect();
+                blockOffsetX = (e.touches[0].clientX - rect.left) / zoomScale - globalDrawingTranslateX;
+                blockOffsetY = (e.touches[0].clientY - rect.top) / zoomScale - globalDrawingTranslateY;
+            }
+        }, {passive: true});
+
+        wrapper.addEventListener('touchmove', (e) => {
+            if (isMovingDrawingBlock && e.touches.length === 1) {
+                const rect = itemContainer.getBoundingClientRect();
+                globalDrawingTranslateX = (e.touches[0].clientX - rect.left) / zoomScale - blockOffsetX;
+                globalDrawingTranslateY = (e.touches[0].clientY - rect.top) / zoomScale - blockOffsetY;
+                redrawAll();
+            } else if (draggedElement && e.touches.length === 1) {
+                const containerRect = itemContainer.getBoundingClientRect();
+                let x = (e.touches[0].clientX - containerRect.left) / zoomScale;
+                let y = (e.touches[0].clientY - containerRect.top) / zoomScale;
+                draggedElement.style.left = x + 'px'; draggedElement.style.top = y + 'px';
+            }
+        }, {passive: true});
+
+        wrapper.addEventListener('touchend', () => { isMovingDrawingBlock = false; draggedElement = null; });
 
         function addIcon() {
             const val = document.getElementById('iconSelect').value.split('|');
@@ -855,10 +894,7 @@
 
         function addGoogleMapQRCode() {
             const linkUrl = document.getElementById('mapLinkInput').value.trim();
-            if(linkUrl === "") {
-                alert("Please paste a valid Google Map Link URL first!");
-                return;
-            }
+            if(linkUrl === "") { alert("Please paste a valid Google Map Link URL first!"); return; }
 
             const el = document.createElement('div'); el.className = 'draggable-item';
             el.style.left = '50%'; el.style.top = '50%';
@@ -891,10 +927,12 @@
 
         function clearMap() {
             if(confirm("Are you sure you want to clear the sketch?")) {
-                paths = []; bgImage = null; activePathIndex = null; document.getElementById('bgUploader').value = ""; redrawAll();
+                paths = []; bgImage = null; activePathIndex = null;
+                globalDrawingTranslateX = 0; globalDrawingTranslateY = 0;
+                document.getElementById('bgUploader').value = ""; redrawAll();
                 document.querySelectorAll('.draggable-item').forEach(item => item.remove());
                 resetZoomAndPan(); setSubMode('items');
-                if (rotateTabActive) toggleToggleTab();
+                if (rotateTabActive) toggleRotateTab();
             }
         }
 
@@ -903,6 +941,8 @@
             pdfCanvas.width = 794; pdfCanvas.height = 1123;
             const pCtx = pdfCanvas.getContext('2d');
             pCtx.fillStyle = '#ffffff'; pCtx.fillRect(0, 0, pdfCanvas.width, pdfCanvas.height);
+            
+            // Flatten internal canvas block coordinates links directly
             pCtx.drawImage(canvas, 0, 0);
             
             const items = document.querySelectorAll('.draggable-item');
