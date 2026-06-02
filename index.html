@@ -250,7 +250,6 @@
         }
         #magnifierCanvas { width: 140px; height: 140px; }
 
-        /* Custom Vector Pole SVG Styling container */
         .vector-pole-svg {
             width: 45px;
             height: 45px;
@@ -328,6 +327,8 @@
             <div class="menu-tab">
                 <span class="tab-title">🖼️ Upload PDF / Image:</span>
                 <input type="file" id="bgUploader" accept="image/*,application/pdf" style="width: 140px;">
+                <!-- NEW UPLOAD REMOVE ACTION BUTTON -->
+                <button class="danger-btn" onclick="removeUploadedBackground()" style="padding: 5px 6px;">❌ Remove</button>
             </div>
 
             <div class="action-group">
@@ -528,6 +529,15 @@
             }
         });
 
+        // --- EXCLUSIVE BACKGROUND REMOVE TOOL LOGIC ---
+        function removeUploadedBackground() {
+            if(bgImage) {
+                bgImage = null;
+                document.getElementById('bgUploader').value = ""; // Resets internal input stream reference
+                redrawAll();
+            }
+        }
+
         function getCoordinates(e) {
             const rect = canvas.getBoundingClientRect();
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -562,13 +572,11 @@
 
             if(document.getElementById('straightMode').checked && paths.length > 0) {
                 const currentSelectedType = document.getElementById('roadType').value;
-                
                 for (let i = paths.length - 1; i >= 0; i--) {
                     if (paths[i].type === currentSelectedType && !roadStyles[currentSelectedType].isBox) {
                         let pts = paths[i].points;
                         let lastPt = pts[pts.length - 1];
                         let distance = Math.hypot(coord.x - lastPt.x, coord.y - lastPt.y);
-                        
                         if (distance < 35) {
                             coord = { x: lastPt.x, y: lastPt.y };
                             activePathIndex = i; 
@@ -586,7 +594,6 @@
             if (!isDrawing || !drawModeOn) return;
             e.preventDefault(); const currentPt = getCoordinates(e);
             const activeType = document.getElementById('roadType').value;
-            
             if (roadStyles[activeType].isBox || document.getElementById('straightMode').checked) {
                 currentPath = [currentPath[0], currentPt];
             } else {
@@ -612,10 +619,7 @@
         function drawPass(points, type, layer) {
             if (points.length < 2) return;
             const style = roadStyles[type];
-            
-            ctx.lineCap = 'butt'; 
-            ctx.lineJoin = 'miter'; 
-            ctx.miterLimit = 10;
+            ctx.lineCap = 'butt'; ctx.lineJoin = 'miter'; ctx.miterLimit = 10;
             ctx.beginPath();
             
             if (style.isBox) {
@@ -633,11 +637,8 @@
                 ctx.stroke();
 
                 if (style.isElectric) {
-                    ctx.save();
-                    ctx.font = "12px Arial";
-                    ctx.fillStyle = "#e67e22";
-                    ctx.textAlign = "center";
-                    ctx.textBaseline = "middle";
+                    ctx.save(); ctx.font = "12px Arial"; ctx.fillStyle = "#e67e22";
+                    ctx.textAlign = "center"; ctx.textBaseline = "middle";
                     for (let i = 0; i < points.length - 1; i++) {
                         let p1 = points[i]; let p2 = points[i+1];
                         ctx.fillText("⚡", (p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
@@ -654,56 +655,26 @@
             }
         }
 
-        // Native 2D Context drawing blueprint mirroring "70159.png" vector specs directly
         function drawVectorUtilityPole(pCtx, x, y) {
-            pCtx.save();
-            pCtx.strokeStyle = "black";
-            pCtx.fillStyle = "black";
-            pCtx.lineWidth = 2.5;
-
-            // Main vertical pole structure shaft
-            pCtx.beginPath();
-            pCtx.moveTo(x, y + 16);
-            pCtx.lineTo(x, y - 18);
-            pCtx.stroke();
-
-            // Main horizontal primary cross-arm section beam
-            pCtx.lineWidth = 3.5;
-            pCtx.beginPath();
-            pCtx.moveTo(x - 16, y - 10);
-            pCtx.lineTo(x + 16, y - 10);
-            pCtx.stroke();
-
-            // Mini upper cross-bar beam structure
-            pCtx.lineWidth = 2;
-            pCtx.beginPath();
-            pCtx.moveTo(x - 8, y - 17);
-            pCtx.lineTo(x + 8, y - 17);
-            pCtx.stroke();
-
-            // Render 4 tiny round insulator ring loops on top of cross bars
+            pCtx.save(); pCtx.strokeStyle = "black"; pCtx.fillStyle = "black"; pCtx.lineWidth = 2.5;
+            pCtx.beginPath(); pCtx.moveTo(x, y + 16); pCtx.lineTo(x, y - 18); pCtx.stroke();
+            pCtx.lineWidth = 3.5; pCtx.beginPath(); pCtx.moveTo(x - 16, y - 10); pCtx.lineTo(x + 16, y - 10); pCtx.stroke();
+            pCtx.lineWidth = 2; pCtx.beginPath(); pCtx.moveTo(x - 8, y - 17); pCtx.lineTo(x + 8, y - 17); pCtx.stroke();
             pCtx.lineWidth = 1;
             const insulatorPositions = [
                 {rx: x - 14, ry: y - 12}, {rx: x - 5, ry: y - 19},
                 {rx: x + 5, ry: y - 19}, {rx: x + 14, ry: y - 12}
             ];
             insulatorPositions.forEach(pos => {
-                pCtx.beginPath();
-                pCtx.arc(pos.rx, pos.ry, 2, 0, Math.PI * 2);
-                pCtx.stroke();
+                pCtx.beginPath(); pCtx.arc(pos.rx, pos.ry, 2, 0, Math.PI * 2); pCtx.stroke();
             });
-
-            // Transformer box body overlay patch module
-            pCtx.fillRect(x + 2, y - 4, 7, 9);
-
-            pCtx.restore();
+            pCtx.fillRect(x + 2, y - 4, 7, 9); pCtx.restore();
         }
 
         function redrawAll() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             if (bgImage) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
             let allPaths = [];
-            
             paths.forEach((p, idx) => {
                 if (idx === activePathIndex && isDrawing && currentPath.length > 0) {
                     allPaths.push({ type: p.type, points: [...p.points, currentPath[1]] });
@@ -711,11 +682,9 @@
                     allPaths.push(p);
                 }
             });
-
             if (activePathIndex === null && isDrawing && currentPath.length > 0) {
                 allPaths.push({ type: document.getElementById('roadType').value, points: currentPath });
             }
-            
             allPaths.forEach(p => drawPass(p.points, p.type, 'outer'));
             allPaths.forEach(p => drawPass(p.points, p.type, 'inner'));
         }
@@ -760,22 +729,16 @@
             const displayState = rotateTabActive ? "block" : "none";
 
             if (val[0] === "UTILITY_POLE") {
-                // Inline SVG render matrix mapping "70159.png" blueprint layout components perfectly onto the viewport DOM layer
                 el.innerHTML = `
                     <div class="rotate-wrapper">
                         <svg class="vector-pole-svg" viewBox="0 0 40 40">
-                            <!-- Main trunk bar line -->
                             <line x1="20" y1="36" x2="20" y2="4" stroke="black" stroke-width="2.5" />
-                            <!-- Cross-arm primary rail line -->
                             <line x1="4" y1="12" x2="36" y2="12" stroke="black" stroke-width="3.5" />
-                            <!-- Upper brace support rail line -->
                             <line x1="12" y1="6" x2="28" y2="6" stroke="black" stroke-width="2" />
-                            <!-- Insulator anchor point loops -->
                             <circle cx="6" cy="10" r="1.5" stroke="black" stroke-width="1" fill="none" />
                             <circle cx="15" cy="4" r="1.5" stroke="black" stroke-width="1" fill="none" />
                             <circle cx="25" cy="4" r="1.5" stroke="black" stroke-width="1" fill="none" />
                             <circle cx="34" cy="10" r="1.5" stroke="black" stroke-width="1" fill="none" />
-                            <!-- Transformer structural container grid block -->
                             <rect x="22" y="16" width="7" height="9" fill="black" />
                         </svg>
                         <span class="icon-label">${val[1]}</span>
@@ -834,7 +797,6 @@
             pdfCanvas.width = 794; pdfCanvas.height = 1123;
             const pCtx = pdfCanvas.getContext('2d');
             pCtx.fillStyle = '#ffffff'; pCtx.fillRect(0, 0, pdfCanvas.width, pdfCanvas.height);
-            
             pCtx.drawImage(canvas, 0, 0);
             
             const items = document.querySelectorAll('.draggable-item');
@@ -857,7 +819,6 @@
                     pCtx.fillStyle = "white"; pCtx.fillRect(-metrics.width/2 - 6, -12, metrics.width + 12, 24);
                     pCtx.fillStyle = "black"; pCtx.fillText(text, 0, 0);
                 } else if (svgNode) {
-                    // Flatten vector utility pole canvas mapping natively on target print context layer directly
                     drawVectorUtilityPole(pCtx, 0, -6);
                     if (labelNode) {
                         pCtx.font = "bold 11px Arial"; pCtx.fillStyle = "black"; pCtx.textAlign = "center";
