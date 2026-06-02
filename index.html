@@ -110,7 +110,7 @@
         /* Workspace Wrapper */
         .workspace-wrapper {
             flex-grow: 1;
-            overflow: hidden; /* Desktop viewport handles panning inside JS matrix */
+            overflow: hidden; 
             position: relative;
             width: 100%;
             height: 100%;
@@ -125,7 +125,7 @@
             display: flex;
             flex-direction: column; 
             align-items: center;
-            transform-origin: 0 0; /* Smooth scaling relative to coordinate points */
+            transform-origin: 0 0; 
         }
 
         /* Pure White A4 Page Size */
@@ -140,7 +140,7 @@
 
         .screen-metadata {
             position: absolute;
-            bottom: -50px; /* Safe padding distance from A4 frame */
+            bottom: -50px; 
             color: #ffffff;
             font-size: 16px;
             font-weight: bold;
@@ -209,7 +209,7 @@
             border-radius: 3px;
             padding: 1px 3px;
             display: block;
-            margin-top: 2px;
+            margin-top: -2px;
             font-weight: bold;
             border: 1px solid #ccc;
         }
@@ -276,8 +276,10 @@
 </head>
 <body>
 
+    <!-- TOP TAB CONTROL PANEL (TWO LAYERS) -->
     <div class="top-menu">
         
+        <!-- LAYER 1: Core Modes & Line Settings -->
         <div class="menu-row">
             <div class="menu-tab">
                 <button id="drawToggleBtn" class="toggle-btn" onclick="toggleDrawMode()">🔒 Draw Mode: OFF</button>
@@ -310,6 +312,7 @@
             </div>
         </div>
 
+        <!-- LAYER 2: Symbols, Custom Text & File Tools -->
         <div class="menu-row">
             <div class="menu-tab">
                 <span class="tab-title">🏠 Symbol:</span>
@@ -348,7 +351,8 @@
             </div>
 
             <div class="action-group">
-                <button onclick="resetZoomAndPan()">🖥️ Fit</button>
+                <!-- UPDATED PERU: PC MODE BUTTON -->
+                <button onclick="resetZoomAndPan()">🖥️ PC Mode</button>
                 <button class="danger-btn" onclick="clearMap()">🗑️ Clear</button>
                 <button class="success-btn" onclick="compileAndSavePDF()">💾 Save as PDF</button>
             </div>
@@ -356,6 +360,7 @@
 
     </div>
 
+    <!-- Panning Workspace Wrapper -->
     <div class="workspace-wrapper" id="wrapper">
         <div class="workspace-container" id="container">
             <div class="a4-page" id="a4Page">
@@ -368,6 +373,7 @@
         </div>
     </div>
 
+    <!-- Magnifier -->
     <div id="magnifier">
         <canvas id="magnifierCanvas" width="140" height="140"></canvas>
     </div>
@@ -379,7 +385,6 @@
         const container = document.getElementById('container');
         const canvas = document.getElementById('mapCanvas');
 
-        // --- ADVANCED LAPTOP MATRIX NAVIGATION STATE ---
         let zoomScale = 1; 
         let panX = 0; 
         let panY = 0;
@@ -393,12 +398,11 @@
             container.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
         }
 
-        // --- 🖥️ ABSOLUTE LAPTOP CENTRAL SCREEN FIT LOGIC ---
+        // --- 🖥️ PC MODE SCREEN PERFECT CENTERING LOGIC ---
         function resetZoomAndPan() {
             const wWidth = wrapper.clientWidth;
             const wHeight = wrapper.clientHeight;
             
-            // Calculate scale limits matching exactly the remaining screen area comfortable parameters
             const scaleX = (wWidth - 40) / 794;
             const scaleY = (wHeight - 40) / 1123;
             
@@ -406,10 +410,9 @@
             if(zoomScale > 1.2) zoomScale = 1.2;
             if(zoomScale < 0.1) zoomScale = 0.1;
             
-            // Mathematically align the A4 page directly dead center inside the laptop window viewport
             panX = (wWidth - (794 * zoomScale)) / 2;
             panY = (wHeight - (1123 * zoomScale)) / 2;
-            if(panY < 10) panY = 10; // Structural safety offset margin
+            if(panY < 10) panY = 10; 
             
             updateTransform();
         }
@@ -417,36 +420,30 @@
         window.onload = () => { setTimeout(resetZoomAndPan, 200); };
         window.onresize = resetZoomAndPan;
 
-        // --- 🖱️ INTERACTIVE DESKTOP MOUSE SCROLL WHEEL ZOOM SYSTEM ---
+        // --- 🎛️ MOUSE WHEEL ZOOM SYSTEM ---
         wrapper.addEventListener('wheel', (e) => {
             e.preventDefault();
             const zoomFactor = 1.08;
-            
-            // Get mouse cursor position matrix relative to the container boundary coordinates
             const rect = wrapper.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
             
-            // Capture active current baseline state metrics
             const currentScale = zoomScale;
             
-            // Calculate dynamic incremental scale coefficients based on wheel spin direction vectors
             if (e.deltaY < 0) {
-                zoomScale = Math.min(zoomScale * zoomFactor, 3.0); // Maximum boundary caps
+                zoomScale = Math.min(zoomScale * zoomFactor, 3.0); 
             } else {
-                zoomScale = Math.max(zoomScale / zoomFactor, 0.15); // Minimum boundary caps
+                zoomScale = Math.max(zoomScale / zoomFactor, 0.15); 
             }
             
-            // Re-adjust transformation displacement tracking factors to zoom exactly on the cursor focus node point
             panX = mouseX - (mouseX - panX) * (zoomScale / currentScale);
             panY = mouseY - (mouseY - panY) * (zoomScale / currentScale);
             
             updateTransform();
         }, { passive: false });
 
-        // --- ✋ MOUSE RIGHT-CLICK INTERCEPTOR DRAG PANNING ENGINE ---
+        // --- ✋ MOUSE RIGHT-CLICK DRAG PANNING ENGINE ---
         wrapper.addEventListener('mousedown', (e) => {
-            // Button Code 2 strictly filters native hardware Mouse Right Click signals
             if (e.button === 2 && !drawModeOn) {
                 isPanning = true;
                 wrapper.style.cursor = "grabbing";
@@ -470,7 +467,6 @@
             }
         });
 
-        // Suppress native browser desktop secondary context dropdown items cleanly
         wrapper.addEventListener('contextmenu', e => e.preventDefault());
 
         // --- NAVIGATION INTERACTION CONTROL SYSTEMS ---
@@ -528,7 +524,7 @@
             }
         }
 
-        // BACKWARD TOUCH PINCH COMPATIBILITY CHANNELS FOR SMART TABLETS/PHONES
+        // TOUCH COMPATIBILITY FOR MOBILE INTERACTION
         wrapper.addEventListener('touchstart', (e) => {
             if (drawModeOn || offSubMode !== 'page' || e.touches.length !== 2) return; 
             initialPinchDistance = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
@@ -631,7 +627,7 @@
         }
 
         function startDrawing(e) {
-            if (!drawModeOn || e.target !== canvas || e.button === 2) return; // Ignore right clicks inside canvas draw routine paths
+            if (!drawModeOn || e.target !== canvas || e.button === 2) return; 
             e.preventDefault(); isDrawing = true;
             let coord = getCoordinates(e);
             activePathIndex = null;
@@ -762,28 +758,43 @@
             redrawAll(); 
         }
 
+        // --- 🖱️ FIXED HIGH-PRECISION DESKTOP MOUSE DRAG MOUSE LOGIC ---
         const itemContainer = document.getElementById('canvasContainer');
         let draggedElement = null;
 
         function makeElementDraggable(el) {
-            el.addEventListener('mousedown', startDrag); el.addEventListener('touchstart', startDrag, {passive: false});
+            el.addEventListener('mousedown', startDrag); 
+            el.addEventListener('touchstart', startDrag, {passive: false});
         }
 
         function startDrag(e) {
             if(drawModeOn || offSubMode !== 'items' || e.target.className === 'delete-btn' || e.target.className === 'rotation-slider' || e.button === 2) return; 
-            e.preventDefault(); draggedElement = this;
+            e.preventDefault(); 
+            draggedElement = this;
         }
 
         function onDrag(e) {
             if (!draggedElement || drawModeOn || offSubMode !== 'items') return;
             e.preventDefault();
+            
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
             let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            // Fixed Laptop Drag Logic: Get viewport bounds relative to the matrix container
             const containerRect = itemContainer.getBoundingClientRect();
+            
+            // Compensate accurately for dynamic zoom scale matrices AND parent panning translations
             let x = (clientX - containerRect.left) / zoomScale;
             let y = (clientY - containerRect.top) / zoomScale;
-            draggedElement.style.left = x + 'px'; draggedElement.style.top = y + 'px';
+            
+            draggedElement.style.left = x + 'px'; 
+            draggedElement.style.top = y + 'px';
         }
+
+        window.addEventListener('mousemove', onDrag); 
+        window.addEventListener('mouseup', () => draggedElement = null);
+        window.addEventListener('touchmove', onDrag, {passive: false}); 
+        window.addEventListener('touchend', () => draggedElement = null);
 
         function addIcon() {
             const val = document.getElementById('iconSelect').value.split('|');
@@ -883,7 +894,7 @@
                 paths = []; bgImage = null; activePathIndex = null; document.getElementById('bgUploader').value = ""; redrawAll();
                 document.querySelectorAll('.draggable-item').forEach(item => item.remove());
                 resetZoomAndPan(); setSubMode('items');
-                if (rotateTabActive) toggleRotateTab();
+                if (rotateTabActive) toggleToggleTab();
             }
         }
 
