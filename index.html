@@ -255,10 +255,27 @@
             height: 45px;
             display: block;
         }
+
+        /* Draggable QR Code Wrapper Object */
+        .draggable-qrcode-wrapper {
+            background: white;
+            padding: 6px;
+            border: 2px solid #2c3e50;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            display: inline-block;
+        }
+        .draggable-qrcode-wrapper canvas {
+            position: static !important;
+            width: 90px !important;
+            height: 90px !important;
+            display: block;
+        }
     </style>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- LIGHTWEIGHT CLIENT-SIDE QR GENERATION SCRIPT -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -289,6 +306,13 @@
                     <input type="checkbox" id="straightMode" checked> Straight
                 </label>
                 <button class="toggle-btn" onclick="undoLast()">↩️ Undo Line</button>
+            </div>
+            
+            <!-- NEW GOOGLE MAP POINT SHARE LAYER TAB -->
+            <div class="menu-tab">
+                <span class="tab-title">📍 Map Link QR:</span>
+                <input type="text" id="mapLinkInput" placeholder="Paste Google Map Link URL here..." style="width: 210px;">
+                <button class="success-btn" onclick="addGoogleMapQRCode()">➕ Add QR Code</button>
             </div>
         </div>
 
@@ -327,7 +351,6 @@
             <div class="menu-tab">
                 <span class="tab-title">🖼️ Upload PDF / Image:</span>
                 <input type="file" id="bgUploader" accept="image/*,application/pdf" style="width: 140px;">
-                <!-- NEW UPLOAD REMOVE ACTION BUTTON -->
                 <button class="danger-btn" onclick="removeUploadedBackground()" style="padding: 5px 6px;">❌ Remove</button>
             </div>
 
@@ -529,11 +552,10 @@
             }
         });
 
-        // --- EXCLUSIVE BACKGROUND REMOVE TOOL LOGIC ---
         function removeUploadedBackground() {
             if(bgImage) {
                 bgImage = null;
-                document.getElementById('bgUploader').value = ""; // Resets internal input stream reference
+                document.getElementById('bgUploader').value = ""; 
                 redrawAll();
             }
         }
@@ -779,6 +801,48 @@
             document.getElementById('customTextInput').value = ""; 
         }
 
+        // --- 📍 DYNAMIC GENERATION PROTOCOL FOR DRAGGABLE GOOGLE MAPS QR CODE ---
+        function addGoogleMapQRCode() {
+            const linkUrl = document.getElementById('mapLinkInput').value.trim();
+            if(linkUrl === "") {
+                alert("Please paste a valid Google Map Point Link first!");
+                return;
+            }
+
+            const el = document.createElement('div');
+            el.className = 'draggable-item';
+            el.style.left = '50%';
+            el.style.top = '50%';
+            const displayState = rotateTabActive ? "block" : "none";
+
+            // Structural frame blueprint injector logic
+            el.innerHTML = `
+                <div class="rotate-wrapper">
+                    <div class="draggable-qrcode-wrapper">
+                        <div class="qr-target-container"></div>
+                    </div>
+                    <span class="icon-label" style="color: #c0392b;">📍 Scan for Location</span>
+                    <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
+                </div>
+                <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
+            `;
+
+            // Build structural QR canvas segment container natively inside DOM node reference
+            const qrTarget = el.querySelector('.qr-target-container');
+            new QRCode(qrTarget, {
+                text: linkUrl,
+                width: 90,
+                height: 90,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+
+            makeElementDraggable(el);
+            itemContainer.appendChild(el);
+            document.getElementById('mapLinkInput').value = ""; // Clear input stream
+        }
+
         function rotateElement(slider) {
             slider.previousElementSibling.style.transform = `rotate(${slider.value}deg)`;
         }
@@ -805,6 +869,7 @@
                 const textNode = item.querySelector('.draggable-text-style');
                 const iconNode = item.querySelector('.draggable-icon-style');
                 const svgNode = item.querySelector('.vector-pole-svg');
+                const qrCanvas = item.querySelector('.draggable-qrcode-wrapper canvas');
                 const labelNode = item.querySelector('.icon-label');
                 const sliderNode = item.querySelector('.rotation-slider');
                 const angleDeg = sliderNode ? parseInt(sliderNode.value) : 0;
@@ -823,6 +888,15 @@
                     if (labelNode) {
                         pCtx.font = "bold 11px Arial"; pCtx.fillStyle = "black"; pCtx.textAlign = "center";
                         pCtx.fillText(labelNode.innerText, 0, 18);
+                    }
+                } else if (qrCanvas) {
+                    // Flatten QR Matrix block straight onto the target PDF snapshot framework context safely
+                    pCtx.fillStyle = "white";
+                    pCtx.fillRect(-51, -51, 102, 102); // Card padding mask
+                    pCtx.drawImage(qrCanvas, -45, -45, 90, 90);
+                    if (labelNode) {
+                        pCtx.font = "bold 11px Arial"; pCtx.fillStyle = "#c0392b"; pCtx.textAlign = "center";
+                        pCtx.fillText(labelNode.innerText, 0, 60);
                     }
                 } else if (iconNode) {
                     pCtx.font = "32px Arial"; pCtx.textAlign = "center"; pCtx.textBaseline = "middle"; pCtx.fillStyle = "black";
