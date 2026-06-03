@@ -128,7 +128,7 @@
             transform-origin: 0 0; 
         }
 
-        /* Pure White A4 Page Size */
+        /* Dynamic White A4 Page Size */
         .a4-page {
             width: 794px; 
             height: 1123px; 
@@ -136,6 +136,7 @@
             box-shadow: 0 0 25px rgba(0,0,0,0.5);
             position: relative;
             flex-shrink: 0;
+            transition: width 0.3s ease, height 0.3s ease;
         }
 
         .screen-metadata {
@@ -286,6 +287,14 @@
             </div>
 
             <div class="menu-tab">
+                <span class="tab-title">📄 Page Layout:</span>
+                <select id="pageOrientation" onchange="changePageOrientation()" style="width: 150px; font-weight: bold; color: #1a73e8; border: 1px solid #1a73e8;">
+                    <option value="portrait" selected>▯ Portrait (A4)</option>
+                    <option value="landscape">▭ Landscape (A4)</option>
+                </select>
+            </div>
+
+            <div class="menu-tab">
                 <span class="tab-title">✏️ Line Style:</span>
                 <select id="roadType" style="width: 130px;">
                     <option value="main">Main Road</option>
@@ -348,7 +357,7 @@
             </div>
 
             <div class="action-group">
-                <button id="deviceModeBtn" onclick="toggleDeviceMode()" style="background-color: #d35400;">📱 Mobile Mode</button>
+                <button id="deviceModeBtn" onclick="toggleDeviceMode()" style="background-color: #2c3e50;">🖥️ PC Mode</button>
                 <button class="danger-btn" onclick="clearMap()">🗑️ Clear</button>
                 <button class="success-btn" onclick="compileAndSavePDF()">💾 Save as PDF</button>
             </div>
@@ -377,6 +386,7 @@
 
         const wrapper = document.getElementById('wrapper');
         const container = document.getElementById('container');
+        const a4Page = document.getElementById('a4Page');
         const canvas = document.getElementById('mapCanvas');
 
         let zoomScale = 1; 
@@ -387,9 +397,13 @@
         let startY = 0;
         let offSubMode = 'items'; 
         let rotateTabActive = false; 
-        let currentDeviceMode = "mobile"; // Flag: "mobile" or "pc"
+        let currentDeviceMode = "pc"; 
 
-        // Block Layer State Matricies
+        // Dynamic page dimensions
+        let pageTargetWidth = 794;
+        let pageTargetHeight = 1123;
+
+        // Block Layer State Matrices
         let isMovingDrawingBlock = false;
         let blockOffsetX = 0;
         let blockOffsetY = 0;
@@ -406,7 +420,32 @@
             container.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
         }
 
-        // --- ⚙️ TOGGLE SYSTEM ROUTER CHANNELS (MOBILE MODE VS PC MODE) ---
+        // --- 📄 ADVANCED ORIENTATION ROUTER SYSTEM ---
+        function changePageOrientation() {
+            const orientation = document.getElementById('pageOrientation').value;
+            
+            if (orientation === 'landscape') {
+                pageTargetWidth = 1123;
+                pageTargetHeight = 794;
+            } else {
+                pageTargetWidth = 794;
+                pageTargetHeight = 1123;
+            }
+
+            // Update Container & Page DOM Dimensions
+            container.style.width = pageTargetWidth + 'px';
+            container.style.height = pageTargetHeight + 'px';
+            a4Page.style.width = pageTargetWidth + 'px';
+            a4Page.style.height = pageTargetHeight + 'px';
+            
+            // Re-allocate Canvas Buffer Matrices
+            canvas.width = pageTargetWidth;
+            canvas.height = pageTargetHeight;
+
+            resetZoomAndPan();
+            redrawAll();
+        }
+
         function toggleDeviceMode() {
             const btn = document.getElementById('deviceModeBtn');
             if (currentDeviceMode === "mobile") {
@@ -425,26 +464,26 @@
             const wWidth = wrapper.clientWidth;
             const wHeight = wrapper.clientHeight;
             
-            const scaleX = (wWidth - 40) / 794;
-            const scaleY = (wHeight - 40) / 1123;
+            const scaleX = (wWidth - 40) / pageTargetWidth;
+            const scaleY = (wHeight - 40) / pageTargetHeight;
             
             zoomScale = Math.min(scaleX, scaleY);
             if(zoomScale > 1.2) zoomScale = 1.2;
             if(zoomScale < 0.15) zoomScale = 0.15;
             
-            panX = (wWidth - (794 * zoomScale)) / 2;
-            panY = (wHeight - (1123 * zoomScale)) / 2;
+            panX = (wWidth - (pageTargetWidth * zoomScale)) / 2;
+            panY = (wHeight - (pageTargetHeight * zoomScale)) / 2;
             if(panY < 10) panY = 10; 
             
             updateTransform();
         }
 
-        window.onload = () => { setTimeout(resetZoomAndPan, 200); };
+        window.onload = () => { setTimeout(changePageOrientation, 200); };
         window.onresize = resetZoomAndPan;
 
         // --- 🎛️ MOUSE WHEEL ZOOM SYSTEM (PC MODE CHANNELS) ---
         wrapper.addEventListener('wheel', (e) => {
-            if (currentDeviceMode !== "pc") return; // Enforce lock context
+            if (currentDeviceMode !== "pc") return; 
             e.preventDefault();
             const zoomFactor = 1.08;
             const rect = wrapper.getBoundingClientRect();
@@ -598,6 +637,132 @@
             squarePlot: { outerWidth: 3, outerColor: 'red', innerWidth: 0, innerColor: 'transparent', isBox: true }
         };
 
+        // --- 🔍 ULTRA-ACCURATE FIXED MAGNIFIER SYSTEM ENGINE ---
+        function triggerMagnifierRender(screenX, screenY, centerModelX, centerModelY) {
+            magnifier.style.display = 'block';
+            magnifier.style.left = (screenX - 70) + 'px';
+            magnifier.style.top = (screenY - 160) + 'px'; 
+
+            // Clear lens backdrop
+            magCtx.fillStyle = "#ffffff";
+            magCtx.fillRect(0, 0, 140, 140);
+            
+            magCtx.save();
+            magCtx.translate(70, 70);
+            magCtx.scale(2, 2); // 2X Lens Scaling Matrix
+            magCtx.translate(-centerModelX, -centerModelY);
+            
+            // 1. Draw PDF/Image background
+            if (bgImage) {
+                magCtx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+            }
+            
+            // 2. Render Canvas Drawings
+            magCtx.save();
+            magCtx.translate(globalDrawingTranslateX, globalDrawingTranslateY);
+            
+            let allPaths = [];
+            paths.forEach((p, idx) => {
+                if (idx === activePathIndex && isDrawing && currentPath.length > 0) {
+                    allPaths.push({ type: p.type, points: [...p.points, currentPath[1]] });
+                } else {
+                    allPaths.push(p);
+                }
+            });
+            if (activePathIndex === null && isDrawing && currentPath.length > 0) {
+                allPaths.push({ type: document.getElementById('roadType').value, points: currentPath });
+            }
+            
+            // Lines Outers
+            allPaths.forEach(p => {
+                const style = roadStyles[p.type];
+                if (style.outerWidth <= 0) return;
+                magCtx.lineCap = 'butt'; magCtx.lineJoin = 'miter'; magCtx.miterLimit = 10; magCtx.beginPath();
+                if (style.isBox) {
+                    magCtx.rect(p.points[0].x, p.points[0].y, p.points[1].x - p.points[0].x, p.points[1].y - p.points[0].y);
+                } else {
+                    magCtx.moveTo(p.points[0].x, p.points[0].y);
+                    for (let i = 1; i < p.points.length; i++) magCtx.lineTo(p.points[i].x, p.points[i].y);
+                }
+                magCtx.lineWidth = style.outerWidth;
+                magCtx.strokeStyle = style.outerColor;
+                magCtx.setLineDash(style.dash || []);
+                magCtx.stroke();
+                
+                if (style.isElectric) {
+                    magCtx.save(); magCtx.font = "12px Arial"; magCtx.fillStyle = "#e67e22";
+                    magCtx.textAlign = "center"; magCtx.textBaseline = "middle";
+                    for (let i = 0; i < p.points.length - 1; i++) {
+                        magCtx.fillText("⚡", (p.points[i].x + p.points[i+1].x) / 2, (p.points[i].y + p.points[i+1].y) / 2);
+                    }
+                    magCtx.restore();
+                }
+            });
+
+            // Lines Inners
+            allPaths.forEach(p => {
+                const style = roadStyles[p.type];
+                if (style.innerWidth <= 0 || p.type === 'path' || style.isBox || p.type === 'plotLine') return;
+                magCtx.lineCap = 'butt'; magCtx.lineJoin = 'miter'; magCtx.miterLimit = 10; magCtx.beginPath();
+                magCtx.moveTo(p.points[0].x, p.points[0].y);
+                for (let i = 1; i < p.points.length; i++) magCtx.lineTo(p.points[i].x, p.points[i].y);
+                magCtx.lineWidth = style.innerWidth;
+                magCtx.strokeStyle = style.innerColor;
+                magCtx.setLineDash(style.dash || []);
+                magCtx.stroke();
+            });
+            magCtx.restore();
+
+            // 3. Render Draggable Elements directly inside the lens matrix
+            const items = document.querySelectorAll('.draggable-item');
+            items.forEach(item => {
+                // Read current inline stylesheet offsets
+                const posX = parseFloat(item.style.left);
+                const posY = parseFloat(item.style.top);
+                
+                const textNode = item.querySelector('.draggable-text-style');
+                const iconNode = item.querySelector('.draggable-icon-style');
+                const svgNode = item.querySelector('.vector-pole-svg');
+                const qrCanvas = item.querySelector('.draggable-qrcode-wrapper canvas');
+                const labelNode = item.querySelector('.icon-label');
+                const sliderNode = item.querySelector('.rotation-slider');
+                const angleDeg = sliderNode ? parseInt(sliderNode.value) : 0;
+                
+                magCtx.save();
+                magCtx.translate(posX, posY);
+                if(angleDeg !== 0) magCtx.rotate((angleDeg * Math.PI) / 180);
+                
+                if (textNode) {
+                    const compFont = window.getComputedStyle(textNode);
+                    magCtx.font = `bold ${compFont.fontSize} Arial`; magCtx.textAlign = "center"; magCtx.textBaseline = "middle";
+                    const text = textNode.innerText; const metrics = magCtx.measureText(text);
+                    magCtx.fillStyle = "white"; magCtx.fillRect(-metrics.width/2 - 6, -12, metrics.width + 12, 24);
+                    magCtx.strokeStyle = "#7f8c8d"; magCtx.lineWidth = 1; magCtx.strokeRect(-metrics.width/2 - 6, -12, metrics.width + 12, 24);
+                    magCtx.fillStyle = "black"; magCtx.fillText(text, 0, 0);
+                } else if (svgNode) {
+                    drawVectorUtilityPole(magCtx, 0, -6);
+                    if (labelNode) {
+                        magCtx.font = "bold 11px Arial"; magCtx.fillStyle = "black"; magCtx.textAlign = "center";
+                        magCtx.fillText(labelNode.innerText, 0, 18);
+                    }
+                } else if (qrCanvas) {
+                    magCtx.fillStyle = "white"; magCtx.fillRect(-51, -51, 102, 102); 
+                    magCtx.drawImage(qrCanvas, -45, -45, 90, 90);
+                    if (labelNode) {
+                        magCtx.font = "bold 11px Arial"; magCtx.fillStyle = "#c0392b"; magCtx.textAlign = "center";
+                        magCtx.fillText(labelNode.innerText, 0, 60);
+                    }
+                } else if (iconNode) {
+                    magCtx.font = "32px Arial"; magCtx.textAlign = "center"; magCtx.textBaseline = "middle"; magCtx.fillStyle = "black";
+                    magCtx.fillText(iconNode.innerText, 0, -10);
+                    if (labelNode) { magCtx.font = "bold 11px Arial"; magCtx.fillText(labelNode.innerText, 0, 15); }
+                }
+                magCtx.restore();
+            });
+
+            magCtx.restore();
+        }
+
         document.getElementById('bgUploader').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -677,7 +842,10 @@
                 }
             }
             currentPath = [targetModelCoord];
-            showMagnifier(e, coord);
+            
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            triggerMagnifierRender(clientX, clientY, coord.x, coord.y);
         }
 
         function draw(e) {
@@ -696,7 +864,10 @@
                 currentPath.push(targetModelCoord);
             }
             redrawAll(); 
-            showMagnifier(e, coord);
+            
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            triggerMagnifierRender(clientX, clientY, coord.x, coord.y);
         }
 
         function stopDrawing(e) {
@@ -810,6 +981,11 @@
             if(drawModeOn || offSubMode !== 'items' || e.target.className === 'delete-btn' || e.target.className === 'rotation-slider' || e.button === 2) return; 
             e.preventDefault(); 
             draggedElement = this;
+            
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const modelCoord = getCoordinates(e);
+            triggerMagnifierRender(clientX, clientY, modelCoord.x, modelCoord.y);
         }
 
         wrapper.addEventListener('mousedown', (e) => {
@@ -848,15 +1024,18 @@
                 let x = (e.clientX - containerRect.left) / zoomScale;
                 let y = (e.clientY - containerRect.top) / zoomScale;
                 draggedElement.style.left = x + 'px'; draggedElement.style.top = y + 'px';
+                
+                const modelCoord = getCoordinates(e);
+                triggerMagnifierRender(e.clientX, e.clientY, modelCoord.x, modelCoord.y);
             }
         });
 
         window.addEventListener('mouseup', () => {
             isPanning = false; isMovingDrawingBlock = false; wrapper.style.cursor = "default"; canvas.style.cursor = "default";
-            draggedElement = null;
+            draggedElement = null; magnifier.style.display = 'none';
         });
 
-        // --- 📱 FIXED TOUCH EQUIVALENTS CONTROL MATRIX FOR MOBILE LAYERS ---
+        // --- 📱 TOUCH EQUIVALENTS CONTROL MATRIX FOR MOBILE LAYERS ---
         wrapper.addEventListener('touchstart', (e) => {
             if (offSubMode !== 'items' || drawModeOn || e.touches.length !== 1) return;
             if (e.target === canvas) {
@@ -879,10 +1058,13 @@
                 let x = (e.touches[0].clientX - containerRect.left) / zoomScale;
                 let y = (e.touches[0].clientY - containerRect.top) / zoomScale;
                 draggedElement.style.left = x + 'px'; draggedElement.style.top = y + 'px';
+                
+                const modelCoord = getCoordinates(e);
+                triggerMagnifierRender(e.touches[0].clientX, e.touches[0].clientY, modelCoord.x, modelCoord.y);
             }
         }, {passive: true});
 
-        wrapper.addEventListener('touchend', () => { isMovingDrawingBlock = false; draggedElement = null; });
+        wrapper.addEventListener('touchend', () => { isMovingDrawingBlock = false; draggedElement = null; magnifier.style.display = 'none'; });
 
         function addIcon() {
             const val = document.getElementById('iconSelect').value.split('|');
@@ -911,7 +1093,7 @@
             } else {
                 el.innerHTML = `
                     <div class="rotate-wrapper">
-                        <div class="draggable-icon-style">${val[0]}</div>
+                        <div class="draggable-icon-style" style="font-size: 32px;">${val[0]}</div>
                         <span class="icon-label">${val[1]}</span>
                         <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
                     </div>
@@ -987,7 +1169,7 @@
 
         function compileAndSavePDF() {
             const pdfCanvas = document.createElement('canvas');
-            pdfCanvas.width = 794; pdfCanvas.height = 1123;
+            pdfCanvas.width = pageTargetWidth; pdfCanvas.height = pageTargetHeight;
             const pCtx = pdfCanvas.getContext('2d');
             pCtx.fillStyle = '#ffffff'; pCtx.fillRect(0, 0, pdfCanvas.width, pdfCanvas.height);
             pCtx.drawImage(canvas, 0, 0);
@@ -1035,8 +1217,18 @@
             
             const imgData = pdfCanvas.toDataURL('image/jpeg', 1.0);
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-            doc.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+            
+            const currentOrientation = document.getElementById('pageOrientation').value;
+            const doc = new jsPDF({ 
+                orientation: currentOrientation, 
+                unit: 'mm', 
+                format: 'a4' 
+            });
+            
+            const pdfW = currentOrientation === 'landscape' ? 297 : 210;
+            const pdfH = currentOrientation === 'landscape' ? 210 : 297;
+            
+            doc.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
             doc.save('Location_Sketch_With_PDF.pdf');
         }
     </script>
