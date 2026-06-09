@@ -255,6 +255,12 @@
             height: 45px;
             display: block;
         }
+        
+        .north-arrow-svg {
+            width: 50px;
+            height: 80px;
+            display: block;
+        }
 
         .draggable-qrcode-wrapper {
             background: white;
@@ -284,6 +290,7 @@
                 <button id="drawToggleBtn" class="toggle-btn" onclick="toggleDrawMode()">🔒 Draw Mode: OFF</button>
                 <button id="viewModeBtn" style="background-color: #8e44ad;" onclick="toggleViewMode()">👉 Items</button>
                 <button id="rotateToggleBtn" onclick="toggleRotateTab()">🔄 Rotate Tab: OFF</button>
+                <button id="magnifierToggleBtn" class="toggle-btn" style="background-color: #27ae60;" onclick="toggleMagnifier()">🔍 Zoom Box: ON</button>
             </div>
 
             <div class="menu-tab">
@@ -301,6 +308,7 @@
                     <option value="panchayat">Panchayat</option>
                     <option value="mud">Tracks Mud</option>
                     <option value="path">🚶 Footpath</option>
+                    <option value="stream">🌊 Stream (Thodu)</option>
                     <option value="railway">🚂 Railway</option>
                     <option value="electricLine">⚡ Electric Line</option>
                     <option value="plotLine">🟥 Plot Line</option>
@@ -323,6 +331,7 @@
             <div class="menu-tab">
                 <span class="tab-title">🏠 Symbol:</span>
                 <select id="iconSelect" style="width: 120px;">
+                    <option value="NORTH_ARROW|North Arrow">🧭 North Arrow</option>
                     <option value="🚩|Main Plot">🚩 Main Plot</option>
                     <option value="UTILITY_POLE|Electric Post">⚡ Electric Post</option>
                     <option value="🏠|House">🏠 House</option>
@@ -398,6 +407,7 @@
         let offSubMode = 'items'; 
         let rotateTabActive = false; 
         let currentDeviceMode = "pc"; 
+        let magnifierEnabled = true; 
 
         // Dynamic page dimensions
         let pageTargetWidth = 794;
@@ -558,6 +568,19 @@
             }
         }
 
+        function toggleMagnifier() {
+            magnifierEnabled = !magnifierEnabled;
+            const btn = document.getElementById('magnifierToggleBtn');
+            if (magnifierEnabled) {
+                btn.innerHTML = "🔍 Zoom Box: ON";
+                btn.style.backgroundColor = "#27ae60";
+            } else {
+                btn.innerHTML = "🔍 Zoom Box: OFF";
+                btn.style.backgroundColor = "#5f6368";
+                magnifier.style.display = 'none';
+            }
+        }
+
         // --- 📱 DYNAMIC MOBILE INTERACTION PINCH AND PAN DETECTORS ---
         wrapper.addEventListener('touchstart', (e) => {
             if (drawModeOn) return;
@@ -631,6 +654,7 @@
             panchayat: { outerWidth: 10, outerColor: 'black', innerWidth: 6, innerColor: 'white', isBox: false },
             mud: { outerWidth: 10, outerColor: '#8B4513', innerWidth: 6, innerColor: '#F5DEB3', dash: [10, 10], isBox: false },
             path: { outerWidth: 4, outerColor: 'black', innerWidth: 0, innerColor: 'transparent', dash: [6, 6], isBox: false },
+            stream: { outerWidth: 10, outerColor: '#1a73e8', innerWidth: 6, innerColor: '#8ab4f8', isBox: false },
             plotLine: { outerWidth: 3, outerColor: 'red', innerWidth: 0, innerColor: 'transparent', isBox: false },
             railway: { outerWidth: 10, outerColor: 'black', innerWidth: 6, innerColor: 'white', dash: [10, 10], isBox: false },
             electricLine: { outerWidth: 2, outerColor: '#e67e22', innerWidth: 0, innerColor: 'transparent', dash: [8, 8], isBox: false, isElectric: true },
@@ -639,6 +663,8 @@
 
         // --- 🔍 ULTRA-ACCURATE FIXED MAGNIFIER SYSTEM ENGINE ---
         function triggerMagnifierRender(screenX, screenY, centerModelX, centerModelY) {
+            if (!magnifierEnabled) return;
+
             magnifier.style.display = 'block';
             magnifier.style.left = (screenX - 70) + 'px';
             magnifier.style.top = (screenY - 160) + 'px'; 
@@ -716,13 +742,13 @@
             // 3. Render Draggable Elements directly inside the lens matrix
             const items = document.querySelectorAll('.draggable-item');
             items.forEach(item => {
-                // Read current inline stylesheet offsets
                 const posX = parseFloat(item.style.left);
                 const posY = parseFloat(item.style.top);
                 
                 const textNode = item.querySelector('.draggable-text-style');
                 const iconNode = item.querySelector('.draggable-icon-style');
                 const svgNode = item.querySelector('.vector-pole-svg');
+                const northNode = item.querySelector('.north-arrow-svg');
                 const qrCanvas = item.querySelector('.draggable-qrcode-wrapper canvas');
                 const labelNode = item.querySelector('.icon-label');
                 const sliderNode = item.querySelector('.rotation-slider');
@@ -739,6 +765,8 @@
                     magCtx.fillStyle = "white"; magCtx.fillRect(-metrics.width/2 - 6, -12, metrics.width + 12, 24);
                     magCtx.strokeStyle = "#7f8c8d"; magCtx.lineWidth = 1; magCtx.strokeRect(-metrics.width/2 - 6, -12, metrics.width + 12, 24);
                     magCtx.fillStyle = "black"; magCtx.fillText(text, 0, 0);
+                } else if (northNode) {
+                    drawNorthArrow(magCtx, 0, 0);
                 } else if (svgNode) {
                     drawVectorUtilityPole(magCtx, 0, -6);
                     if (labelNode) {
@@ -939,6 +967,38 @@
             pCtx.fillRect(x + 2, y - 4, 7, 9); pCtx.restore();
         }
 
+        // --- NEW: North Arrow Vector Drawing Logic ---
+        function drawNorthArrow(pCtx, x, y) {
+            pCtx.save();
+            pCtx.translate(x, y);
+            pCtx.font = "bold 22px Arial";
+            pCtx.fillStyle = "black";
+            pCtx.textAlign = "center";
+            pCtx.textBaseline = "middle";
+            pCtx.fillText("N", 0, -30);
+            
+            // Left half - Black
+            pCtx.beginPath();
+            pCtx.moveTo(0, -15);
+            pCtx.lineTo(-12, 25);
+            pCtx.lineTo(0, 15);
+            pCtx.closePath();
+            pCtx.fillStyle = "black";
+            pCtx.fill();
+            
+            // Right half - White with black border
+            pCtx.beginPath();
+            pCtx.moveTo(0, -15);
+            pCtx.lineTo(12, 25);
+            pCtx.lineTo(0, 15);
+            pCtx.closePath();
+            pCtx.fillStyle = "white";
+            pCtx.fill();
+            pCtx.stroke();
+            
+            pCtx.restore();
+        }
+
         function redrawAll() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             if (bgImage) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
@@ -1090,6 +1150,18 @@
                     </div>
                     <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
                 `;
+            } else if (val[0] === "NORTH_ARROW") {
+                el.innerHTML = `
+                    <div class="rotate-wrapper">
+                        <svg class="north-arrow-svg" viewBox="-20 -50 40 80">
+                            <text x="0" y="-30" font-family="Arial" font-size="22" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="black">N</text>
+                            <polygon points="0,-15 -12,25 0,15" fill="black"/>
+                            <polygon points="0,-15 12,25 0,15" fill="white" stroke="black" stroke-width="1"/>
+                        </svg>
+                        <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
+                    </div>
+                    <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
+                `;
             } else {
                 el.innerHTML = `
                     <div class="rotate-wrapper">
@@ -1180,6 +1252,7 @@
                 const textNode = item.querySelector('.draggable-text-style');
                 const iconNode = item.querySelector('.draggable-icon-style');
                 const svgNode = item.querySelector('.vector-pole-svg');
+                const northNode = item.querySelector('.north-arrow-svg');
                 const qrCanvas = item.querySelector('.draggable-qrcode-wrapper canvas');
                 const labelNode = item.querySelector('.icon-label');
                 const sliderNode = item.querySelector('.rotation-slider');
@@ -1194,6 +1267,8 @@
                     const text = textNode.innerText; const metrics = pCtx.measureText(text);
                     pCtx.fillStyle = "white"; pCtx.fillRect(-metrics.width/2 - 6, -12, metrics.width + 12, 24);
                     pCtx.fillStyle = "black"; pCtx.fillText(text, 0, 0);
+                } else if (northNode) {
+                    drawNorthArrow(pCtx, 0, 0);
                 } else if (svgNode) {
                     drawVectorUtilityPole(pCtx, 0, -6);
                     if (labelNode) {
