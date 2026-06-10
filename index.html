@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Professional Location Sketch Maker</title>
+    <title>Professional Location Sketch Maker V3.1</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -16,7 +16,7 @@
             overflow: hidden;
         }
 
-        /* --- TWO LAYER PC & MOBILE OPTIMIZED TOP MENU --- */
+        /* --- V3.1 HYBRID RESPONSIVE TOP MENU --- */
         .top-menu {
             background-color: #f1f3f4;
             border-bottom: 1px solid #dadce0;
@@ -29,6 +29,7 @@
             flex-shrink: 0;
         }
 
+        /* Mobile First: 767px-ൽ താഴെയുള്ള ഫോണുകളിൽ പഴയതുപോലെ 2 Fixed Row & Horizontal Scroll */
         .menu-row {
             display: flex;
             align-items: center;
@@ -54,10 +55,59 @@
             flex-shrink: 0; 
         }
 
+        .action-group {
+            display: inline-flex;
+            gap: 6px;
+            flex-shrink: 0;
+            margin-left: auto; 
+        }
+
+        /* PC / Desktop Mode (768px-ന് മുകളിൽ മാത്രം താങ്കൾ നിർദ്ദേശിച്ച CSS Grid Auto Layout) */
+        @media (min-width: 768px) {
+            .top-menu {
+                display: grid;
+                gap: 8px;
+                align-items: center;
+            }
+            
+            /* .menu-row-ൻ്റെ ഫ്ലെക്സ് സ്വഭാവം മാറ്റി ഗ്രിഡ് ഐറ്റംസ് ആക്കുന്നു */
+            .menu-row {
+                display: contents; 
+            }
+
+            .menu-tab {
+                display: flex;
+                flex-wrap: wrap;
+                min-width: 0;
+                width: 100%;
+                box-sizing: border-box;
+                justify-content: flex-start;
+            }
+
+            .action-group {
+                display: flex;
+                width: 100%;
+                justify-content: flex-end;
+                margin-left: 0;
+            }
+
+            /* Desktop Width അനുസരിച്ച് Layers നിയന്ത്രിക്കുന്നു */
+            @media (min-width: 1600px) {
+                .top-menu { grid-template-columns: repeat(6, 1fr); }
+            }
+            @media (min-width: 1200px) and (max-width: 1599px) {
+                .top-menu { grid-template-columns: repeat(4, 1fr); }
+            }
+            @media (min-width: 768px) and (max-width: 1199px) {
+                .top-menu { grid-template-columns: repeat(3, 1fr); }
+            }
+        }
+
         .tab-title {
             font-size: 13px;
             font-weight: bold;
             color: #5f6368;
+            white-space: nowrap;
         }
 
         select, button, input {
@@ -70,6 +120,7 @@
             box-sizing: border-box;
             display: inline-block;
             vertical-align: middle;
+            max-width: 100%;
         }
         
         button {
@@ -77,6 +128,7 @@
             background-color: #1a73e8;
             color: white;
             border: none;
+            white-space: nowrap;
         }
         button:hover { background-color: #1557b0; }
         
@@ -86,10 +138,7 @@
         .success-btn { background-color: #1e8e3e; }
         .success-btn:hover { background-color: #137333; }
 
-        #rotateToggleBtn {
-            background-color: #7f8c8d;
-            color: white;
-        }
+        #rotateToggleBtn { background-color: #7f8c8d; color: white; }
 
         .checkbox-row {
             display: flex;
@@ -98,22 +147,25 @@
             font-size: 12px;
             font-weight: bold;
             color: #5f6368;
+            white-space: nowrap;
         }
 
-        .action-group {
-            display: inline-flex;
-            gap: 6px;
-            flex-shrink: 0;
-            margin-left: auto; 
+        /* Auto Tool Collapse Classes (Only for PC Screens) */
+        @media (min-width: 768px) {
+            body.compact-toolbar .tab-title { font-size: 11px; }
+            body.compact-toolbar select, body.compact-toolbar button, body.compact-toolbar input {
+                font-size: 12px;
+                padding: 4px 6px;
+            }
         }
 
-        /* Workspace Wrapper */
+        /* V3 Canvas Priority Layout */
         .workspace-wrapper {
-            flex-grow: 1;
+            flex: 1;
+            min-height: 0;
             overflow: hidden; 
             position: relative;
             width: 100%;
-            height: 100%;
             background-color: #2c3e50;
             cursor: default;
         }
@@ -128,7 +180,6 @@
             transform-origin: 0 0; 
         }
 
-        /* Dynamic White A4 Page Size */
         .a4-page {
             width: 794px; 
             height: 1123px; 
@@ -169,7 +220,6 @@
             touch-action: none; 
         }
 
-        /* Draggable & Rotatable Items */
         .draggable-item {
             position: absolute;
             cursor: grab;
@@ -234,7 +284,6 @@
         }
         .draggable-item:hover .delete-btn { display: block; }
 
-        /* Magnifier */
         #magnifier {
             position: fixed;
             width: 140px;
@@ -250,17 +299,8 @@
         }
         #magnifierCanvas { width: 140px; height: 140px; }
 
-        .vector-pole-svg {
-            width: 45px;
-            height: 45px;
-            display: block;
-        }
-        
-        .north-arrow-svg {
-            width: 50px;
-            height: 80px;
-            display: block;
-        }
+        .vector-pole-svg { width: 45px; height: 45px; display: block; }
+        .north-arrow-svg { width: 50px; height: 80px; display: block; }
 
         .draggable-qrcode-wrapper {
             background: white;
@@ -284,7 +324,7 @@
 <body>
 
     <div class="top-menu">
-        
+        <!-- Row 1 (Mobile-ൽ സ്ക്രോൾ ചെയ്യും, PC-ൽ Grid Item ആകും) -->
         <div class="menu-row">
             <div class="menu-tab">
                 <button id="drawToggleBtn" class="toggle-btn" onclick="toggleDrawMode()">🔒 Draw Mode: OFF</button>
@@ -295,7 +335,7 @@
 
             <div class="menu-tab">
                 <span class="tab-title">📄 Page Layout:</span>
-                <select id="pageOrientation" onchange="changePageOrientation()" style="width: 150px; font-weight: bold; color: #1a73e8; border: 1px solid #1a73e8;">
+                <select id="pageOrientation" onchange="changePageOrientation()" style="width: 140px; font-weight: bold; color: #1a73e8; border: 1px solid #1a73e8;">
                     <option value="portrait" selected>▯ Portrait (A4)</option>
                     <option value="landscape">▭ Landscape (A4)</option>
                 </select>
@@ -303,30 +343,29 @@
 
             <div class="menu-tab">
                 <span class="tab-title">✏️ Line Style:</span>
-                <select id="roadType" style="width: 130px;">
+                <select id="roadType" style="width: 120px;">
                     <option value="main">Main Road</option>
                     <option value="panchayat">Panchayat</option>
                     <option value="mud">Tracks Mud</option>
                     <option value="path">🚶 Footpath</option>
-                    <option value="stream">🌊 Stream (Thodu)</option>
+                    <option value="stream">🌊 Stream</option>
                     <option value="railway">🚂 Railway</option>
-                    <option value="electricLine">⚡ Electric Line</option>
+                    <option value="electricLine">⚡ Electric</option>
                     <option value="plotLine">🟥 Plot Line</option>
                     <option value="squarePlot">🟩 Square Plot</option>
                 </select>
-                <label class="checkbox-row">
-                    <input type="checkbox" id="straightMode" checked> Straight
-                </label>
-                <button class="toggle-btn" onclick="undoLast()">↩️ Undo Line</button>
+                <label class="checkbox-row"><input type="checkbox" id="straightMode" checked> Straight</label>
+                <button class="toggle-btn" onclick="undoLast()">↩️ Undo</button>
             </div>
             
             <div class="menu-tab">
                 <span class="tab-title">📍 Map Link QR:</span>
-                <input type="text" id="mapLinkInput" placeholder="Paste Google Map Link URL..." style="width: 210px;">
-                <button class="success-btn" onclick="addGoogleMapQRCode()">➕ Add QR Code</button>
+                <input type="text" id="mapLinkInput" placeholder="Paste URL..." style="width: 150px;">
+                <button class="success-btn" onclick="addGoogleMapQRCode()">➕ Add</button>
             </div>
         </div>
 
+        <!-- Row 2 (Mobile-ൽ സ്ക്രോൾ ചെയ്യും, PC-ൽ Grid Item ആകും) -->
         <div class="menu-row">
             <div class="menu-tab">
                 <span class="tab-title">🏠 Symbol:</span>
@@ -349,29 +388,28 @@
 
             <div class="menu-tab">
                 <span class="tab-title">📝 Text:</span>
-                <input type="text" id="customTextInput" placeholder="Type text..." style="width: 90px;">
-                <select id="fontSizeSelect" style="width: 75px;">
-                    <option value="14px">Small</option>
-                    <option value="18px" selected>Medium</option>
-                    <option value="24px">Large</option>
+                <input type="text" id="customTextInput" placeholder="Type..." style="width: 80px;">
+                <select id="fontSizeSelect" style="width: 65px;">
+                    <option value="14px">Sm</option>
+                    <option value="18px" selected>Md</option>
+                    <option value="24px">Lg</option>
                     <option value="32px">XL</option>
                 </select>
                 <button class="success-btn" onclick="addCustomText()">➕ Text</button>
             </div>
 
             <div class="menu-tab">
-                <span class="tab-title">🖼️ Upload PDF / Image:</span>
-                <input type="file" id="bgUploader" accept="image/*,application/pdf" style="width: 140px;">
-                <button class="danger-btn" onclick="removeUploadedBackground()" style="padding: 5px 6px;">❌ Remove</button>
+                <span class="tab-title">🖼️ Upload PDF/Img:</span>
+                <input type="file" id="bgUploader" style="width: 130px;">
+                <button class="danger-btn" onclick="removeUploadedBackground()">❌ Remove</button>
             </div>
 
             <div class="action-group">
                 <button id="deviceModeBtn" onclick="toggleDeviceMode()" style="background-color: #2c3e50;">🖥️ PC Mode</button>
                 <button class="danger-btn" onclick="clearMap()">🗑️ Clear</button>
-                <button class="success-btn" onclick="compileAndSavePDF()">💾 Save as PDF</button>
+                <button class="success-btn" onclick="compileAndSavePDF()">💾 Save PDF</button>
             </div>
         </div>
-
     </div>
 
     <div class="workspace-wrapper" id="wrapper">
@@ -381,7 +419,6 @@
                     <canvas id="mapCanvas" width="794" height="1123"></canvas>
                 </div>
             </div>
-            
             <div class="screen-metadata">👤 Muraleedharan P | 📞 9400849115</div>
         </div>
     </div>
@@ -392,6 +429,21 @@
 
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        // --- V3 AUTO TOOL COLLAPSE (PC SCREENS ONLY) ---
+        function optimizeToolbar(){
+            const w = window.innerWidth;
+            if(w >= 768 && w < 1200){
+                document.body.classList.add("compact-toolbar");
+            } else {
+                document.body.classList.remove("compact-toolbar");
+            }
+        }
+        window.addEventListener("resize", () => {
+            resetZoomAndPan();
+            optimizeToolbar();
+        });
+        optimizeToolbar();
 
         const wrapper = document.getElementById('wrapper');
         const container = document.getElementById('container');
@@ -409,31 +461,37 @@
         let currentDeviceMode = "pc"; 
         let magnifierEnabled = true; 
 
-        // Dynamic page dimensions
         let pageTargetWidth = 794;
         let pageTargetHeight = 1123;
 
-        // Block Layer State Matrices
         let isMovingDrawingBlock = false;
         let blockOffsetX = 0;
         let blockOffsetY = 0;
         let globalDrawingTranslateX = 0; 
         let globalDrawingTranslateY = 0;
 
-        // Mobile Pinch Zoom States
         let initialPinchDistance = null;
         let initialScale = 1;
         let touchStartPanX = 0;
         let touchStartPanY = 0;
 
+        // --- V3 DRAWING SMOOTHNESS: requestAnimationFrame Logic ---
+        let redrawPending = false;
+        function redrawAll() {
+            if (redrawPending) return;
+            redrawPending = true;
+            requestAnimationFrame(() => {
+                performRedraw();
+                redrawPending = false;
+            });
+        }
+
         function updateTransform() {
             container.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
         }
 
-        // --- 📄 ADVANCED ORIENTATION ROUTER SYSTEM ---
         function changePageOrientation() {
             const orientation = document.getElementById('pageOrientation').value;
-            
             if (orientation === 'landscape') {
                 pageTargetWidth = 1123;
                 pageTargetHeight = 794;
@@ -442,13 +500,11 @@
                 pageTargetHeight = 1123;
             }
 
-            // Update Container & Page DOM Dimensions
             container.style.width = pageTargetWidth + 'px';
             container.style.height = pageTargetHeight + 'px';
             a4Page.style.width = pageTargetWidth + 'px';
             a4Page.style.height = pageTargetHeight + 'px';
             
-            // Re-allocate Canvas Buffer Matrices
             canvas.width = pageTargetWidth;
             canvas.height = pageTargetHeight;
 
@@ -489,9 +545,7 @@
         }
 
         window.onload = () => { setTimeout(changePageOrientation, 200); };
-        window.onresize = resetZoomAndPan;
 
-        // --- 🎛️ MOUSE WHEEL ZOOM SYSTEM (PC MODE CHANNELS) ---
         wrapper.addEventListener('wheel', (e) => {
             if (currentDeviceMode !== "pc") return; 
             e.preventDefault();
@@ -513,7 +567,6 @@
 
         wrapper.addEventListener('contextmenu', e => e.preventDefault());
 
-        // --- NAVIGATION INTERACTION CONTROL SYSTEMS ---
         let drawModeOn = false;
         const drawToggleBtn = document.getElementById('drawToggleBtn');
         const viewModeBtn = document.getElementById('viewModeBtn');
@@ -581,10 +634,8 @@
             }
         }
 
-        // --- 📱 DYNAMIC MOBILE INTERACTION PINCH AND PAN DETECTORS ---
         wrapper.addEventListener('touchstart', (e) => {
             if (drawModeOn) return;
-
             if (currentDeviceMode === "mobile" && offSubMode === 'page') {
                 if (e.touches.length === 1) {
                     isPanning = true;
@@ -605,7 +656,6 @@
 
         wrapper.addEventListener('touchmove', (e) => {
             if (drawModeOn) return;
-
             if (currentDeviceMode === "mobile" && offSubMode === 'page') {
                 if (isPanning && e.touches.length === 1) {
                     panX = e.touches[0].clientX - startX;
@@ -640,7 +690,6 @@
             initialPinchDistance = null; 
         });
 
-        // --- CORE CANVAS RENDERING ENGINE ---
         const ctx = canvas.getContext('2d');
         const magnifier = document.getElementById('magnifier');
         const magCanvas = document.getElementById('magnifierCanvas');
@@ -661,7 +710,6 @@
             squarePlot: { outerWidth: 3, outerColor: 'red', innerWidth: 0, innerColor: 'transparent', isBox: true }
         };
 
-        // --- 🔍 ULTRA-ACCURATE FIXED MAGNIFIER SYSTEM ENGINE ---
         function triggerMagnifierRender(screenX, screenY, centerModelX, centerModelY) {
             if (!magnifierEnabled) return;
 
@@ -669,21 +717,18 @@
             magnifier.style.left = (screenX - 70) + 'px';
             magnifier.style.top = (screenY - 160) + 'px'; 
 
-            // Clear lens backdrop
             magCtx.fillStyle = "#ffffff";
             magCtx.fillRect(0, 0, 140, 140);
             
             magCtx.save();
             magCtx.translate(70, 70);
-            magCtx.scale(2, 2); // 2X Lens Scaling Matrix
+            magCtx.scale(2, 2); 
             magCtx.translate(-centerModelX, -centerModelY);
             
-            // 1. Draw PDF/Image background
             if (bgImage) {
                 magCtx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
             }
             
-            // 2. Render Canvas Drawings
             magCtx.save();
             magCtx.translate(globalDrawingTranslateX, globalDrawingTranslateY);
             
@@ -699,7 +744,6 @@
                 allPaths.push({ type: document.getElementById('roadType').value, points: currentPath });
             }
             
-            // Lines Outers
             allPaths.forEach(p => {
                 const style = roadStyles[p.type];
                 if (style.outerWidth <= 0) return;
@@ -725,7 +769,6 @@
                 }
             });
 
-            // Lines Inners
             allPaths.forEach(p => {
                 const style = roadStyles[p.type];
                 if (style.innerWidth <= 0 || p.type === 'path' || style.isBox || p.type === 'plotLine') return;
@@ -739,7 +782,6 @@
             });
             magCtx.restore();
 
-            // 3. Render Draggable Elements directly inside the lens matrix
             const items = document.querySelectorAll('.draggable-item');
             items.forEach(item => {
                 const posX = parseFloat(item.style.left);
@@ -967,7 +1009,6 @@
             pCtx.fillRect(x + 2, y - 4, 7, 9); pCtx.restore();
         }
 
-        // --- NEW: North Arrow Vector Drawing Logic ---
         function drawNorthArrow(pCtx, x, y) {
             pCtx.save();
             pCtx.translate(x, y);
@@ -977,7 +1018,6 @@
             pCtx.textBaseline = "middle";
             pCtx.fillText("N", 0, -30);
             
-            // Left half - Black
             pCtx.beginPath();
             pCtx.moveTo(0, -15);
             pCtx.lineTo(-12, 25);
@@ -986,7 +1026,6 @@
             pCtx.fillStyle = "black";
             pCtx.fill();
             
-            // Right half - White with black border
             pCtx.beginPath();
             pCtx.moveTo(0, -15);
             pCtx.lineTo(12, 25);
@@ -999,7 +1038,8 @@
             pCtx.restore();
         }
 
-        function redrawAll() {
+        // V3 performRedraw function to be called by requestAnimationFrame
+        function performRedraw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             if (bgImage) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
             
@@ -1028,7 +1068,6 @@
             redrawAll(); 
         }
 
-        // --- 🖱️ INTERACTIVE MOUSE AND FINGER DRAGGING CALCULATOR ---
         const itemContainer = document.getElementById('canvasContainer');
         let draggedElement = null;
 
@@ -1061,7 +1100,7 @@
                 canvas.style.cursor = "move";
                 const rect = itemContainer.getBoundingClientRect();
                 blockOffsetX = (e.clientX - rect.left) / zoomScale - globalDrawingTranslateX;
-                blockOffsetY = (e.clientY - rect.top) / zoomScale - globalDrawingTranslateY;
+                blockOffsetY = (e.clientY - rect.top) / zoomScale - blockOffsetX;
             } else if (e.button === 2 && currentDeviceMode === "pc") {
                 isPanning = true; wrapper.style.cursor = "grabbing";
                 startX = e.clientX - panX; startY = e.clientY - panY;
@@ -1095,7 +1134,6 @@
             draggedElement = null; magnifier.style.display = 'none';
         });
 
-        // --- 📱 TOUCH EQUIVALENTS CONTROL MATRIX FOR MOBILE LAYERS ---
         wrapper.addEventListener('touchstart', (e) => {
             if (offSubMode !== 'items' || drawModeOn || e.touches.length !== 1) return;
             if (e.target === canvas) {
@@ -1309,3 +1347,4 @@
     </script>
 </body>
 </html>
+
