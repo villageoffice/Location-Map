@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Professional Location Sketch Maker V3.1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Professional Location Sketch Maker V3.2</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -16,7 +16,7 @@
             overflow: hidden;
         }
 
-        /* --- V3.1 HYBRID RESPONSIVE TOP MENU --- */
+        /* --- V3.2 HYBRID RESPONSIVE TOP MENU --- */
         .top-menu {
             background-color: #f1f3f4;
             border-bottom: 1px solid #dadce0;
@@ -29,7 +29,6 @@
             flex-shrink: 0;
         }
 
-        /* Mobile First: 767px-ൽ താഴെയുള്ള ഫോണുകളിൽ പഴയതുപോലെ 2 Fixed Row & Horizontal Scroll */
         .menu-row {
             display: flex;
             align-items: center;
@@ -62,19 +61,16 @@
             margin-left: auto; 
         }
 
-        /* PC / Desktop Mode (768px-ന് മുകളിൽ മാത്രം താങ്കൾ നിർദ്ദേശിച്ച CSS Grid Auto Layout) */
+        /* PC / Desktop Mode CSS Grid Auto Layout */
         @media (min-width: 768px) {
             .top-menu {
                 display: grid;
                 gap: 8px;
                 align-items: center;
             }
-            
-            /* .menu-row-ൻ്റെ ഫ്ലെക്സ് സ്വഭാവം മാറ്റി ഗ്രിഡ് ഐറ്റംസ് ആക്കുന്നു */
             .menu-row {
                 display: contents; 
             }
-
             .menu-tab {
                 display: flex;
                 flex-wrap: wrap;
@@ -83,7 +79,6 @@
                 box-sizing: border-box;
                 justify-content: flex-start;
             }
-
             .action-group {
                 display: flex;
                 width: 100%;
@@ -91,7 +86,6 @@
                 margin-left: 0;
             }
 
-            /* Desktop Width അനുസരിച്ച് Layers നിയന്ത്രിക്കുന്നു */
             @media (min-width: 1600px) {
                 .top-menu { grid-template-columns: repeat(6, 1fr); }
             }
@@ -150,7 +144,6 @@
             white-space: nowrap;
         }
 
-        /* Auto Tool Collapse Classes (Only for PC Screens) */
         @media (min-width: 768px) {
             body.compact-toolbar .tab-title { font-size: 11px; }
             body.compact-toolbar select, body.compact-toolbar button, body.compact-toolbar input {
@@ -159,7 +152,7 @@
             }
         }
 
-        /* V3 Canvas Priority Layout */
+        /* Canvas Layout */
         .workspace-wrapper {
             flex: 1;
             min-height: 0;
@@ -168,6 +161,7 @@
             width: 100%;
             background-color: #2c3e50;
             cursor: default;
+            touch-action: none;
         }
 
         .workspace-container {
@@ -324,7 +318,6 @@
 <body>
 
     <div class="top-menu">
-        <!-- Row 1 (Mobile-ൽ സ്ക്രോൾ ചെയ്യും, PC-ൽ Grid Item ആകും) -->
         <div class="menu-row">
             <div class="menu-tab">
                 <button id="drawToggleBtn" class="toggle-btn" onclick="toggleDrawMode()">🔒 Draw Mode: OFF</button>
@@ -365,7 +358,6 @@
             </div>
         </div>
 
-        <!-- Row 2 (Mobile-ൽ സ്ക്രോൾ ചെയ്യും, PC-ൽ Grid Item ആകും) -->
         <div class="menu-row">
             <div class="menu-tab">
                 <span class="tab-title">🏠 Symbol:</span>
@@ -430,7 +422,6 @@
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-        // --- V3 AUTO TOOL COLLAPSE (PC SCREENS ONLY) ---
         function optimizeToolbar(){
             const w = window.innerWidth;
             if(w >= 768 && w < 1200){
@@ -475,7 +466,6 @@
         let touchStartPanX = 0;
         let touchStartPanY = 0;
 
-        // --- V3 DRAWING SMOOTHNESS: requestAnimationFrame Logic ---
         let redrawPending = false;
         function redrawAll() {
             if (redrawPending) return;
@@ -546,6 +536,7 @@
 
         window.onload = () => { setTimeout(changePageOrientation, 200); };
 
+        // --- PC MOUSE WHEEL ZOOM LOGIC ---
         wrapper.addEventListener('wheel', (e) => {
             if (currentDeviceMode !== "pc") return; 
             e.preventDefault();
@@ -634,56 +625,66 @@
             }
         }
 
+        // --- ENHANCED MOBILE PINCH-TO-ZOOM LOGIC ---
         wrapper.addEventListener('touchstart', (e) => {
-            if (drawModeOn) return;
-            if (currentDeviceMode === "mobile" && offSubMode === 'page') {
+            // എപ്പോഴും 2 വിരൽ വെച്ചാൽ Pinch-to-Zoom പ്രവർത്തിക്കും
+            if (e.touches.length === 2) {
+                e.preventDefault();
+                isPanning = false;
+                initialPinchDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                initialScale = zoomScale;
+                touchStartPanX = panX;
+                touchStartPanY = panY;
+                return;
+            }
+            
+            // 1 വിരൽ ഉപയോഗിച്ച് Pan ചെയ്യുന്നത് (Layout/Zoom മോഡിൽ മാത്രം)
+            if (currentDeviceMode === "mobile" && offSubMode === 'page' && !drawModeOn) {
                 if (e.touches.length === 1) {
                     isPanning = true;
                     startX = e.touches[0].clientX - panX;
                     startY = e.touches[0].clientY - panY;
-                } else if (e.touches.length === 2) {
-                    isPanning = false;
-                    initialPinchDistance = Math.hypot(
-                        e.touches[0].clientX - e.touches[1].clientX,
-                        e.touches[0].clientY - e.touches[1].clientY
-                    );
-                    initialScale = zoomScale;
-                    touchStartPanX = panX;
-                    touchStartPanY = panY;
                 }
             }
-        }, {passive: true});
+        }, {passive: false});
 
         wrapper.addEventListener('touchmove', (e) => {
-            if (drawModeOn) return;
-            if (currentDeviceMode === "mobile" && offSubMode === 'page') {
-                if (isPanning && e.touches.length === 1) {
-                    panX = e.touches[0].clientX - startX;
-                    panY = e.touches[0].clientY - startY;
-                    updateTransform();
-                } else if (e.touches.length === 2 && initialPinchDistance) {
-                    const currentDistance = Math.hypot(
-                        e.touches[0].clientX - e.touches[1].clientX,
-                        e.touches[0].clientY - e.touches[1].clientY
-                    );
-                    
-                    const originX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-                    const originY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-                    const wrapperRect = wrapper.getBoundingClientRect();
-                    const pivotX = originX - wrapperRect.left;
-                    const pivotY = originY - wrapperRect.top;
+            // 2 വിരൽ ഉപയോഗിച്ച് Zoom & Pan ചെയ്യുന്നത്
+            if (e.touches.length === 2 && initialPinchDistance) {
+                e.preventDefault();
+                const currentDistance = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                
+                const originX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+                const originY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+                const wrapperRect = wrapper.getBoundingClientRect();
+                const pivotX = originX - wrapperRect.left;
+                const pivotY = originY - wrapperRect.top;
 
-                    const factor = currentDistance / initialPinchDistance;
-                    const newScale = Math.max(0.15, Math.min(3.0, initialScale * factor));
-                    
-                    panX = pivotX - (pivotX - touchStartPanX) * (newScale / initialScale);
-                    panY = pivotY - (pivotY - touchStartPanY) * (newScale / initialScale);
-                    zoomScale = newScale;
-                    
-                    updateTransform();
-                }
+                const factor = currentDistance / initialPinchDistance;
+                const newScale = Math.max(0.15, Math.min(3.0, initialScale * factor));
+                
+                panX = pivotX - (pivotX - touchStartPanX) * (newScale / initialScale);
+                panY = pivotY - (pivotY - touchStartPanY) * (newScale / initialScale);
+                zoomScale = newScale;
+                
+                updateTransform();
+                return;
             }
-        }, {passive: true});
+            
+            // 1 വിരൽ ഉപയോഗിച്ച് Pan ചെയ്യുന്നത് (Layout/Zoom മോഡിൽ മാത്രം)
+            if (isPanning && e.touches.length === 1 && currentDeviceMode === "mobile" && offSubMode === 'page') {
+                e.preventDefault();
+                panX = e.touches[0].clientX - startX;
+                panY = e.touches[0].clientY - startY;
+                updateTransform();
+            }
+        }, {passive: false});
 
         wrapper.addEventListener('touchend', () => { 
             isPanning = false; 
@@ -712,7 +713,6 @@
 
         function triggerMagnifierRender(screenX, screenY, centerModelX, centerModelY) {
             if (!magnifierEnabled) return;
-
             magnifier.style.display = 'block';
             magnifier.style.left = (screenX - 70) + 'px';
             magnifier.style.top = (screenY - 160) + 'px'; 
@@ -725,9 +725,7 @@
             magCtx.scale(2, 2); 
             magCtx.translate(-centerModelX, -centerModelY);
             
-            if (bgImage) {
-                magCtx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
-            }
+            if (bgImage) magCtx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
             
             magCtx.save();
             magCtx.translate(globalDrawingTranslateX, globalDrawingTranslateY);
@@ -829,7 +827,6 @@
                 }
                 magCtx.restore();
             });
-
             magCtx.restore();
         }
 
@@ -885,8 +882,12 @@
             };
         }
 
+        // കാൻവാസിൽ വിരൽ വെക്കുമ്പോൾ വരയ്ക്കാൻ മാത്രം
         function startDrawing(e) {
             if (!drawModeOn || e.target !== canvas || e.button === 2) return; 
+            // 2 വിരൽ ആണെങ്കിൽ വരയ്ക്കാൻ അനുവദിക്കരുത് (Zoom ന് വേണ്ടി)
+            if (e.touches && e.touches.length > 1) return;
+            
             e.preventDefault(); isDrawing = true;
             let coord = getCoordinates(e);
             
@@ -920,6 +921,8 @@
 
         function draw(e) {
             if (!isDrawing || !drawModeOn) return;
+            if (e.touches && e.touches.length > 1) return;
+            
             e.preventDefault(); 
             const coord = getCoordinates(e);
             let targetModelCoord = {
@@ -1038,7 +1041,6 @@
             pCtx.restore();
         }
 
-        // V3 performRedraw function to be called by requestAnimationFrame
         function performRedraw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             if (bgImage) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
@@ -1078,6 +1080,8 @@
 
         function startDrag(e) {
             if(drawModeOn || offSubMode !== 'items' || e.target.className === 'delete-btn' || e.target.className === 'rotation-slider' || e.button === 2) return; 
+            if(e.touches && e.touches.length > 1) return;
+            
             e.preventDefault(); 
             draggedElement = this;
             
@@ -1100,7 +1104,7 @@
                 canvas.style.cursor = "move";
                 const rect = itemContainer.getBoundingClientRect();
                 blockOffsetX = (e.clientX - rect.left) / zoomScale - globalDrawingTranslateX;
-                blockOffsetY = (e.clientY - rect.top) / zoomScale - blockOffsetX;
+                blockOffsetY = (e.clientY - rect.top) / zoomScale - globalDrawingTranslateY;
             } else if (e.button === 2 && currentDeviceMode === "pc") {
                 isPanning = true; wrapper.style.cursor = "grabbing";
                 startX = e.clientX - panX; startY = e.clientY - panY;
@@ -1142,16 +1146,18 @@
                 blockOffsetX = (e.touches[0].clientX - rect.left) / zoomScale - globalDrawingTranslateX;
                 blockOffsetY = (e.touches[0].clientY - rect.top) / zoomScale - globalDrawingTranslateY;
             }
-        }, {passive: true});
+        }, {passive: false});
 
         wrapper.addEventListener('touchmove', (e) => {
             if (drawModeOn || e.touches.length !== 1) return;
             if (isMovingDrawingBlock) {
+                e.preventDefault();
                 const rect = itemContainer.getBoundingClientRect();
                 globalDrawingTranslateX = (e.touches[0].clientX - rect.left) / zoomScale - blockOffsetX;
                 globalDrawingTranslateY = (e.touches[0].clientY - rect.top) / zoomScale - blockOffsetY;
                 redrawAll();
             } else if (draggedElement) {
+                e.preventDefault();
                 const containerRect = itemContainer.getBoundingClientRect();
                 let x = (e.touches[0].clientX - containerRect.left) / zoomScale;
                 let y = (e.touches[0].clientY - containerRect.top) / zoomScale;
@@ -1160,7 +1166,7 @@
                 const modelCoord = getCoordinates(e);
                 triggerMagnifierRender(e.touches[0].clientX, e.touches[0].clientY, modelCoord.x, modelCoord.y);
             }
-        }, {passive: true});
+        }, {passive: false});
 
         wrapper.addEventListener('touchend', () => { isMovingDrawingBlock = false; draggedElement = null; magnifier.style.display = 'none'; });
 
