@@ -18,83 +18,84 @@
 
         /* --- V3.2 HYBRID RESPONSIVE TOP MENU --- */
         .top-menu {
-            background-color: #f1f3f4;
-            border-bottom: 1px solid #dadce0;
-            padding: 8px 12px;
+            background: linear-gradient(to bottom, #f8f9fa, #f1f3f4);
+            border-bottom: 2px solid #c0c4c8;
+            padding: 0;
             display: flex;
-            flex-direction: column; 
-            gap: 8px;
+            flex-direction: column;
             z-index: 100;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
             flex-shrink: 0;
         }
 
-        .menu-row {
+        .ribbon-row {
             display: flex;
-            align-items: center;
-            gap: 12px;
-            overflow-x: auto; 
-            white-space: nowrap;
-            -webkit-overflow-scrolling: touch;
+            flex-direction: row;
+            align-items: stretch;
             width: 100%;
+            border-bottom: 1px solid #dadce0;
+            min-height: 38px;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
         }
+        .ribbon-row:last-child { border-bottom: none; }
+        .ribbon-row::-webkit-scrollbar { height: 3px; }
+        .ribbon-row::-webkit-scrollbar-thumb { background: #c0c4c8; border-radius: 2px; }
 
-        .menu-row::-webkit-scrollbar {
-            display: none;
-        }
-
-        .menu-tab {
-            background: white;
-            border: 1px solid #dadce0;
-            border-radius: 4px;
-            padding: 5px 10px;
+        .ribbon-group {
             display: inline-flex;
+            flex-direction: row;
             align-items: center;
-            gap: 6px;
-            flex-shrink: 0; 
-        }
-
-        .action-group {
-            display: inline-flex;
-            gap: 6px;
+            gap: 5px;
+            padding: 4px 10px;
+            border-right: 1px solid #dadce0;
             flex-shrink: 0;
-            margin-left: auto; 
+            position: relative;
+        }
+        .ribbon-group:last-child { border-right: none; }
+
+        .group-label {
+            font-size: 10px;
+            font-weight: bold;
+            color: #80868b;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            white-space: nowrap;
+            display: block;
+            margin-bottom: 2px;
         }
 
-        /* PC / Desktop Mode CSS Grid Auto Layout */
-        @media (min-width: 768px) {
-            .top-menu {
-                display: grid;
-                gap: 8px;
-                align-items: center;
-            }
-            .menu-row {
-                display: contents; 
-            }
-            .menu-tab {
-                display: flex;
-                flex-wrap: wrap;
-                min-width: 0;
-                width: 100%;
-                box-sizing: border-box;
-                justify-content: flex-start;
-            }
-            .action-group {
-                display: flex;
-                width: 100%;
-                justify-content: flex-end;
-                margin-left: 0;
-            }
+        .ribbon-group-inner {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1px;
+        }
 
-            @media (min-width: 1600px) {
-                .top-menu { grid-template-columns: repeat(6, 1fr); }
-            }
-            @media (min-width: 1200px) and (max-width: 1599px) {
-                .top-menu { grid-template-columns: repeat(4, 1fr); }
-            }
-            @media (min-width: 768px) and (max-width: 1199px) {
-                .top-menu { grid-template-columns: repeat(3, 1fr); }
-            }
+        .ribbon-controls {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 5px;
+            flex-wrap: nowrap;
+        }
+
+        .ribbon-end {
+            margin-left: auto;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            flex-shrink: 0;
+        }
+
+        /* Desktop ribbon: compact font on medium screens */
+        @media (min-width: 768px) and (max-width: 1300px) {
+            select, button, input { font-size: 11px; padding: 3px 6px; }
+            .ribbon-group { padding: 3px 7px; gap: 4px; }
+            .group-label { font-size: 9px; }
         }
 
         .tab-title {
@@ -145,10 +146,10 @@
         }
 
         @media (min-width: 768px) {
-            body.compact-toolbar .tab-title { font-size: 11px; }
+            body.compact-toolbar .group-label { font-size: 9px; }
             body.compact-toolbar select, body.compact-toolbar button, body.compact-toolbar input {
-                font-size: 12px;
-                padding: 4px 6px;
+                font-size: 11px;
+                padding: 3px 5px;
             }
         }
 
@@ -318,122 +319,157 @@
 <body>
 
     <div class="top-menu">
-        <div class="menu-row">
-            <div class="menu-tab">
-                <button id="drawToggleBtn" class="toggle-btn" onclick="toggleDrawMode()">🔒 Draw Mode: OFF</button>
-                <button id="viewModeBtn" style="background-color: #8e44ad;" onclick="toggleViewMode()">👉 Items</button>
-                <button id="rotateToggleBtn" onclick="toggleRotateTab()">🔄 Rotate Tab: OFF</button>
-                <button id="magnifierToggleBtn" class="toggle-btn" style="background-color: #27ae60;" onclick="toggleMagnifier()">🔍 Zoom Box: ON</button>
+
+        <!-- RIBBON ROW 1: Mode controls | Page | Line/Draw | QR | Actions -->
+        <div class="ribbon-row">
+
+            <div class="ribbon-group">
+                <div class="ribbon-group-inner">
+                    <span class="group-label">Mode</span>
+                    <div class="ribbon-controls">
+                        <button id="drawToggleBtn" class="toggle-btn" onclick="toggleDrawMode()">🔒 Draw: OFF</button>
+                        <button id="viewModeBtn" style="background-color: #8e44ad;" onclick="toggleViewMode()">👉 Items</button>
+                        <button id="rotateToggleBtn" onclick="toggleRotateTab()">🔄 Rotate: OFF</button>
+                        <button id="magnifierToggleBtn" class="toggle-btn" style="background-color: #27ae60;" onclick="toggleMagnifier()">🔍 Zoom: ON</button>
+                    </div>
+                </div>
             </div>
 
-            <div class="menu-tab">
-                <span class="tab-title">📄 Page Layout:</span>
-                <select id="pageOrientation" onchange="changePageOrientation()" style="width: 140px; font-weight: bold; color: #1a73e8; border: 1px solid #1a73e8;">
-                    <option value="portrait" selected>▯ Portrait (A4)</option>
-                    <option value="landscape">▭ Landscape (A4)</option>
-                </select>
+            <div class="ribbon-group">
+                <div class="ribbon-group-inner">
+                    <span class="group-label">Page</span>
+                    <div class="ribbon-controls">
+                        <select id="pageOrientation" onchange="changePageOrientation()" style="width: 145px; font-weight: bold; color: #1a73e8; border: 1px solid #1a73e8;">
+                            <option value="portrait" selected>▯ Portrait (A4)</option>
+                            <option value="landscape">▭ Landscape (A4)</option>
+                        </select>
+                    </div>
+                </div>
             </div>
 
-            <div class="menu-tab">
-                <span class="tab-title">✏️ Line Style:</span>
-                <select id="roadType" style="width: 120px;">
-                    <option value="main">Main Road</option>
-                    <option value="panchayat">Panchayat</option>
-                    <option value="mud">Tracks Mud</option>
-                    <option value="path">🚶 Footpath</option>
-                    <option value="stream">🌊 Stream</option>
-                    <option value="railway">🚂 Railway</option>
-                    <option value="electricLine">⚡ Electric</option>
-                    <option value="plotLine">🟥 Plot Line</option>
-                    <option value="squarePlot">🟩 Square Plot</option>
-                </select>
-                <label class="checkbox-row"><input type="checkbox" id="straightMode" checked> Straight</label>
-                <button class="toggle-btn" onclick="undoLast()">↩️ Undo</button>
-            </div>
-            
-            <div class="menu-tab">
-                <span class="tab-title">📍 Map Link QR:</span>
-                <input type="text" id="mapLinkInput" placeholder="Paste URL..." style="width: 150px;">
-                <button class="success-btn" onclick="addGoogleMapQRCode()">➕ Add</button>
-            </div>
-        </div>
-
-        <div class="menu-row">
-            <div class="menu-tab">
-                <span class="tab-title">🏠 Symbol:</span>
-                <select id="iconSelect" style="width: 120px;">
-                    <option value="NORTH_ARROW|North Arrow">🧭 North Arrow</option>
-                    <option value="🚩|Main Plot">🚩 Main Plot</option>
-                    <option value="UTILITY_POLE|Electric Post">⚡ Electric Post</option>
-                    <option value="🏠|House">🏠 House</option>
-                    <option value="🏢|Building">🏢 Building</option>
-                    <option value="🛕|Temple">🛕 Temple</option>
-                    <option value="🕌|Mosque">🕌 Mosque</option>
-                    <option value="⛪|Church">⛪ Church</option>
-                    <option value="🌳|Tree">🌳 Tree</option>
-                    <option value="🏞️|Pond">🏞️ Pond</option>
-                    <option value="🕳️|Well">🕳️ Well</option>
-                    <option value="🛑|Junction">🛑 Junction</option>
-
-<option value="⛽|Petrol Pump">⛽ Petrol Pump</option>
-<option value="🏥|Hospital">🏥 Hospital</option>
-<option value="🏦|Bank">🏦 Bank</option>
-<option value="🏫|School">🏫 School</option>
-<option value="🚌|Bus Stop">🚌 Bus Stop</option>
-<option value="🚉|Railway Station">🚉 Railway Station</option>
-<option value="🚓|Police Station">🚓 Police Station</option>
-<option value="🔥|Fire Station">🔥 Fire Station</option>
-<option value="🏛️|Village Office">🏛️ Village Office</option>
-<option value="🏢|Panchayat Office">🏢 Panchayat Office</option>
-<option value="🏪|Shop">🏪 Shop</option>
-<option value="🏬|Market">🏬 Market</option>
-<option value="📮|Post Office">📮 Post Office</option>
-<option value="📡|Mobile Tower">📡 Mobile Tower</option>
-<option value="⚡|Transformer">⚡ Transformer</option>
-<option value="💧|Water Tank">💧 Water Tank</option>
-<option value="🚰|Water Tap">🚰 Water Tap</option>
-<option value="🌉|Bridge">🌉 Bridge</option>
-<option value="🅿️|Parking">🅿️ Parking</option>
-<option value="🏭|Factory">🏭 Factory</option>
-<option value="🏗️|Construction">🏗️ Construction</option>
-<option value="🌲|Forest">🌲 Forest</option>
-<option value="🌴|Coconut Tree">🌴 Coconut Tree</option>
-<option value="🪦|Cemetery">🪦 Cemetery</option>
-<option value="🚜|Farm">🚜 Farm</option>
-<option value="🐄|Cattle Farm">🐄 Cattle Farm</option>
-<option value="🚏|Auto Stand">🚏 Auto Stand</option>
-<option value="🚖|Taxi Stand">🚖 Taxi Stand</option>
-<option value="⚓|Harbour">⚓ Harbour</option>
-<option value="🏖️|Ground">🏖️ Ground</option>
-<option value="🚧|Road Work">🚧 Road Work</option>
-
-                </select>
-                <button class="success-btn" onclick="addIcon()">➕ Symbol</button>
+            <div class="ribbon-group">
+                <div class="ribbon-group-inner">
+                    <span class="group-label">✏️ Draw Line</span>
+                    <div class="ribbon-controls">
+                        <select id="roadType" style="width: 130px;">
+                            <option value="nh">🛣️ NH Road</option>
+                            <option value="sh">🛤️ SH Road</option>
+                            <option value="pwd">PWD Road</option>
+                            <option value="panchayat">Panchayat Road</option>
+                            <option value="mud">Mud Road</option>
+                            <option value="path">🚶 Foot Path</option>
+                            <option value="stream">🌊 Stream</option>
+                            <option value="railway">🚂 Railway</option>
+                            <option value="electricLine">⚡ Electric Line</option>
+                            <option value="plotLine">🟥 Plot Line</option>
+                            <option value="squarePlot">🟩 Square Plot</option>
+                        </select>
+                        <label class="checkbox-row"><input type="checkbox" id="straightMode" checked> Straight</label>
+                        <button class="toggle-btn" onclick="undoLast()">↩️ Undo</button>
+                    </div>
+                </div>
             </div>
 
-            <div class="menu-tab">
-                <span class="tab-title">📝 Text:</span>
-                <input type="text" id="customTextInput" placeholder="Type..." style="width: 80px;">
-                <select id="fontSizeSelect" style="width: 65px;">
-                    <option value="14px">Sm</option>
-                    <option value="18px" selected>Md</option>
-                    <option value="24px">Lg</option>
-                    <option value="32px">XL</option>
-                </select>
-                <button class="success-btn" onclick="addCustomText()">➕ Text</button>
+            <div class="ribbon-group">
+                <div class="ribbon-group-inner">
+                    <span class="group-label">📍 Map QR</span>
+                    <div class="ribbon-controls">
+                        <input type="text" id="mapLinkInput" placeholder="Paste Google Map URL..." style="width: 170px;">
+                        <button class="success-btn" onclick="addGoogleMapQRCode()">➕ QR</button>
+                    </div>
+                </div>
             </div>
 
-            <div class="menu-tab">
-                <span class="tab-title">🖼️ Upload PDF/Img:</span>
-                <input type="file" id="bgUploader" style="width: 130px;">
-                <button class="danger-btn" onclick="removeUploadedBackground()">❌ Remove</button>
-            </div>
-
-            <div class="action-group">
+            <div class="ribbon-end">
                 <button id="deviceModeBtn" onclick="toggleDeviceMode()" style="background-color: #2c3e50;">🖥️ PC Mode</button>
                 <button class="danger-btn" onclick="clearMap()">🗑️ Clear</button>
                 <button class="success-btn" onclick="compileAndSavePDF()">💾 Save PDF</button>
             </div>
+        </div>
+
+        <!-- RIBBON ROW 2: Symbol | Text | Upload -->
+        <div class="ribbon-row">
+
+            <div class="ribbon-group">
+                <div class="ribbon-group-inner">
+                    <span class="group-label">🏠 Symbol</span>
+                    <div class="ribbon-controls">
+                        <select id="iconSelect" style="width: 145px;">
+                            <option value="NORTH_ARROW|North Arrow">🧭 North Arrow</option>
+                            <option value="🚩|Main Plot">🚩 Main Plot</option>
+                            <option value="UTILITY_POLE|Electric Post">⚡ Electric Post</option>
+                            <option value="🏠|House">🏠 House</option>
+                            <option value="🏢|Building">🏢 Building</option>
+                            <option value="🛕|Temple">🛕 Temple</option>
+                            <option value="🕌|Mosque">🕌 Mosque</option>
+                            <option value="⛪|Church">⛪ Church</option>
+                            <option value="🌳|Tree">🌳 Tree</option>
+                            <option value="🏞️|Pond">🏞️ Pond</option>
+                            <option value="🕳️|Well">🕳️ Well</option>
+                            <option value="🛑|Junction">🛑 Junction</option>
+                            <option value="⛽|Petrol Pump">⛽ Petrol Pump</option>
+                            <option value="🏥|Hospital">🏥 Hospital</option>
+                            <option value="🏦|Bank">🏦 Bank</option>
+                            <option value="🏫|School">🏫 School</option>
+                            <option value="🚌|Bus Stop">🚌 Bus Stop</option>
+                            <option value="🚉|Railway Station">🚉 Railway Station</option>
+                            <option value="🚓|Police Station">🚓 Police Station</option>
+                            <option value="🔥|Fire Station">🔥 Fire Station</option>
+                            <option value="🏛️|Village Office">🏛️ Village Office</option>
+                            <option value="🏢|Panchayat Office">🏢 Panchayat Office</option>
+                            <option value="🏪|Shop">🏪 Shop</option>
+                            <option value="🏬|Market">🏬 Market</option>
+                            <option value="📮|Post Office">📮 Post Office</option>
+                            <option value="📡|Mobile Tower">📡 Mobile Tower</option>
+                            <option value="⚡|Transformer">⚡ Transformer</option>
+                            <option value="💧|Water Tank">💧 Water Tank</option>
+                            <option value="🚰|Water Tap">🚰 Water Tap</option>
+                            <option value="🌉|Bridge">🌉 Bridge</option>
+                            <option value="🅿️|Parking">🅿️ Parking</option>
+                            <option value="🏭|Factory">🏭 Factory</option>
+                            <option value="🏗️|Construction">🏗️ Construction</option>
+                            <option value="🌲|Forest">🌲 Forest</option>
+                            <option value="🌴|Coconut Tree">🌴 Coconut Tree</option>
+                            <option value="🪦|Cemetery">🪦 Cemetery</option>
+                            <option value="🚜|Farm">🚜 Farm</option>
+                            <option value="🐄|Cattle Farm">🐄 Cattle Farm</option>
+                            <option value="🚏|Auto Stand">🚏 Auto Stand</option>
+                            <option value="🚖|Taxi Stand">🚖 Taxi Stand</option>
+                            <option value="⚓|Harbour">⚓ Harbour</option>
+                            <option value="🏖️|Ground">🏖️ Ground</option>
+                            <option value="🚧|Road Work">🚧 Road Work</option>
+                        </select>
+                        <button class="success-btn" onclick="addIcon()">➕ Add</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ribbon-group">
+                <div class="ribbon-group-inner">
+                    <span class="group-label">📝 Text Label</span>
+                    <div class="ribbon-controls">
+                        <input type="text" id="customTextInput" placeholder="Type text..." style="width: 100px;">
+                        <select id="fontSizeSelect" style="width: 60px;">
+                            <option value="14px">Sm</option>
+                            <option value="18px" selected>Md</option>
+                            <option value="24px">Lg</option>
+                            <option value="32px">XL</option>
+                        </select>
+                        <button class="success-btn" onclick="addCustomText()">➕ Add</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ribbon-group">
+                <div class="ribbon-group-inner">
+                    <span class="group-label">🖼️ Background</span>
+                    <div class="ribbon-controls">
+                        <input type="file" id="bgUploader" style="width: 140px;">
+                        <button class="danger-btn" onclick="removeUploadedBackground()">❌ Remove</button>
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -733,15 +769,17 @@
         let activePathIndex = null; 
 
         const roadStyles = {
-            main: { outerWidth: 16, outerColor: 'black', innerWidth: 12, innerColor: 'white', isBox: false },
-            panchayat: { outerWidth: 10, outerColor: 'black', innerWidth: 6, innerColor: 'white', isBox: false },
-            mud: { outerWidth: 10, outerColor: '#8B4513', innerWidth: 6, innerColor: '#F5DEB3', dash: [10, 10], isBox: false },
-            path: { outerWidth: 4, outerColor: 'black', innerWidth: 0, innerColor: 'transparent', dash: [6, 6], isBox: false },
-            stream: { outerWidth: 10, outerColor: '#1a73e8', innerWidth: 6, innerColor: '#8ab4f8', isBox: false },
-            plotLine: { outerWidth: 3, outerColor: 'red', innerWidth: 0, innerColor: 'transparent', isBox: false },
-            railway: { outerWidth: 10, outerColor: 'black', innerWidth: 6, innerColor: 'white', dash: [10, 10], isBox: false },
-            electricLine: { outerWidth: 2, outerColor: '#e67e22', innerWidth: 0, innerColor: 'transparent', dash: [8, 8], isBox: false, isElectric: true },
-            squarePlot: { outerWidth: 3, outerColor: 'red', innerWidth: 0, innerColor: 'transparent', isBox: true }
+            nh:          { outerWidth: 22, outerColor: 'black', innerWidth: 17, innerColor: 'white', isBox: false },
+            sh:          { outerWidth: 19, outerColor: 'black', innerWidth: 14, innerColor: 'white', isBox: false },
+            pwd:         { outerWidth: 16, outerColor: 'black', innerWidth: 12, innerColor: 'white', isBox: false },
+            panchayat:   { outerWidth: 12, outerColor: 'black', innerWidth: 8,  innerColor: 'white', isBox: false },
+            mud:         { outerWidth: 10, outerColor: '#8B4513', innerWidth: 6, innerColor: '#F5DEB3', dash: [10, 10], isBox: false },
+            path:        { outerWidth: 4,  outerColor: 'black', innerWidth: 0,  innerColor: 'transparent', dash: [6, 6], isBox: false },
+            stream:      { outerWidth: 10, outerColor: '#1a73e8', innerWidth: 6, innerColor: '#8ab4f8', isBox: false },
+            plotLine:    { outerWidth: 3,  outerColor: 'red',   innerWidth: 0,  innerColor: 'transparent', isBox: false },
+            railway:     { outerWidth: 10, outerColor: 'black', innerWidth: 6,  innerColor: 'white', dash: [10, 10], isBox: false },
+            electricLine:{ outerWidth: 2,  outerColor: '#e67e22', innerWidth: 0, innerColor: 'transparent', dash: [8, 8], isBox: false, isElectric: true },
+            squarePlot:  { outerWidth: 3,  outerColor: 'red',   innerWidth: 0,  innerColor: 'transparent', isBox: true }
         };
 
         function triggerMagnifierRender(screenX, screenY, centerModelX, centerModelY) {
