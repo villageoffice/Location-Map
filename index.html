@@ -251,13 +251,23 @@
 
         .icon-label {
             font-size: 11px;
-            background: rgba(255,255,255,0.9);
-            border-radius: 3px;
-            padding: 1px 3px;
+            background: transparent;
+            border-radius: 0;
+            padding: 0;
             display: block;
             margin-top: 2px;
             font-weight: bold;
-            border: 1px solid #ccc;
+            border: none;
+            color: #000;
+            text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
+        }
+        .editable-label {
+            cursor: text;
+            outline: 1px dashed rgba(26,115,232,0.5);
+            outline-offset: 2px;
+        }
+        .editable-label:hover {
+            outline: 1px dashed #1a73e8;
         }
         
         .delete-btn {
@@ -366,6 +376,9 @@
                         </select>
                         <label class="checkbox-row"><input type="checkbox" id="straightMode" checked> Straight</label>
                         <button class="toggle-btn" onclick="undoLast()">↩️ Undo</button>
+                        <button class="toggle-btn" onclick="redoLast()" style="background-color:#5f6368;">↪️ Redo</button>
+                        <button class="toggle-btn" onclick="undoLastItem()" style="background-color:#7f8c8d;">↩️ Item</button>
+                        <button class="toggle-btn" onclick="redoLastItem()" style="background-color:#7f8c8d;">↪️ Item</button>
                     </div>
                 </div>
             </div>
@@ -438,6 +451,18 @@
                             <option value="⚓|Harbour">⚓ Harbour</option>
                             <option value="🏖️|Ground">🏖️ Ground</option>
                             <option value="🚧|Road Work">🚧 Road Work</option>
+                        </select>
+                        <select id="iconSizeSelect" style="width: 70px;">
+                            <option value="large">Large</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="small">Small</option>
+                        </select>
+                        <select id="labelFontSize" style="width: 55px;" title="Label font size">
+                            <option value="9px">9px</option>
+                            <option value="11px" selected>11px</option>
+                            <option value="13px">13px</option>
+                            <option value="15px">15px</option>
+                            <option value="18px">18px</option>
                         </select>
                         <button class="success-btn" onclick="addIcon()">➕ Add</button>
                     </div>
@@ -1134,12 +1159,30 @@
             ctx.restore();
         }
 
+        let redoStack = [];
         function undoLast() { 
             if(paths.length === 0) return;
             let lastPath = paths[paths.length - 1];
-            if(lastPath.points.length > 2) { lastPath.points.pop(); } else { paths.pop(); }
+            if(lastPath.points.length > 2) {
+                redoStack.push({ type: 'point', pathIndex: paths.length - 1, point: lastPath.points.pop() });
+            } else {
+                redoStack.push({ type: 'path', path: paths.pop() });
+            }
             redrawAll(); 
         }
+
+        function redoLast() {
+            if(redoStack.length === 0) return;
+            const item = redoStack.pop();
+            if(item.type === 'path') {
+                paths.push(item.path);
+            } else if(item.type === 'point') {
+                if(paths[item.pathIndex]) paths[item.pathIndex].points.push(item.point);
+            }
+            redrawAll();
+        }
+
+        let itemRedoStack = [];
 
         const itemContainer = document.getElementById('canvasContainer');
         let draggedElement = null;
@@ -1241,16 +1284,45 @@
 
         wrapper.addEventListener('touchend', () => { isMovingDrawingBlock = false; draggedElement = null; magnifier.style.display = 'none'; });
 
+        function undoLastItem() {
+            const items = document.querySelectorAll('.draggable-item');
+            if (items.length > 0) {
+                const last = items[items.length - 1];
+                itemRedoStack.push({ html: last.outerHTML, left: last.style.left, top: last.style.top });
+                last.remove();
+            }
+        }
+
+        function redoLastItem() {
+            if (itemRedoStack.length === 0) return;
+            const saved = itemRedoStack.pop();
+            const temp = document.createElement('div');
+            temp.innerHTML = saved.html;
+            const el = temp.firstChild;
+            makeElementDraggable(el);
+            // re-attach editLabel listeners
+            el.querySelectorAll('.editable-label').forEach(span => {
+                span.ondblclick = function() { editLabel(this); };
+            });
+            itemContainer.appendChild(el);
+        }
+
         function addIcon() {
             const val = document.getElementById('iconSelect').value.split('|');
+            const sizeVal = document.getElementById('iconSizeSelect').value;
+            const labelFs = document.getElementById('labelFontSize').value;
+            const sizePx = sizeVal === 'large' ? '42px' : sizeVal === 'small' ? '22px' : '32px';
+            const svgSize = sizeVal === 'large' ? '60px' : sizeVal === 'small' ? '30px' : '45px';
+            const northSize = sizeVal === 'large' ? '70px' : sizeVal === 'small' ? '35px' : '50px';
             const el = document.createElement('div'); el.className = 'draggable-item';
             el.style.left = '50%'; el.style.top = '50%';
             const displayState = rotateTabActive ? "block" : "none";
+            const defaultLabel = val[1];
 
             if (val[0] === "UTILITY_POLE") {
                 el.innerHTML = `
                     <div class="rotate-wrapper">
-                        <svg class="vector-pole-svg" viewBox="0 0 40 40">
+                        <svg class="vector-pole-svg" viewBox="0 0 40 40" style="width:${svgSize};height:${svgSize};">
                             <line x1="20" y1="36" x2="20" y2="4" stroke="black" stroke-width="2.5" />
                             <line x1="4" y1="12" x2="36" y2="12" stroke="black" stroke-width="3.5" />
                             <line x1="12" y1="6" x2="28" y2="6" stroke="black" stroke-width="2" />
@@ -1260,7 +1332,7 @@
                             <circle cx="34" cy="10" r="1.5" stroke="black" stroke-width="1" fill="none" />
                             <rect x="22" y="16" width="7" height="9" fill="black" />
                         </svg>
-                        <span class="icon-label">${val[1]}</span>
+                        <span class="icon-label editable-label" style="font-size:${labelFs};" ondblclick="editLabel(this)" title="Double-click to edit">${defaultLabel}</span>
                         <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
                     </div>
                     <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
@@ -1268,7 +1340,7 @@
             } else if (val[0] === "NORTH_ARROW") {
                 el.innerHTML = `
                     <div class="rotate-wrapper">
-                        <svg class="north-arrow-svg" viewBox="-20 -50 40 80">
+                        <svg class="north-arrow-svg" viewBox="-20 -50 40 80" style="width:${northSize};height:calc(${northSize} * 1.6);">
                             <text x="0" y="-30" font-family="Arial" font-size="22" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="black">N</text>
                             <polygon points="0,-15 -12,25 0,15" fill="black"/>
                             <polygon points="0,-15 12,25 0,15" fill="white" stroke="black" stroke-width="1"/>
@@ -1280,14 +1352,37 @@
             } else {
                 el.innerHTML = `
                     <div class="rotate-wrapper">
-                        <div class="draggable-icon-style" style="font-size: 32px;">${val[0]}</div>
-                        <span class="icon-label">${val[1]}</span>
+                        <div class="draggable-icon-style" style="font-size: ${sizePx};">${val[0]}</div>
+                        <span class="icon-label editable-label" style="font-size:${labelFs};" ondblclick="editLabel(this)" title="Double-click to edit">${defaultLabel}</span>
                         <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
                     </div>
                     <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
                 `;
             }
             makeElementDraggable(el); itemContainer.appendChild(el);
+        }
+
+        function editLabel(span) {
+            const current = span.innerText;
+            const currentFs = span.style.fontSize || '11px';
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = current;
+            input.style.cssText = `font-size:${currentFs};font-weight:bold;width:80px;padding:1px 3px;border:1px solid #1a73e8;border-radius:3px;text-align:center;`;
+            span.replaceWith(input);
+            input.focus();
+            input.select();
+            function commitEdit() {
+                const newSpan = document.createElement('span');
+                newSpan.className = 'icon-label editable-label';
+                newSpan.title = 'Double-click to edit';
+                newSpan.style.fontSize = currentFs;
+                newSpan.innerText = input.value || current;
+                newSpan.ondblclick = function() { editLabel(this); };
+                input.replaceWith(newSpan);
+            }
+            input.addEventListener('blur', commitEdit);
+            input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') { input.value = current; input.blur(); } });
         }
 
         function addCustomText() {
