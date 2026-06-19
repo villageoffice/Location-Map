@@ -35,13 +35,10 @@
             width: 100%;
             border-bottom: 1px solid #dadce0;
             min-height: 38px;
-            flex-wrap: nowrap;
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+            flex-wrap: wrap;
+            row-gap: 0;
         }
         .ribbon-row:last-child { border-bottom: none; }
-        .ribbon-row::-webkit-scrollbar { height: 3px; }
-        .ribbon-row::-webkit-scrollbar-thumb { background: #c0c4c8; border-radius: 2px; }
 
         .ribbon-group {
             display: inline-flex;
@@ -50,10 +47,12 @@
             gap: 5px;
             padding: 4px 10px;
             border-right: 1px solid #dadce0;
+            border-bottom: 1px solid #dadce0;
             flex-shrink: 0;
             position: relative;
         }
-        .ribbon-group:last-child { border-right: none; }
+        .ribbon-row > .ribbon-group:last-of-type,
+        .ribbon-row > .ribbon-end { border-right: none; }
 
         .group-label {
             font-size: 10px;
@@ -89,6 +88,7 @@
             gap: 5px;
             padding: 4px 10px;
             flex-shrink: 0;
+            border-bottom: 1px solid #dadce0;
         }
 
         /* Desktop ribbon: compact font on medium screens */
@@ -96,6 +96,15 @@
             select, button, input { font-size: 11px; padding: 3px 6px; }
             .ribbon-group { padding: 3px 7px; gap: 4px; }
             .group-label { font-size: 9px; }
+        }
+
+        /* Mobile / narrow screens: tighter ribbon so groups wrap cleanly to 2nd/3rd/4th line */
+        @media (max-width: 767px) {
+            select, button, input { font-size: 10px; padding: 3px 5px; }
+            .ribbon-group { padding: 3px 6px; gap: 3px; }
+            .ribbon-end { padding: 3px 6px; gap: 3px; }
+            .group-label { font-size: 8px; }
+            .checkbox-row { font-size: 10px; }
         }
 
         .tab-title {
@@ -330,7 +339,7 @@
 
     <div class="top-menu">
 
-        <!-- RIBBON ROW 1: Mode controls | Page | Line/Draw | QR | Actions -->
+        <!-- TOOLBAR: all groups flow in a single wrapping ribbon — reflows to 2nd/3rd/4th line automatically based on screen width -->
         <div class="ribbon-row">
 
             <div class="ribbon-group">
@@ -392,16 +401,6 @@
                     </div>
                 </div>
             </div>
-
-            <div class="ribbon-end">
-                <button id="deviceModeBtn" onclick="toggleDeviceMode()" style="background-color: #2c3e50;">🖥️ PC Mode</button>
-                <button class="danger-btn" onclick="clearMap()">🗑️ Clear</button>
-                <button class="success-btn" onclick="compileAndSavePDF()">💾 Save PDF</button>
-            </div>
-        </div>
-
-        <!-- RIBBON ROW 2: Symbol | Text | Upload -->
-        <div class="ribbon-row">
 
             <div class="ribbon-group">
                 <div class="ribbon-group-inner">
@@ -493,6 +492,12 @@
                         <button class="danger-btn" onclick="removeUploadedBackground()">❌ Remove</button>
                     </div>
                 </div>
+            </div>
+
+            <div class="ribbon-end">
+                <button id="deviceModeBtn" onclick="toggleDeviceMode()" style="background-color: #2c3e50;">🖥️ PC Mode</button>
+                <button class="danger-btn" onclick="clearMap()">🗑️ Clear</button>
+                <button class="success-btn" onclick="compileAndSavePDF()">💾 Save PDF</button>
             </div>
 
         </div>
