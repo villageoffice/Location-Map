@@ -275,13 +275,20 @@
             color: #000;
             text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
         }
+        /* Show hidden (empty) label as dashed placeholder on hover so user can re-edit */
+        .draggable-item:hover .icon-label[style*="display: none"] {
+            display: block !important;
+            opacity: 0.35;
+            font-size: 10px;
+            content: '+';
+        }
         .editable-label {
             cursor: text;
-            outline: 1px dashed rgba(26,115,232,0.5);
+            outline: none;
             outline-offset: 2px;
         }
         .editable-label:hover {
-            outline: 1px dashed #1a73e8;
+            outline: none;
         }
         
         .delete-btn {
@@ -457,6 +464,7 @@
                     <div class="ribbon-controls">
                         <select id="iconSelect" style="width: 145px;">
                             <option value="NORTH_ARROW|North Arrow">🧭 North Arrow</option>
+                            <option value="DIR_ARROW|Direction Arrow">➡️ Direction Arrow</option>
                             <option value="🚩|Main Plot">🚩 Main Plot</option>
                             <option value="UTILITY_POLE|Electric Post">⚡ Electric Post</option>
                             <option value="🏠|House">🏠 House</option>
@@ -1413,9 +1421,26 @@
                             <circle cx="34" cy="10" r="1.5" stroke="black" stroke-width="1" fill="none" />
                             <rect x="22" y="16" width="7" height="9" fill="black" />
                         </svg>
-                        <span class="icon-label editable-label" style="font-size:${labelFs};" ondblclick="editLabel(this)" title="Double-click to edit">${defaultLabel}</span>
                         <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
                     </div>
+                    <span class="icon-label editable-label" style="font-size:${labelFs};" ondblclick="editLabel(this)" title="Double-click to edit">${defaultLabel}</span>
+                    <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
+                `;
+            } else if (val[0] === "DIR_ARROW") {
+                const arrowW = sizeVal === 'large' ? '120px' : sizeVal === 'small' ? '70px' : '90px';
+                el.innerHTML = `
+                    <div class="rotate-wrapper">
+                        <svg class="direction-arrow-svg" viewBox="0 0 100 50" style="width:${arrowW};height:calc(${arrowW} * 0.5);">
+                            <defs>
+                                <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                                    <polygon points="0 0, 8 3, 0 6" fill="black"/>
+                                </marker>
+                            </defs>
+                            <line x1="5" y1="25" x2="88" y2="25" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/>
+                        </svg>
+                        <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
+                    </div>
+                    <span class="icon-label editable-label" style="font-size:${labelFs};text-align:center;display:block;" ondblclick="editLabel(this)" title="Double-click to edit">${defaultLabel}</span>
                     <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
                 `;
             } else if (val[0] === "NORTH_ARROW") {
@@ -1434,9 +1459,9 @@
                 el.innerHTML = `
                     <div class="rotate-wrapper">
                         <div class="draggable-icon-style" style="font-size: ${sizePx};">${val[0]}</div>
-                        <span class="icon-label editable-label" style="font-size:${labelFs};" ondblclick="editLabel(this)" title="Double-click to edit">${defaultLabel}</span>
                         <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
                     </div>
+                    <span class="icon-label editable-label" style="font-size:${labelFs};" ondblclick="editLabel(this)" title="Double-click to edit">${defaultLabel}</span>
                     <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
                 `;
             }
@@ -1449,7 +1474,8 @@
             const input = document.createElement('input');
             input.type = 'text';
             input.value = current;
-            input.style.cssText = `font-size:${currentFs};font-weight:bold;width:80px;padding:1px 3px;border:1px solid #1a73e8;border-radius:3px;text-align:center;`;
+            input.placeholder = 'ശൂന്യമാക്കി Enter — label മറയും';
+            input.style.cssText = `font-size:${currentFs};font-weight:bold;width:100px;padding:1px 3px;border:1px solid #1a73e8;border-radius:3px;text-align:center;`;
             span.replaceWith(input);
             input.focus();
             input.select();
@@ -1458,8 +1484,18 @@
                 newSpan.className = 'icon-label editable-label';
                 newSpan.title = 'Double-click to edit';
                 newSpan.style.fontSize = currentFs;
-                newSpan.innerText = input.value || current;
-                newSpan.ondblclick = function() { editLabel(this); };
+                const newVal = input.value.trim();
+                newSpan.innerText = newVal;
+                // Hide label entirely if empty
+                if (!newVal) {
+                    newSpan.style.display = 'none';
+                } else {
+                    newSpan.style.display = 'block';
+                }
+                newSpan.ondblclick = function() {
+                    this.style.display = 'block';
+                    editLabel(this);
+                };
                 input.replaceWith(newSpan);
             }
             input.addEventListener('blur', commitEdit);
@@ -1544,6 +1580,7 @@
                 const iconNode = item.querySelector('.draggable-icon-style');
                 const svgNode = item.querySelector('.vector-pole-svg');
                 const northNode = item.querySelector('.north-arrow-svg');
+                const dirArrowNode = item.querySelector('.direction-arrow-svg');
                 const qrCanvas = item.querySelector('.draggable-qrcode-wrapper canvas');
                 const labelNode = item.querySelector('.icon-label');
                 const sliderNode = item.querySelector('.rotation-slider');
@@ -1558,6 +1595,19 @@
                     const text = textNode.innerText; const metrics = pCtx.measureText(text);
                     pCtx.fillStyle = "white"; pCtx.fillRect(-metrics.width/2 - 6, -12, metrics.width + 12, 24);
                     pCtx.fillStyle = "black"; pCtx.fillText(text, 0, 0);
+                } else if (dirArrowNode) {
+                    // Draw direction arrow
+                    const arrowLen = 90;
+                    pCtx.strokeStyle = "black"; pCtx.lineWidth = 3;
+                    pCtx.beginPath(); pCtx.moveTo(-arrowLen/2, 0); pCtx.lineTo(arrowLen/2 - 8, 0); pCtx.stroke();
+                    // Arrowhead
+                    pCtx.fillStyle = "black"; pCtx.beginPath();
+                    pCtx.moveTo(arrowLen/2, 0); pCtx.lineTo(arrowLen/2 - 10, -5); pCtx.lineTo(arrowLen/2 - 10, 5);
+                    pCtx.closePath(); pCtx.fill();
+                    if (labelNode) {
+                        pCtx.font = "bold 11px Arial"; pCtx.fillStyle = "black"; pCtx.textAlign = "center";
+                        pCtx.fillText(labelNode.innerText, 0, 18);
+                    }
                 } else if (northNode) {
                     drawNorthArrow(pCtx, 0, 0);
                 } else if (svgNode) {
