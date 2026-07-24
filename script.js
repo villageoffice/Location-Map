@@ -1,4 +1,4 @@
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
         function optimizeToolbar(){
             const w = window.innerWidth;
@@ -141,6 +141,17 @@
         const viewModeBtn = document.getElementById('viewModeBtn');
         const rotateToggleBtn = document.getElementById('rotateToggleBtn');
 
+        // --- ERASER TOOL STATE (Moved to top to fix initialization error) ---
+        let eraseModeOn = false;
+        let isErasing = false;
+        let eraserRadius = 20;
+        let eraserPointerModel = null;
+        let eraseStrokeSnapshot = null;
+        let eraseSnapshotStack = [];
+        let eraseRedoStack = [];
+        let lastActionType = null;
+        let lastUndoWasErase = false;
+
         function toggleDrawMode() {
             drawModeOn = !drawModeOn;
             if (drawModeOn && eraseModeOn) toggleEraserMode();
@@ -181,7 +192,7 @@
             eraseModeOn = !eraseModeOn;
             const btn = document.getElementById('eraserToggleBtn');
             if (eraseModeOn) {
-                if (drawModeOn) toggleDrawMode(); // erase and draw modes cannot both be on
+                if (drawModeOn) toggleDrawMode(); 
                 btn.innerHTML = "🧽 Eraser: ON";
                 btn.style.backgroundColor = "#e74c3c";
                 canvas.style.cursor = "crosshair";
@@ -192,7 +203,7 @@
                 isErasing = false;
                 eraseStrokeSnapshot = null;
                 eraserPointerModel = null;
-                magnifier.style.display = 'none';
+                if(magnifier) magnifier.style.display = 'none';
                 redrawAll();
             }
         }
@@ -230,7 +241,6 @@
 
         // --- ENHANCED MOBILE PINCH-TO-ZOOM LOGIC ---
         wrapper.addEventListener('touchstart', (e) => {
-            // എപ്പോഴും 2 വിരൽ വെച്ചാൽ Pinch-to-Zoom പ്രവർത്തിക്കും
             if (e.touches.length === 2) {
                 e.preventDefault();
                 isPanning = false;
@@ -244,7 +254,6 @@
                 return;
             }
             
-            // 1 വിരൽ ഉപയോഗിച്ച് Pan ചെയ്യുന്നത് (Layout/Zoom മോഡിൽ മാത്രം)
             if (currentDeviceMode === "mobile" && offSubMode === 'page' && !drawModeOn) {
                 if (e.touches.length === 1) {
                     isPanning = true;
@@ -255,7 +264,6 @@
         }, {passive: false});
 
         wrapper.addEventListener('touchmove', (e) => {
-            // 2 വിരൽ ഉപയോഗിച്ച് Zoom & Pan ചെയ്യുന്നത്
             if (e.touches.length === 2 && initialPinchDistance) {
                 e.preventDefault();
                 const currentDistance = Math.hypot(
@@ -280,7 +288,6 @@
                 return;
             }
             
-            // 1 വിരൽ ഉപയോഗിച്ച് Pan ചെയ്യുന്നത് (Layout/Zoom മോഡിൽ മാത്രം)
             if (isPanning && e.touches.length === 1 && currentDeviceMode === "mobile" && offSubMode === 'page') {
                 e.preventDefault();
                 panX = e.touches[0].clientX - startX;
@@ -301,17 +308,6 @@
 
         let isDrawing = false; let paths = []; let currentPath = []; let bgImage = null;
         let activePathIndex = null; 
-
-        // --- ERASER TOOL STATE ---
-        let eraseModeOn = false;
-        let isErasing = false;
-        let eraserRadius = 20;
-        let eraserPointerModel = null; // last known eraser cursor position in model coords (for indicator)
-        let eraseStrokeSnapshot = null; // paths snapshot taken at the start of the current erase stroke
-        let eraseSnapshotStack = []; // history of pre-erase snapshots (for Undo)
-        let eraseRedoStack = []; // history of post-erase states (for Redo)
-        let lastActionType = null; // 'draw' or 'erase' - tracks which undo logic should run next
-        let lastUndoWasErase = false; // tracks which redo logic should run next
 
         const roadStyles = {
             nh:          { outerWidth: 22, outerColor: 'black', innerWidth: 17, innerColor: 'white', isBox: false },
@@ -343,16 +339,12 @@
             pCtx.restore();
         }
 
-        // --- ERASER TOOL HELPERS ---
         function ptDist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 
         function deepClonePaths(arr) {
             return arr.map(p => ({ type: p.type, points: p.points.map(pt => ({ x: pt.x, y: pt.y })) }));
         }
 
-        // Adds interpolated points along long segments so that point-based erasing
-        // also correctly removes the middle portion of straight lines (which are
-        // normally stored as just 2 points).
         function densifyPoints(points, maxLen) {
             if (points.length < 2) return points.slice();
             let result = [points[0]];
@@ -380,18 +372,12 @@
             return ptDist(p, { x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) });
         }
 
-        // Erases any part of any line/path that falls within `radius` of (mx, my).
-        // A line gets split into separate remaining pieces where it is erased in the
-        // middle, so each remaining piece can later be continued/joined again using
-        // the existing "Straight" snap-to-last-point drawing behaviour.
         function eraseAt(mx, my, radius) {
             let changed = false;
             const newPaths = [];
             paths.forEach(path => {
                 const style = roadStyles[path.type];
                 if (style && style.isBox) {
-                    // Boxes (e.g. Square Plot) are erased as a whole unit if the
-                    // eraser touches any of the four border edges.
                     const c0 = path.points[0], c1 = path.points[1];
                     const rx0 = Math.min(c0.x, c1.x), rx1 = Math.max(c0.x, c1.x);
                     const ry0 = Math.min(c0.y, c1.y), ry1 = Math.max(c0.y, c1.y);
@@ -442,7 +428,7 @@
             const mx = coord.x - globalDrawingTranslateX, my = coord.y - globalDrawingTranslateY;
             eraserPointerModel = { x: mx, y: my };
 
-            if (!isErasing) { redrawAll(); return; } // just move the eraser-size indicator on hover
+            if (!isErasing) { redrawAll(); return; } 
             if (e.touches && e.touches.length > 1) return;
 
             e.preventDefault();
@@ -644,11 +630,9 @@
             };
         }
 
-        // കാൻവാസിൽ വിരൽ വെക്കുമ്പോൾ വരയ്ക്കാൻ മാത്രം
         function startDrawing(e) {
             if (eraseModeOn) { if (e.target === canvas) startErasing(e); return; }
             if (!drawModeOn || e.target !== canvas || e.button === 2) return; 
-            // 2 വിരൽ ആണെങ്കിൽ വരയ്ക്കാൻ അനുവദിക്കരുത് (Zoom ന് വേണ്ടി)
             if (e.touches && e.touches.length > 1) return;
             
             e.preventDefault(); isDrawing = true;
@@ -853,7 +837,6 @@
 
         let redoStack = [];
         function undoLast() { 
-            // If the most recent action was an eraser stroke, undo the erase first
             if (lastActionType === 'erase' && eraseSnapshotStack.length > 0) {
                 eraseRedoStack.push(deepClonePaths(paths));
                 paths = eraseSnapshotStack.pop();
@@ -1010,7 +993,6 @@
             temp.innerHTML = saved.html;
             const el = temp.firstChild;
             makeElementDraggable(el);
-            // re-attach editLabel listeners
             el.querySelectorAll('.editable-label').forEach(span => {
                 span.ondblclick = function() { editLabel(this); };
             });
@@ -1107,7 +1089,6 @@
                 newSpan.style.fontSize = currentFs;
                 const newVal = input.value.trim();
                 newSpan.innerText = newVal;
-                // Hide label entirely if empty
                 if (!newVal) {
                     newSpan.style.display = 'none';
                 } else {
@@ -1221,11 +1202,9 @@
                     pCtx.fillStyle = "white"; pCtx.fillRect(-metrics.width/2 - 6, -12, metrics.width + 12, 24);
                     pCtx.fillStyle = "black"; pCtx.fillText(text, 0, 0);
                 } else if (dirArrowNode) {
-                    // Draw direction arrow
                     const arrowLen = 90;
                     pCtx.strokeStyle = "black"; pCtx.lineWidth = 3;
                     pCtx.beginPath(); pCtx.moveTo(-arrowLen/2, 0); pCtx.lineTo(arrowLen/2 - 8, 0); pCtx.stroke();
-                    // Arrowhead
                     pCtx.fillStyle = "black"; pCtx.beginPath();
                     pCtx.moveTo(arrowLen/2, 0); pCtx.lineTo(arrowLen/2 - 10, -5); pCtx.lineTo(arrowLen/2 - 10, 5);
                     pCtx.closePath(); pCtx.fill();
@@ -1275,30 +1254,26 @@
             clearAutoSave();
         }
 
-        // ===================== ONLINE USERS COUNTER (simulated live presence) =====================
-        // No backend exists in this offline single-file tool, so this gives a believable
-        // "live" feel using a session-stable base figure that drifts gently over time.
         (function initOnlineUsersCounter() {
             const countEl = document.getElementById('onlineUsersCount');
             if (!countEl) return;
 
             let base = parseInt(sessionStorage.getItem('lsm_online_base') || '', 10);
             if (!base || isNaN(base)) {
-                base = 6 + Math.floor(Math.random() * 14); // 6 - 19 baseline
+                base = 6 + Math.floor(Math.random() * 14); 
                 sessionStorage.setItem('lsm_online_base', String(base));
             }
             let current = base;
             countEl.textContent = current;
 
             setInterval(() => {
-                const drift = Math.floor(Math.random() * 3) - 1; // -1, 0, +1
+                const drift = Math.floor(Math.random() * 3) - 1; 
                 current = Math.max(3, current + drift);
-                if (Math.random() < 0.08) current += Math.floor(Math.random() * 3); // occasional small jump
+                if (Math.random() < 0.08) current += Math.floor(Math.random() * 3); 
                 countEl.textContent = current;
             }, 4000 + Math.random() * 3000);
         })();
 
-        // ===================== AUTOSAVE / RESTORE (local, temporary, before PDF save) =====================
         const AUTOSAVE_KEY = 'lsm_autosave_v1';
         let pdfSavedSuccessfully = false;
 
@@ -1320,7 +1295,7 @@
         }
 
         function saveAutoSnapshot() {
-            if (pdfSavedSuccessfully) return; // already exported, no need to keep a recovery copy
+            if (pdfSavedSuccessfully) return; 
             try {
                 const hasContent = paths.length > 0 || bgImage || document.querySelectorAll('.draggable-item').length > 0;
                 if (!hasContent) { clearAutoSave(); return; }
@@ -1386,21 +1361,16 @@
             }
         }
 
-        // Periodic background snapshot so closing the tab never loses more than a few seconds of work
         setInterval(saveAutoSnapshot, 8000);
 
-        // Catch tab close / refresh / navigation away without a PDF save
         window.addEventListener('beforeunload', () => {
             saveAutoSnapshot();
         });
 
-        // On load, after the page layout settles, offer to restore any pending work
         window.addEventListener('load', () => {
             setTimeout(checkForAutoSavedWork, 600);
         });
 
-        // ===================== DXF EXPORT / IMPORT =====================
-        // DXF ൽ measurement mm ൽ ആണ്. Screen px 96dpi ആയി കണക്കാക്കി mm ലേക്ക് മാറ്റുന്നു.
         const PX_TO_MM = 25.4 / 96;
         function pxToMm(v) { return v * PX_TO_MM; }
         function mmToPx(v) { return v * (96 / 25.4); }
