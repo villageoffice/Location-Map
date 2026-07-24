@@ -60,6 +60,12 @@
                             <option value="pointerArrow">➡️ Pointer Arrow</option>
                         </select>
                         <label class="checkbox-row"><input type="checkbox" id="straightMode" checked> Straight</label>
+                        <button id="eraserToggleBtn" class="toggle-btn" onclick="toggleEraserMode()">🧽 Eraser: OFF</button>
+                        <select id="eraserSize" onchange="updateEraserSize()" style="width: 70px;" title="Eraser size">
+                            <option value="12">Small</option>
+                            <option value="20" selected>Medium</option>
+                            <option value="32">Large</option>
+                        </select>
                         <button class="toggle-btn" onclick="undoLast()">↩️ Undo</button>
                         <button class="toggle-btn" onclick="redoLast()" style="background-color:#5f6368;">↪️ Redo</button>
                         <button class="toggle-btn" onclick="undoLastItem()" style="background-color:#7f8c8d;">↩️ Item</button>

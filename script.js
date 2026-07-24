@@ -143,6 +143,7 @@
 
         function toggleDrawMode() {
             drawModeOn = !drawModeOn;
+            if (drawModeOn && eraseModeOn) toggleEraserMode();
             if (drawModeOn) {
                 drawToggleBtn.innerHTML = "✏️ Draw Mode: ON";
                 drawToggleBtn.style.backgroundColor = "#27ae60";
@@ -174,6 +175,30 @@
                 viewModeBtn.style.backgroundColor = "#8e44ad";
                 viewModeBtn.style.color = "#fff";
             }
+        }
+
+        function toggleEraserMode() {
+            eraseModeOn = !eraseModeOn;
+            const btn = document.getElementById('eraserToggleBtn');
+            if (eraseModeOn) {
+                if (drawModeOn) toggleDrawMode(); // erase and draw modes cannot both be on
+                btn.innerHTML = "🧽 Eraser: ON";
+                btn.style.backgroundColor = "#e74c3c";
+                canvas.style.cursor = "crosshair";
+            } else {
+                btn.innerHTML = "🧽 Eraser: OFF";
+                btn.style.backgroundColor = "#5f6368";
+                canvas.style.cursor = drawModeOn ? "crosshair" : "default";
+                isErasing = false;
+                eraseStrokeSnapshot = null;
+                eraserPointerModel = null;
+                magnifier.style.display = 'none';
+                redrawAll();
+            }
+        }
+
+        function updateEraserSize() {
+            eraserRadius = parseInt(document.getElementById('eraserSize').value, 10) || 20;
         }
 
         function toggleRotateTab() {
@@ -277,6 +302,17 @@
         let isDrawing = false; let paths = []; let currentPath = []; let bgImage = null;
         let activePathIndex = null; 
 
+        // --- ERASER TOOL STATE ---
+        let eraseModeOn = false;
+        let isErasing = false;
+        let eraserRadius = 20;
+        let eraserPointerModel = null; // last known eraser cursor position in model coords (for indicator)
+        let eraseStrokeSnapshot = null; // paths snapshot taken at the start of the current erase stroke
+        let eraseSnapshotStack = []; // history of pre-erase snapshots (for Undo)
+        let eraseRedoStack = []; // history of post-erase states (for Redo)
+        let lastActionType = null; // 'draw' or 'erase' - tracks which undo logic should run next
+        let lastUndoWasErase = false; // tracks which redo logic should run next
+
         const roadStyles = {
             nh:          { outerWidth: 22, outerColor: 'black', innerWidth: 17, innerColor: 'white', isBox: false },
             sh:          { outerWidth: 19, outerColor: 'black', innerWidth: 14, innerColor: 'white', isBox: false },
@@ -305,6 +341,130 @@
             pCtx.closePath();
             pCtx.fill();
             pCtx.restore();
+        }
+
+        // --- ERASER TOOL HELPERS ---
+        function ptDist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+        function deepClonePaths(arr) {
+            return arr.map(p => ({ type: p.type, points: p.points.map(pt => ({ x: pt.x, y: pt.y })) }));
+        }
+
+        // Adds interpolated points along long segments so that point-based erasing
+        // also correctly removes the middle portion of straight lines (which are
+        // normally stored as just 2 points).
+        function densifyPoints(points, maxLen) {
+            if (points.length < 2) return points.slice();
+            let result = [points[0]];
+            for (let i = 1; i < points.length; i++) {
+                const p0 = points[i - 1], p1 = points[i];
+                const segLen = ptDist(p0, p1);
+                if (segLen > maxLen) {
+                    const steps = Math.ceil(segLen / maxLen);
+                    for (let s = 1; s <= steps; s++) {
+                        const t = s / steps;
+                        result.push({ x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t });
+                    }
+                } else {
+                    result.push(p1);
+                }
+            }
+            return result;
+        }
+
+        function distToSegment(p, a, b) {
+            const l2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2;
+            if (l2 === 0) return ptDist(p, a);
+            let t = ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            return ptDist(p, { x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) });
+        }
+
+        // Erases any part of any line/path that falls within `radius` of (mx, my).
+        // A line gets split into separate remaining pieces where it is erased in the
+        // middle, so each remaining piece can later be continued/joined again using
+        // the existing "Straight" snap-to-last-point drawing behaviour.
+        function eraseAt(mx, my, radius) {
+            let changed = false;
+            const newPaths = [];
+            paths.forEach(path => {
+                const style = roadStyles[path.type];
+                if (style && style.isBox) {
+                    // Boxes (e.g. Square Plot) are erased as a whole unit if the
+                    // eraser touches any of the four border edges.
+                    const c0 = path.points[0], c1 = path.points[1];
+                    const rx0 = Math.min(c0.x, c1.x), rx1 = Math.max(c0.x, c1.x);
+                    const ry0 = Math.min(c0.y, c1.y), ry1 = Math.max(c0.y, c1.y);
+                    const corners = [{ x: rx0, y: ry0 }, { x: rx1, y: ry0 }, { x: rx1, y: ry1 }, { x: rx0, y: ry1 }];
+                    let minD = Infinity;
+                    for (let i = 0; i < 4; i++) {
+                        minD = Math.min(minD, distToSegment({ x: mx, y: my }, corners[i], corners[(i + 1) % 4]));
+                    }
+                    if (minD <= radius) { changed = true; return; }
+                    newPaths.push(path);
+                    return;
+                }
+
+                const dense = densifyPoints(path.points, 6);
+                let chain = [];
+                dense.forEach(pt => {
+                    if (ptDist(pt, { x: mx, y: my }) <= radius) {
+                        changed = true;
+                        if (chain.length >= 2) newPaths.push({ type: path.type, points: chain });
+                        chain = [];
+                    } else {
+                        chain.push(pt);
+                    }
+                });
+                if (chain.length >= 2) newPaths.push({ type: path.type, points: chain });
+            });
+            if (changed) paths = newPaths;
+            return changed;
+        }
+
+        function startErasing(e) {
+            if (e.touches && e.touches.length > 1) return;
+            e.preventDefault();
+            isErasing = true;
+            eraseStrokeSnapshot = deepClonePaths(paths);
+            const coord = getCoordinates(e);
+            const mx = coord.x - globalDrawingTranslateX, my = coord.y - globalDrawingTranslateY;
+            eraserPointerModel = { x: mx, y: my };
+            eraseAt(mx, my, eraserRadius);
+            redrawAll();
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            triggerMagnifierRender(clientX, clientY, coord.x, coord.y);
+        }
+
+        function eraseMove(e) {
+            const coord = getCoordinates(e);
+            const mx = coord.x - globalDrawingTranslateX, my = coord.y - globalDrawingTranslateY;
+            eraserPointerModel = { x: mx, y: my };
+
+            if (!isErasing) { redrawAll(); return; } // just move the eraser-size indicator on hover
+            if (e.touches && e.touches.length > 1) return;
+
+            e.preventDefault();
+            eraseAt(mx, my, eraserRadius);
+            redrawAll();
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            triggerMagnifierRender(clientX, clientY, coord.x, coord.y);
+        }
+
+        function stopErasing() {
+            if (!isErasing) return;
+            isErasing = false;
+            const changed = eraseStrokeSnapshot && JSON.stringify(eraseStrokeSnapshot) !== JSON.stringify(paths);
+            if (changed) {
+                eraseSnapshotStack.push(eraseStrokeSnapshot);
+                eraseRedoStack = [];
+                lastActionType = 'erase';
+            }
+            eraseStrokeSnapshot = null;
+            magnifier.style.display = 'none';
+            redrawAll();
         }
 
         function triggerMagnifierRender(screenX, screenY, centerModelX, centerModelY) {
@@ -486,6 +646,7 @@
 
         // കാൻവാസിൽ വിരൽ വെക്കുമ്പോൾ വരയ്ക്കാൻ മാത്രം
         function startDrawing(e) {
+            if (eraseModeOn) { if (e.target === canvas) startErasing(e); return; }
             if (!drawModeOn || e.target !== canvas || e.button === 2) return; 
             // 2 വിരൽ ആണെങ്കിൽ വരയ്ക്കാൻ അനുവദിക്കരുത് (Zoom ന് വേണ്ടി)
             if (e.touches && e.touches.length > 1) return;
@@ -522,6 +683,7 @@
         }
 
         function draw(e) {
+            if (eraseModeOn) { eraseMove(e); return; }
             if (!isDrawing || !drawModeOn) return;
             if (e.touches && e.touches.length > 1) return;
             
@@ -546,15 +708,21 @@
         }
 
         function stopDrawing(e) {
+            if (eraseModeOn) { stopErasing(); return; }
             if (isDrawing && currentPath.length > 1) {
                 if (activePathIndex !== null) {
                     paths[activePathIndex].points.push(currentPath[1]);
                 } else {
                     paths.push({ type: document.getElementById('roadType').value, points: currentPath });
                 }
+                lastActionType = 'draw';
             }
             isDrawing = false; currentPath = []; activePathIndex = null; magnifier.style.display = 'none'; redrawAll();
         }
+
+        canvas.addEventListener('mouseleave', () => {
+            if (eraseModeOn) { eraserPointerModel = null; redrawAll(); }
+        });
 
         canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); window.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('touchstart', startDrawing, {passive: false}); canvas.addEventListener('touchmove', draw, {passive: false}); window.addEventListener('touchend', stopDrawing);
@@ -668,11 +836,32 @@
             }
             allPaths.forEach(p => drawPass(p.points, p.type, 'outer'));
             allPaths.forEach(p => drawPass(p.points, p.type, 'inner'));
+
+            if (eraseModeOn && eraserPointerModel) {
+                ctx.save();
+                ctx.setLineDash([4, 4]);
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(eraserPointerModel.x, eraserPointerModel.y, eraserRadius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+
             ctx.restore();
         }
 
         let redoStack = [];
         function undoLast() { 
+            // If the most recent action was an eraser stroke, undo the erase first
+            if (lastActionType === 'erase' && eraseSnapshotStack.length > 0) {
+                eraseRedoStack.push(deepClonePaths(paths));
+                paths = eraseSnapshotStack.pop();
+                lastActionType = eraseSnapshotStack.length > 0 ? 'erase' : null;
+                lastUndoWasErase = true;
+                redrawAll();
+                return;
+            }
             if(paths.length === 0) return;
             let lastPath = paths[paths.length - 1];
             if(lastPath.points.length > 2) {
@@ -680,10 +869,19 @@
             } else {
                 redoStack.push({ type: 'path', path: paths.pop() });
             }
+            lastUndoWasErase = false;
             redrawAll(); 
         }
 
         function redoLast() {
+            if (lastUndoWasErase && eraseRedoStack.length > 0) {
+                eraseSnapshotStack.push(deepClonePaths(paths));
+                paths = eraseRedoStack.pop();
+                lastActionType = 'erase';
+                if (eraseRedoStack.length === 0) lastUndoWasErase = false;
+                redrawAll();
+                return;
+            }
             if(redoStack.length === 0) return;
             const item = redoStack.pop();
             if(item.type === 'path') {
@@ -705,7 +903,7 @@
         }
 
         function startDrag(e) {
-            if(drawModeOn || offSubMode !== 'items' || e.target.className === 'delete-btn' || e.target.className === 'rotation-slider' || e.button === 2) return; 
+            if(drawModeOn || eraseModeOn || offSubMode !== 'items' || e.target.className === 'delete-btn' || e.target.className === 'rotation-slider' || e.button === 2) return; 
             if(e.touches && e.touches.length > 1) return;
             
             e.preventDefault(); 
@@ -718,7 +916,7 @@
         }
 
         wrapper.addEventListener('mousedown', (e) => {
-            if (offSubMode !== 'items' || drawModeOn) {
+            if (offSubMode !== 'items' || drawModeOn || eraseModeOn) {
                 if (e.button === 2 && currentDeviceMode === "pc" && !drawModeOn) {
                     isPanning = true; wrapper.style.cursor = "grabbing";
                     startX = e.clientX - panX; startY = e.clientY - panY;
@@ -765,7 +963,7 @@
         });
 
         wrapper.addEventListener('touchstart', (e) => {
-            if (offSubMode !== 'items' || drawModeOn || e.touches.length !== 1) return;
+            if (offSubMode !== 'items' || drawModeOn || eraseModeOn || e.touches.length !== 1) return;
             if (e.target === canvas) {
                 isMovingDrawingBlock = true;
                 const rect = itemContainer.getBoundingClientRect();
@@ -775,7 +973,7 @@
         }, {passive: false});
 
         wrapper.addEventListener('touchmove', (e) => {
-            if (drawModeOn || e.touches.length !== 1) return;
+            if (drawModeOn || eraseModeOn || e.touches.length !== 1) return;
             if (isMovingDrawingBlock) {
                 e.preventDefault();
                 const rect = itemContainer.getBoundingClientRect();
