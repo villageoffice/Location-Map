@@ -1615,14 +1615,19 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
             reader.readAsText(file);
         });
 
-        // ===================== FLOATING RIBBON LOGIC =====================
-        const topMenu = document.getElementById('topMenu');
-        const dragHandle = document.getElementById('menuDragHandle');
-        let isDraggingMenu = false;
-        let menuStartX = 0, menuStartY = 0, initialMenuX = 0, initialMenuY = 0;
-
+      // ===================== FLOATING RIBBON LOGIC (FAILSAFE) =====================
+        
         function toggleFloatingMenu() {
+            // എറർ വരാതിരിക്കാൻ ഫംഗ്ഷനുള്ളിൽ വെച്ച് തന്നെ എലമെന്റുകൾ കണ്ടെത്തുന്നു
+            const topMenu = document.querySelector('.top-menu');
+            
+            if(!topMenu) {
+                alert("Error: top-menu കണ്ടെത്താനായില്ല! index.html പരിശോധിക്കുക.");
+                return;
+            }
+            
             topMenu.classList.toggle('floating');
+            
             if(topMenu.classList.contains('floating')) {
                 const rect = topMenu.getBoundingClientRect();
                 topMenu.style.left = (window.innerWidth / 2 - rect.width / 2) + 'px';
@@ -1631,54 +1636,73 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
                 topMenu.style.left = '';
                 topMenu.style.top = '';
             }
+            
             setTimeout(() => { resetZoomAndPan(); redrawAll(); }, 150);
         }
 
-        dragHandle.addEventListener('mousedown', (e) => {
-            if(!topMenu.classList.contains('floating')) return;
-            isDraggingMenu = true;
-            menuStartX = e.clientX;
-            menuStartY = e.clientY;
-            initialMenuX = topMenu.offsetLeft;
-            initialMenuY = topMenu.offsetTop;
+        // ഡ്രാഗ് ചെയ്യാനുള്ള സുരക്ഷിതമായ കോഡ്
+        document.addEventListener('mousedown', (e) => {
+            const handle = e.target.closest('.menu-drag-handle');
+            if(!handle || e.target.tagName === 'BUTTON') return;
+            
+            const topMenu = document.querySelector('.top-menu.floating');
+            if(!topMenu) return;
+
+            window.isDraggingMenu = true;
+            window.menuStartX = e.clientX;
+            window.menuStartY = e.clientY;
+            window.initialMenuX = topMenu.offsetLeft;
+            window.initialMenuY = topMenu.offsetTop;
             document.body.style.userSelect = 'none'; 
         });
 
-        window.addEventListener('mousemove', (e) => {
-            if(isDraggingMenu && topMenu.classList.contains('floating')) {
-                const dx = e.clientX - menuStartX;
-                const dy = e.clientY - menuStartY;
-                topMenu.style.left = (initialMenuX + dx) + 'px';
-                topMenu.style.top = (initialMenuY + dy) + 'px';
+        document.addEventListener('mousemove', (e) => {
+            if(window.isDraggingMenu) {
+                const topMenu = document.querySelector('.top-menu.floating');
+                if(topMenu) {
+                    const dx = e.clientX - window.menuStartX;
+                    const dy = e.clientY - window.menuStartY;
+                    topMenu.style.left = (window.initialMenuX + dx) + 'px';
+                    topMenu.style.top = (window.initialMenuY + dy) + 'px';
+                }
             }
         });
 
-        window.addEventListener('mouseup', () => {
-            if (isDraggingMenu) {
-                isDraggingMenu = false;
+        document.addEventListener('mouseup', () => {
+            if (window.isDraggingMenu) {
+                window.isDraggingMenu = false;
                 document.body.style.userSelect = '';
             }
         });
         
-        dragHandle.addEventListener('touchstart', (e) => {
-            if(!topMenu.classList.contains('floating') || e.touches.length > 1) return;
-            isDraggingMenu = true;
-            menuStartX = e.touches[0].clientX;
-            menuStartY = e.touches[0].clientY;
-            initialMenuX = topMenu.offsetLeft;
-            initialMenuY = topMenu.offsetTop;
+        // മൊബൈൽ ടച്ച് സപ്പോർട്ട്
+        document.addEventListener('touchstart', (e) => {
+            const handle = e.target.closest('.menu-drag-handle');
+            if(!handle || e.target.tagName === 'BUTTON' || e.touches.length > 1) return;
+            
+            const topMenu = document.querySelector('.top-menu.floating');
+            if(!topMenu) return;
+
+            window.isDraggingMenu = true;
+            window.menuStartX = e.touches[0].clientX;
+            window.menuStartY = e.touches[0].clientY;
+            window.initialMenuX = topMenu.offsetLeft;
+            window.initialMenuY = topMenu.offsetTop;
         }, {passive: false});
 
-        window.addEventListener('touchmove', (e) => {
-            if(isDraggingMenu && topMenu.classList.contains('floating')) {
-                e.preventDefault();
-                const dx = e.touches[0].clientX - menuStartX;
-                const dy = e.touches[0].clientY - menuStartY;
-                topMenu.style.left = (initialMenuX + dx) + 'px';
-                topMenu.style.top = (initialMenuY + dy) + 'px';
+        document.addEventListener('touchmove', (e) => {
+            if(window.isDraggingMenu) {
+                const topMenu = document.querySelector('.top-menu.floating');
+                if(topMenu) {
+                    e.preventDefault();
+                    const dx = e.touches[0].clientX - window.menuStartX;
+                    const dy = e.touches[0].clientY - window.menuStartY;
+                    topMenu.style.left = (window.initialMenuX + dx) + 'px';
+                    topMenu.style.top = (window.initialMenuY + dy) + 'px';
+                }
             }
         }, {passive: false});
 
-        window.addEventListener('touchend', () => {
-            isDraggingMenu = false;
+        document.addEventListener('touchend', () => {
+            window.isDraggingMenu = false;
         });
