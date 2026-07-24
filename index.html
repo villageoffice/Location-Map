@@ -12,17 +12,9 @@
 </head>
 <body>
 
-    <div class="top-menu" id="topMenu">
-
-        <!-- ഡ്രാഗ് ചെയ്യാനും ഡോക്ക് ചെയ്യാനുമുള്ള പുതിയ ബാർ -->
-        <div class="menu-drag-handle" id="menuDragHandle">
-            <span>⠿ Drag to Move Ribbon</span>
-            <button onclick="toggleFloatingMenu()" style="background-color: #2c3e50; padding: 2px 8px; font-size: 10px; border-radius: 3px;">📌 Dock / Undock</button>
-        </div>
-
-        <!-- RIBBON ROW 1: Mode controls | Page | Line/Draw | QR | Actions -->
+    <div class="top-menu">
+        <!-- ROW 1: Mode, Page, Draw Line -->
         <div class="ribbon-row">
-
             <div class="ribbon-group">
                 <div class="ribbon-group-inner">
                     <span class="group-label">Mode</span>
@@ -47,7 +39,7 @@
                 </div>
             </div>
 
-            <div class="ribbon-group">
+            <div class="ribbon-group" style="border-right: none;">
                 <div class="ribbon-group-inner">
                     <span class="group-label">✏️ Draw Line</span>
                     <div class="ribbon-controls">
@@ -79,30 +71,10 @@
                     </div>
                 </div>
             </div>
-
-            <div class="ribbon-group">
-                <div class="ribbon-group-inner">
-                    <span class="group-label">📍 Map QR</span>
-                    <div class="ribbon-controls">
-                        <input type="text" id="mapLinkInput" placeholder="Paste Google Map URL..." style="width: 170px;">
-                        <button class="success-btn" onclick="addGoogleMapQRCode()">➕ QR</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="ribbon-end">
-                <button id="deviceModeBtn" onclick="toggleDeviceMode()" style="background-color: #2c3e50;">🖥️ PC Mode</button>
-                <button class="danger-btn" onclick="clearMap()">🗑️ Clear</button>
-                <button class="success-btn" onclick="compileAndSavePDF()">💾 Save PDF</button>
-                <button class="success-btn" style="background-color:#8e44ad;" onclick="saveAsDXF()">📐 Save DXF</button>
-                <button class="toggle-btn" style="background-color:#16a085;" onclick="document.getElementById('dxfUploader').click()">📂 Upload DXF</button>
-                <input type="file" id="dxfUploader" accept=".dxf" style="display:none;">
-            </div>
         </div>
 
-        <!-- RIBBON ROW 2: Symbol | Text | Upload -->
+        <!-- ROW 2: Symbol, Text Label, Map QR, Background & Actions -->
         <div class="ribbon-row">
-
             <div class="ribbon-group">
                 <div class="ribbon-group-inner">
                     <span class="group-label">🏠 Symbol</span>
@@ -174,7 +146,7 @@
                 <div class="ribbon-group-inner">
                     <span class="group-label">📝 Text Label</span>
                     <div class="ribbon-controls">
-                        <input type="text" id="customTextInput" placeholder="Type text..." style="width: 100px;">
+                        <input type="text" id="customTextInput" placeholder="Type text..." style="width: 90px;">
                         <select id="fontSizeSelect" style="width: 60px;">
                             <option value="14px">Sm</option>
                             <option value="18px" selected>Md</option>
@@ -182,6 +154,16 @@
                             <option value="32px">XL</option>
                         </select>
                         <button class="success-btn" onclick="addCustomText()">➕ Add</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="ribbon-group">
+                <div class="ribbon-group-inner">
+                    <span class="group-label">📍 Map QR</span>
+                    <div class="ribbon-controls">
+                        <input type="text" id="mapLinkInput" placeholder="Paste Map URL..." style="width: 110px;">
+                        <button class="success-btn" onclick="addGoogleMapQRCode()">➕ QR</button>
                     </div>
                 </div>
             </div>
@@ -196,6 +178,15 @@
                 </div>
             </div>
 
+            <!-- വലതു വശത്തേക്ക് നീക്കി വെച്ചിരിക്കുന്ന സേവ് ബട്ടണുകൾ -->
+            <div class="ribbon-end">
+                <button id="deviceModeBtn" onclick="toggleDeviceMode()" style="background-color: #2c3e50;">🖥️ PC Mode</button>
+                <button class="danger-btn" onclick="clearMap()">🗑️ Clear</button>
+                <button class="success-btn" onclick="compileAndSavePDF()">💾 Save PDF</button>
+                <button class="success-btn" style="background-color:#8e44ad;" onclick="saveAsDXF()">📐 Save DXF</button>
+                <button class="toggle-btn" style="background-color:#16a085;" onclick="document.getElementById('dxfUploader').click()">📂 Upload DXF</button>
+                <input type="file" id="dxfUploader" accept=".dxf" style="display:none;">
+            </div>
         </div>
     </div>
 
@@ -219,6 +210,6 @@
         <span id="onlineUsersCount">1</span> Online
     </div>
 
-    <script src="script.js?v=1"></script>
+    <script src="script.js"></script>
 </body>
 </html>
