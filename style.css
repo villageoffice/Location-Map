@@ -1,4 +1,4 @@
-        body {
+body {
             font-family: Arial, sans-serif;
             background-color: #34495e;
             margin: 0;
@@ -366,4 +366,37 @@
             width: 90px !important;
             height: 90px !important;
             display: block;
+        }
+
+        /* --- FLOATING RIBBON STYLES --- */
+        .menu-drag-handle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #dadce0;
+            padding: 4px 10px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #5f6368;
+            cursor: grab;
+            border-bottom: 1px solid #c0c4c8;
+        }
+        .menu-drag-handle:active {
+            cursor: grabbing;
+        }
+        .top-menu.floating {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            width: max-content;
+            max-width: 95vw;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 2px solid #1a73e8;
+            border-radius: 8px;
+            overflow: hidden;
+            z-index: 2000;
+        }
+        /* ഫ്ലോട്ടിങ് ആകുമ്പോൾ ഉള്ളിലെ വരികൾ ചുരുങ്ങാൻ */
+        .top-menu.floating .ribbon-row {
+            min-height: auto;
         }

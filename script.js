@@ -141,7 +141,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
         const viewModeBtn = document.getElementById('viewModeBtn');
         const rotateToggleBtn = document.getElementById('rotateToggleBtn');
 
-        // --- ERASER TOOL STATE (Moved to top to fix initialization error) ---
+        // --- ERASER TOOL STATE ---
         let eraseModeOn = false;
         let isErasing = false;
         let eraserRadius = 20;
@@ -1613,4 +1613,72 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
                 document.getElementById('dxfUploader').value = '';
             };
             reader.readAsText(file);
+        });
+
+        // ===================== FLOATING RIBBON LOGIC =====================
+        const topMenu = document.getElementById('topMenu');
+        const dragHandle = document.getElementById('menuDragHandle');
+        let isDraggingMenu = false;
+        let menuStartX = 0, menuStartY = 0, initialMenuX = 0, initialMenuY = 0;
+
+        function toggleFloatingMenu() {
+            topMenu.classList.toggle('floating');
+            if(topMenu.classList.contains('floating')) {
+                const rect = topMenu.getBoundingClientRect();
+                topMenu.style.left = (window.innerWidth / 2 - rect.width / 2) + 'px';
+                topMenu.style.top = '20px';
+            } else {
+                topMenu.style.left = '';
+                topMenu.style.top = '';
+            }
+            setTimeout(() => { resetZoomAndPan(); redrawAll(); }, 150);
+        }
+
+        dragHandle.addEventListener('mousedown', (e) => {
+            if(!topMenu.classList.contains('floating')) return;
+            isDraggingMenu = true;
+            menuStartX = e.clientX;
+            menuStartY = e.clientY;
+            initialMenuX = topMenu.offsetLeft;
+            initialMenuY = topMenu.offsetTop;
+            document.body.style.userSelect = 'none'; 
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if(isDraggingMenu && topMenu.classList.contains('floating')) {
+                const dx = e.clientX - menuStartX;
+                const dy = e.clientY - menuStartY;
+                topMenu.style.left = (initialMenuX + dx) + 'px';
+                topMenu.style.top = (initialMenuY + dy) + 'px';
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isDraggingMenu) {
+                isDraggingMenu = false;
+                document.body.style.userSelect = '';
+            }
+        });
+        
+        dragHandle.addEventListener('touchstart', (e) => {
+            if(!topMenu.classList.contains('floating') || e.touches.length > 1) return;
+            isDraggingMenu = true;
+            menuStartX = e.touches[0].clientX;
+            menuStartY = e.touches[0].clientY;
+            initialMenuX = topMenu.offsetLeft;
+            initialMenuY = topMenu.offsetTop;
+        }, {passive: false});
+
+        window.addEventListener('touchmove', (e) => {
+            if(isDraggingMenu && topMenu.classList.contains('floating')) {
+                e.preventDefault();
+                const dx = e.touches[0].clientX - menuStartX;
+                const dy = e.touches[0].clientY - menuStartY;
+                topMenu.style.left = (initialMenuX + dx) + 'px';
+                topMenu.style.top = (initialMenuY + dy) + 'px';
+            }
+        }, {passive: false});
+
+        window.addEventListener('touchend', () => {
+            isDraggingMenu = false;
         });

@@ -12,7 +12,13 @@
 </head>
 <body>
 
-    <div class="top-menu">
+    <div class="top-menu" id="topMenu">
+
+        <!-- ഡ്രാഗ് ചെയ്യാനും ഡോക്ക് ചെയ്യാനുമുള്ള പുതിയ ബാർ -->
+        <div class="menu-drag-handle" id="menuDragHandle">
+            <span>⠿ Drag to Move Ribbon</span>
+            <button onclick="toggleFloatingMenu()" style="background-color: #2c3e50; padding: 2px 8px; font-size: 10px; border-radius: 3px;">📌 Dock / Undock</button>
+        </div>
 
         <!-- RIBBON ROW 1: Mode controls | Page | Line/Draw | QR | Actions -->
         <div class="ribbon-row">
@@ -216,4 +222,3 @@
     <script src="script.js"></script>
 </body>
 </html>
-
