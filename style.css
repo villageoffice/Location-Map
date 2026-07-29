@@ -222,6 +222,42 @@ body {
             touch-action: none; 
         }
 
+        /* സ്ക്രീനിൽ മാത്രം കാണിക്കുന്ന വാട്ടർമാർക്ക് - പ്രിന്റ്/PDF സേവിലും export ചെയ്യുന്ന ചിത്രത്തിലും ഇത് വരില്ല,
+           കാരണം ഇത് കാൻവാസിന്റെ ഭാഗമല്ല, ഒരു പ്രത്യേക HTML ലെയർ മാത്രമാണ് */
+        .bg-watermark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            pointer-events: none;
+            z-index: 5;
+            transform: rotate(-18deg);
+        }
+        .bg-watermark span {
+            font-family: 'Noto Sans Malayalam', 'Manjari', Arial, sans-serif;
+            font-size: 15px;
+            font-weight: bold;
+            line-height: 1.6;
+            color: rgba(200, 30, 30, 0.35);
+            letter-spacing: 0.3px;
+            user-select: none;
+        }
+
+        @media print {
+            .bg-watermark,
+            .screen-metadata,
+            .top-menu,
+            #magnifier,
+            #onlineUsersBadge {
+                display: none !important;
+            }
+        }
+
         .draggable-item {
             position: absolute;
             cursor: grab;
