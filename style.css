@@ -298,24 +298,22 @@ body {
             line-height: 1.3;
             word-break: break-word;
         }
+        /* Text box stays transparent and frameless unless explicitly selected. */
         .draggable-text-style.is-selected {
+            background-color: transparent;
             border: 1px dashed #1a73e8;
             box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15);
         }
         .draggable-text-style.is-editing {
             resize: both;
             overflow: auto;
-        }
-        /* Visible dashed box only while editing / hovering empty placeholder */
-        .draggable-text-style.is-editing,
-        .draggable-text-style:focus {
-            background-color: rgba(255, 255, 255, 0.92);
+            background-color: transparent;
             border: 1px dashed #1a73e8;
             box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
             text-shadow: none;
         }
-        .draggable-item:hover > .rotate-wrapper > .draggable-text-style:not(.is-editing) {
-            border-color: rgba(127, 140, 141, 0.45);
+        .draggable-text-style:focus {
+            background-color: transparent;
         }
         .draggable-text-style.is-placeholder {
             color: #9aa0a6;

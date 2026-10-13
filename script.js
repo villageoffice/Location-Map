@@ -1445,6 +1445,9 @@ function loadDefaultBackground() {
             function finish() {
                 textDiv.contentEditable = 'false';
                 textDiv.classList.remove('is-editing');
+                // Hide the editing/selection frame after the user finishes typing.
+                // Keep activeTextBox intact so toolbar font changes still apply.
+                textDiv.classList.remove('is-selected');
                 textDiv.removeEventListener('blur', finish);
                 textDiv.removeEventListener('keydown', onKey);
                 // Keep font-family / font-size styles as set (from ribbon or Word paste)
