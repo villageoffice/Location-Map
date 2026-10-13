@@ -152,14 +152,37 @@
                 <div class="ribbon-group-inner">
                     <span class="group-label">📝 Text Label</span>
                     <div class="ribbon-controls">
-                        <input type="text" id="customTextInput" placeholder="Type text..." style="width: 90px;">
-                        <select id="fontSizeSelect" style="width: 60px;">
-                            <option value="14px">Sm</option>
-                            <option value="18px" selected>Md</option>
-                            <option value="24px">Lg</option>
-                            <option value="32px">XL</option>
+                        <select id="fontFamilySelect" style="width: 130px;" title="Font">
+                            <option value="Arial" selected>Arial</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Verdana">Verdana</option>
+                            <option value="Tahoma">Tahoma</option>
+                            <option value="Courier New">Courier New</option>
+                            <option value="Trebuchet MS">Trebuchet MS</option>
+                            <option value="Comic Sans MS">Comic Sans MS</option>
+                            <option value="Impact">Impact</option>
+                            <option value="'Noto Sans Malayalam', Arial">Malayalam (Noto)</option>
                         </select>
-                        <button class="success-btn" onclick="addCustomText()">➕ Add</button>
+                        <select id="fontSizeSelect" style="width: 58px;" title="Font size">
+                            <option value="8px">8</option>
+                            <option value="9px">9</option>
+                            <option value="10px">10</option>
+                            <option value="11px">11</option>
+                            <option value="12px">12</option>
+                            <option value="14px">14</option>
+                            <option value="16px">16</option>
+                            <option value="18px" selected>18</option>
+                            <option value="20px">20</option>
+                            <option value="22px">22</option>
+                            <option value="24px">24</option>
+                            <option value="28px">28</option>
+                            <option value="32px">32</option>
+                            <option value="36px">36</option>
+                            <option value="48px">48</option>
+                            <option value="72px">72</option>
+                        </select>
+                        <button class="success-btn" onclick="addCustomText()" title="Map-ൽ transparent text box ഇടുക">➕ Text Box</button>
                     </div>
                 </div>
             </div>
