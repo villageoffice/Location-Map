@@ -1215,15 +1215,192 @@ function loadDefaultBackground() {
             };
         }
 
+        /** Parse font-family + font-size from MS Word / browser HTML clipboard */
+        function parseFontsFromClipboardHtml(html) {
+            if (!html) return null;
+            const result = { family: null, size: null, text: null };
+            try {
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                // Prefer first styled span/font/p with inline style or face/size
+                const candidates = doc.querySelectorAll('[style], font[face], font[size], p, span, div, b, i');
+                let styled = null;
+                for (const el of candidates) {
+                    const st = el.getAttribute('style') || '';
+                    if (/font-family|font-size|mso-ansi-font/i.test(st) || el.getAttribute('face') || el.getAttribute('size')) {
+                        styled = el;
+                        break;
+                    }
+                }
+                if (!styled && candidates.length) styled = candidates[0];
+
+                function extractFromStyle(styleStr) {
+                    if (!styleStr) return;
+                    // font-family: 'Times New Roman',serif  OR  font-family:Calibri
+                    let m = styleStr.match(/font-family\s*:\s*([^;]+)/i);
+                    if (m) {
+                        let fam = m[1].trim().replace(/^["']|["']$/g, '');
+                        // take first family name only
+                        fam = fam.split(',')[0].trim().replace(/^["']|["']$/g, '');
+                        if (fam && !/^inherit|initial|serif|sans-serif|monospace$/i.test(fam)) {
+                            result.family = fam;
+                        }
+                    }
+                    // mso-ansi-font-size / font-size: 14.0pt | 12px | medium
+                    m = styleStr.match(/(?:mso-ansi-font-size|font-size)\s*:\s*([^;]+)/i);
+                    if (m) {
+                        result.size = normalizeFontSizeToPx(m[1].trim());
+                    }
+                }
+
+                if (styled) {
+                    extractFromStyle(styled.getAttribute('style') || '');
+                    if (!result.family && styled.getAttribute('face')) {
+                        result.family = styled.getAttribute('face').split(',')[0].trim();
+                    }
+                    // Walk up for styles Word often puts on parent
+                    let p = styled.parentElement;
+                    while (p && p !== doc.body) {
+                        extractFromStyle(p.getAttribute('style') || '');
+                        p = p.parentElement;
+                    }
+                }
+                // Also scan whole body style attributes (Word puts styles deep)
+                if (!result.family || !result.size) {
+                    const allWithStyle = doc.querySelectorAll('[style]');
+                    for (const el of allWithStyle) {
+                        extractFromStyle(el.getAttribute('style') || '');
+                        if (result.family && result.size) break;
+                    }
+                }
+
+                // Plain text from HTML
+                const bodyText = (doc.body && doc.body.innerText) ? doc.body.innerText : '';
+                result.text = bodyText.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/^\s+|\s+$/g, '');
+            } catch (err) {
+                console.warn('Clipboard HTML parse failed', err);
+            }
+            if (!result.family && !result.size && !result.text) return null;
+            return result;
+        }
+
+        function normalizeFontSizeToPx(raw) {
+            if (!raw) return null;
+            const s = String(raw).trim().toLowerCase();
+            // 14.0pt / 14pt
+            let m = s.match(/^([\d.]+)\s*pt$/);
+            if (m) {
+                const px = Math.round(parseFloat(m[1]) * (96 / 72));
+                return Math.max(8, Math.min(120, px)) + 'px';
+            }
+            m = s.match(/^([\d.]+)\s*px$/);
+            if (m) return Math.max(8, Math.min(120, Math.round(parseFloat(m[1])))) + 'px';
+            m = s.match(/^([\d.]+)\s*$/);
+            if (m) return Math.max(8, Math.min(120, Math.round(parseFloat(m[1])))) + 'px';
+            // Word legacy size 1-7
+            const legacy = { '1': '10px', '2': '13px', '3': '16px', '4': '18px', '5': '24px', '6': '32px', '7': '48px' };
+            if (legacy[s]) return legacy[s];
+            return null;
+        }
+
+        function applyFontToTextDiv(textDiv, family, size) {
+            if (!textDiv) return;
+            if (family) {
+                textDiv.style.fontFamily = family;
+                // sync ribbon dropdown if option exists or add temporarily
+                syncFontFamilySelect(family);
+            }
+            if (size) {
+                textDiv.style.fontSize = size;
+                syncFontSizeSelect(size);
+            }
+        }
+
+        function syncFontFamilySelect(family) {
+            const sel = document.getElementById('fontFamilySelect');
+            if (!sel || !family) return;
+            const want = family.replace(/^["']|["']$/g, '');
+            let found = false;
+            for (const opt of sel.options) {
+                if (opt.value.toLowerCase().includes(want.toLowerCase()) ||
+                    want.toLowerCase().includes(opt.value.toLowerCase().replace(/['"]/g, ''))) {
+                    sel.value = opt.value;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                // Add custom font from Word so it stays selected
+                const opt = document.createElement('option');
+                opt.value = want;
+                opt.textContent = want + ' (pasted)';
+                sel.appendChild(opt);
+                sel.value = want;
+            }
+        }
+
+        function syncFontSizeSelect(sizePx) {
+            const sel = document.getElementById('fontSizeSelect');
+            if (!sel || !sizePx) return;
+            let found = false;
+            for (const opt of sel.options) {
+                if (opt.value === sizePx) {
+                    sel.value = sizePx;
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                const opt = document.createElement('option');
+                opt.value = sizePx;
+                opt.textContent = parseInt(sizePx, 10) + ' (pasted)';
+                // insert in sorted order roughly
+                sel.appendChild(opt);
+                sel.value = sizePx;
+            }
+        }
+
         function bindTextBoxEditing(textDiv) {
             if (!textDiv || textDiv.dataset.boundEdit === '1') return;
             textDiv.dataset.boundEdit = '1';
-            textDiv.title = 'Double-click to edit · Ctrl+Enter = new line · Enter / blur = done (box transparent)';
+            textDiv.title = 'Double-click to edit · Paste from Word keeps font · Ctrl+Enter = new line · Enter = done';
 
             textDiv.addEventListener('dblclick', function(e) {
                 e.stopPropagation();
                 startTextBoxEdit(textDiv);
             });
+
+            textDiv.addEventListener('paste', function(e) {
+                handleTextBoxPaste(e, textDiv);
+            });
+        }
+
+        function handleTextBoxPaste(e, textDiv) {
+            const cd = e.clipboardData || window.clipboardData;
+            if (!cd) return;
+            const html = cd.getData('text/html');
+            const plain = cd.getData('text/plain');
+            const parsed = html ? parseFontsFromClipboardHtml(html) : null;
+
+            e.preventDefault();
+
+            let text = (parsed && parsed.text) ? parsed.text : (plain || '');
+            text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+            if (parsed) {
+                applyFontToTextDiv(textDiv, parsed.family, parsed.size);
+            }
+
+            textDiv.classList.remove('is-placeholder');
+            // Insert plain text (preserve newlines) at cursor
+            if (textDiv.isContentEditable) {
+                try {
+                    document.execCommand('insertText', false, text);
+                } catch (err) {
+                    textDiv.innerText = ((textDiv.innerText || '') + text).trim();
+                }
+            } else {
+                textDiv.innerText = text;
+            }
         }
 
         function startTextBoxEdit(textDiv) {
@@ -1236,7 +1413,6 @@ function loadDefaultBackground() {
             textDiv.classList.add('is-editing');
             textDiv.contentEditable = 'true';
             textDiv.focus();
-            // select all existing text
             try {
                 const range = document.createRange();
                 range.selectNodeContents(textDiv);
@@ -1250,13 +1426,12 @@ function loadDefaultBackground() {
                 textDiv.classList.remove('is-editing');
                 textDiv.removeEventListener('blur', finish);
                 textDiv.removeEventListener('keydown', onKey);
+                // Keep font-family / font-size styles as set (from ribbon or Word paste)
                 let val = (textDiv.innerText || '').replace(/^\s+|\s+$/g, '');
                 if (!val) {
                     textDiv.textContent = 'Type here…';
                     textDiv.classList.add('is-placeholder');
                 } else {
-                    textDiv.textContent = val; // normalize as text nodes with newlines via white-space:pre-line
-                    // Preserve multi-line: set via textContent loses nothing if we use \n
                     textDiv.innerText = val;
                     textDiv.classList.remove('is-placeholder');
                 }
@@ -1267,12 +1442,9 @@ function loadDefaultBackground() {
                     textDiv.blur();
                     return;
                 }
-                // Ctrl+Enter → new line
                 if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                    // allow default newline in contentEditable
                     return;
                 }
-                // plain Enter → finish editing (box becomes transparent)
                 if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
                     textDiv.blur();
@@ -1282,17 +1454,20 @@ function loadDefaultBackground() {
             textDiv.addEventListener('keydown', onKey);
         }
 
-        function addCustomText() {
-            const font = getSelectedTextFont();
+        function addCustomText(initialText, initialFont) {
+            const font = initialFont || getSelectedTextFont();
             const el = document.createElement('div');
             el.className = 'draggable-item';
             el.style.left = '50%';
             el.style.top = '50%';
             const displayState = rotateTabActive ? 'block' : 'none';
+            const hasText = initialText && String(initialText).trim();
+            const body = hasText ? escapeHtmlText(String(initialText).trim()) : 'Type here…';
+            const phClass = hasText ? '' : ' is-placeholder';
 
             el.innerHTML = `
                 <div class="rotate-wrapper">
-                    <div class="draggable-text-style is-placeholder" style="font-size:${font.size};font-family:${font.family};" contenteditable="false">Type here…</div>
+                    <div class="draggable-text-style${phClass}" style="font-size:${font.size};font-family:${font.family};" contenteditable="false">${body}</div>
                     <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
                 </div>
                 <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
@@ -1300,10 +1475,99 @@ function loadDefaultBackground() {
             makeElementDraggable(el);
             itemContainer.appendChild(el);
             const textDiv = el.querySelector('.draggable-text-style');
+            // Restore newlines if escaped as entities only for plain — use textContent for multi-line
+            if (hasText) textDiv.innerText = String(initialText).trim();
             bindTextBoxEditing(textDiv);
-            // open for typing immediately
-            setTimeout(() => startTextBoxEdit(textDiv), 30);
+            if (!hasText) {
+                setTimeout(() => startTextBoxEdit(textDiv), 30);
+            } else {
+                // still allow immediate edit after paste-create
+                setTimeout(() => startTextBoxEdit(textDiv), 30);
+            }
+            return textDiv;
         }
+
+        function escapeHtmlText(s) {
+            return String(s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        /** Paste from Word / anywhere: create text box with same font & size */
+        async function pasteTextFromClipboard() {
+            try {
+                let html = '';
+                let plain = '';
+                if (navigator.clipboard && navigator.clipboard.read) {
+                    const items = await navigator.clipboard.read();
+                    for (const item of items) {
+                        if (item.types.includes('text/html')) {
+                            const blob = await item.getType('text/html');
+                            html = await blob.text();
+                        }
+                        if (item.types.includes('text/plain')) {
+                            const blob = await item.getType('text/plain');
+                            plain = await blob.text();
+                        }
+                    }
+                } else if (navigator.clipboard && navigator.clipboard.readText) {
+                    plain = await navigator.clipboard.readText();
+                } else {
+                    alert('Clipboard read not supported. Text box തുറന്ന് Ctrl+V അമർത്തുക.');
+                    addCustomText();
+                    return;
+                }
+                const parsed = html ? parseFontsFromClipboardHtml(html) : null;
+                const text = (parsed && parsed.text) ? parsed.text : (plain || '').trim();
+                if (!text) {
+                    alert('Clipboard-ൽ text ഇല്ല.');
+                    return;
+                }
+                const font = {
+                    family: (parsed && parsed.family) || getSelectedTextFont().family,
+                    size: (parsed && parsed.size) || getSelectedTextFont().size
+                };
+                applyFontToTextDiv({ style: {} }, font.family, font.size); // sync dropdowns
+                if (font.family) syncFontFamilySelect(font.family);
+                if (font.size) syncFontSizeSelect(font.size);
+                addCustomText(text, font);
+            } catch (err) {
+                console.warn(err);
+                // Permission denied — fall back to empty box for Ctrl+V
+                alert('Clipboard permission വേണം. Text Box തുറന്ന് Ctrl+V അമർത്തുക — Word font നിലനിൽക്കും.');
+                addCustomText();
+            }
+        }
+
+        // Global Ctrl+V on map (when not in input): paste Word text as new text box
+        document.addEventListener('keydown', function(e) {
+            if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'v') return;
+            const t = e.target;
+            if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+            // Let pasteTextFromClipboard handle after a tick — but we need clipboard event
+        });
+        document.addEventListener('paste', function(e) {
+            const t = e.target;
+            if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+            const cd = e.clipboardData;
+            if (!cd) return;
+            const html = cd.getData('text/html');
+            const plain = cd.getData('text/plain');
+            if (!plain && !html) return;
+            e.preventDefault();
+            const parsed = html ? parseFontsFromClipboardHtml(html) : null;
+            const text = (parsed && parsed.text) ? parsed.text : (plain || '').trim();
+            if (!text) return;
+            const font = {
+                family: (parsed && parsed.family) || getSelectedTextFont().family,
+                size: (parsed && parsed.size) || getSelectedTextFont().size
+            };
+            if (font.family) syncFontFamilySelect(font.family);
+            if (font.size) syncFontSizeSelect(font.size);
+            addCustomText(text, font);
+        });
 
         function addGoogleMapQRCode() {
             const linkUrl = document.getElementById('mapLinkInput').value.trim();
