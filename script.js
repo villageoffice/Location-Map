@@ -353,7 +353,18 @@ function loadDefaultBackground() {
         function ptDist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 
         function deepClonePaths(arr) {
-            return arr.map(p => ({ type: p.type, points: p.points.map(pt => ({ x: pt.x, y: pt.y })) }));
+            return arr.map(p => ({
+                type: p.type,
+                points: p.points.map(pt => ({ x: pt.x, y: pt.y })),
+                fillColor: p.fillColor || null
+            }));
+        }
+
+        function getActivePolygonFill() {
+            const enabled = document.getElementById('polygonFillEnabled');
+            const colorEl = document.getElementById('polygonFillColor');
+            if (enabled && enabled.checked && colorEl) return colorEl.value;
+            return null;
         }
 
         function densifyPoints(points, maxLen) {
@@ -407,13 +418,13 @@ function loadDefaultBackground() {
                 dense.forEach(pt => {
                     if (ptDist(pt, { x: mx, y: my }) <= radius) {
                         changed = true;
-                        if (chain.length >= 2) newPaths.push({ type: path.type, points: chain });
+                        if (chain.length >= 2) newPaths.push({ type: path.type, points: chain, fillColor: path.fillColor || null });
                         chain = [];
                     } else {
                         chain.push(pt);
                     }
                 });
-                if (chain.length >= 2) newPaths.push({ type: path.type, points: chain });
+                if (chain.length >= 2) newPaths.push({ type: path.type, points: chain, fillColor: path.fillColor || null });
             });
             if (changed) paths = newPaths;
             return changed;
@@ -486,24 +497,33 @@ function loadDefaultBackground() {
             let allPaths = [];
             paths.forEach((p, idx) => {
                 if (idx === activePathIndex && isDrawing && currentPath.length > 0) {
-                    allPaths.push({ type: p.type, points: [...p.points, currentPath[1]] });
+                    allPaths.push({ type: p.type, points: [...p.points, currentPath[1]], fillColor: p.fillColor });
                 } else {
                     allPaths.push(p);
                 }
             });
             if (activePathIndex === null && isDrawing && currentPath.length > 0) {
-                allPaths.push({ type: document.getElementById('roadType').value, points: currentPath });
+                const liveType = document.getElementById('roadType').value;
+                const liveEntry = { type: liveType, points: currentPath };
+                if (roadStyles[liveType] && roadStyles[liveType].isBox) {
+                    liveEntry.fillColor = getActivePolygonFill();
+                }
+                allPaths.push(liveEntry);
             }
             
             allPaths.forEach(p => {
                 const style = roadStyles[p.type];
-                if (style.outerWidth <= 0) return;
+                if (!style || style.outerWidth <= 0) return;
                 magCtx.lineCap = 'butt'; magCtx.lineJoin = 'miter'; magCtx.miterLimit = 10; magCtx.beginPath();
                 if (style.isBox) {
                     magCtx.rect(p.points[0].x, p.points[0].y, p.points[1].x - p.points[0].x, p.points[1].y - p.points[0].y);
                 } else {
                     magCtx.moveTo(p.points[0].x, p.points[0].y);
                     for (let i = 1; i < p.points.length; i++) magCtx.lineTo(p.points[i].x, p.points[i].y);
+                }
+                if (style.isBox && p.fillColor) {
+                    magCtx.fillStyle = p.fillColor;
+                    magCtx.fill();
                 }
                 magCtx.lineWidth = style.outerWidth;
                 magCtx.strokeStyle = style.outerColor;
@@ -709,7 +729,12 @@ function loadDefaultBackground() {
                 if (activePathIndex !== null) {
                     paths[activePathIndex].points.push(currentPath[1]);
                 } else {
-                    paths.push({ type: document.getElementById('roadType').value, points: currentPath });
+                    const type = document.getElementById('roadType').value;
+                    const entry = { type: type, points: currentPath };
+                    if (roadStyles[type] && roadStyles[type].isBox) {
+                        entry.fillColor = getActivePolygonFill();
+                    }
+                    paths.push(entry);
                 }
                 lastActionType = 'draw';
             }
@@ -723,9 +748,10 @@ function loadDefaultBackground() {
         canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); window.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('touchstart', startDrawing, {passive: false}); canvas.addEventListener('touchmove', draw, {passive: false}); window.addEventListener('touchend', stopDrawing);
 
-        function drawPass(points, type, layer) {
+        function drawPass(points, type, layer, fillColor) {
             if (points.length < 2) return;
             const style = roadStyles[type];
+            if (!style) return;
             ctx.lineCap = 'butt'; ctx.lineJoin = 'miter'; ctx.miterLimit = 10;
             ctx.beginPath();
             
@@ -735,6 +761,11 @@ function loadDefaultBackground() {
             } else {
                 ctx.moveTo(points[0].x, points[0].y);
                 for (let i = 1; i < points.length; i++) ctx.lineTo(points[i].x, points[i].y);
+            }
+
+            if (layer === 'outer' && style.isBox && fillColor) {
+                ctx.fillStyle = fillColor;
+                ctx.fill();
             }
 
             if (layer === 'outer' && style.outerWidth > 0) {
@@ -822,16 +853,21 @@ function loadDefaultBackground() {
             let allPaths = [];
             paths.forEach((p, idx) => {
                 if (idx === activePathIndex && isDrawing && currentPath.length > 0) {
-                    allPaths.push({ type: p.type, points: [...p.points, currentPath[1]] });
+                    allPaths.push({ type: p.type, points: [...p.points, currentPath[1]], fillColor: p.fillColor });
                 } else {
                     allPaths.push(p);
                 }
             });
             if (activePathIndex === null && isDrawing && currentPath.length > 0) {
-                allPaths.push({ type: document.getElementById('roadType').value, points: currentPath });
+                const liveType = document.getElementById('roadType').value;
+                const liveEntry = { type: liveType, points: currentPath };
+                if (roadStyles[liveType] && roadStyles[liveType].isBox) {
+                    liveEntry.fillColor = getActivePolygonFill();
+                }
+                allPaths.push(liveEntry);
             }
-            allPaths.forEach(p => drawPass(p.points, p.type, 'outer'));
-            allPaths.forEach(p => drawPass(p.points, p.type, 'inner'));
+            allPaths.forEach(p => drawPass(p.points, p.type, 'outer', p.fillColor));
+            allPaths.forEach(p => drawPass(p.points, p.type, 'inner', p.fillColor));
 
             if (eraseModeOn && eraserPointerModel) {
                 ctx.save();
@@ -1383,246 +1419,237 @@ function loadDefaultBackground() {
             setTimeout(checkForAutoSavedWork, 600);
         });
 
-        const PX_TO_MM = 25.4 / 96;
-        function pxToMm(v) { return v * PX_TO_MM; }
-        function mmToPx(v) { return v * (96 / 25.4); }
+        // ========== IndexedDB Named Map Saves ==========
+        const LSM_IDB_NAME = 'LocationSketchMakerDB';
+        const LSM_IDB_VERSION = 1;
+        const LSM_STORE = 'maps';
+        let currentLoadedMapId = null;
 
-        function modelToDxf(x, y, tx, ty) {
-            const fx = x + (tx || 0);
-            const fy = y + (ty || 0);
-            return { x: pxToMm(fx), y: pxToMm(pageTargetHeight - fy) };
-        }
-        function dxfToModel(dx, dy) {
-            return { x: mmToPx(dx), y: pageTargetHeight - mmToPx(dy) };
-        }
-        function rotatePointDeg(px_, py_, cx, cy, deg) {
-            const rad = deg * Math.PI / 180;
-            const dx = px_ - cx, dy = py_ - cy;
-            return {
-                x: cx + dx * Math.cos(rad) - dy * Math.sin(rad),
-                y: cy + dx * Math.sin(rad) + dy * Math.cos(rad)
-            };
-        }
-        function sanitizeDxfText(t) { return String(t == null ? '' : t).replace(/[\r\n]/g, ' ').trim() || '.'; }
-
-        function dxfPolyline(layer, pts, closed) {
-            const out = ['0', 'LWPOLYLINE', '8', layer, '90', String(pts.length), '70', closed ? '1' : '0'];
-            pts.forEach(p => { out.push('10', p.x.toFixed(3), '20', p.y.toFixed(3)); });
-            return out;
-        }
-        function dxfLine(layer, p1, p2) {
-            return ['0', 'LINE', '8', layer, '10', p1.x.toFixed(3), '20', p1.y.toFixed(3), '11', p2.x.toFixed(3), '21', p2.y.toFixed(3)];
-        }
-        function dxfText(layer, pos, heightMm, text, rotationDeg) {
-            return ['0', 'TEXT', '8', layer, '10', pos.x.toFixed(3), '20', pos.y.toFixed(3),
-                    '40', heightMm.toFixed(3), '1', sanitizeDxfText(text), '50', (rotationDeg || 0).toFixed(2)];
-        }
-
-        const DXF_LAYER_DEFS = [
-            ['ROAD_NH', 7], ['ROAD_SH', 7], ['ROAD_PWD', 7], ['ROAD_PANCHAYAT', 7], ['ROAD_MUD', 30],
-            ['ROAD_PATH', 7], ['ROAD_STREAM', 5], ['ROAD_RAILWAY', 7], ['ROAD_ELECTRICLINE', 30],
-            ['ROAD_PLOTLINE', 1], ['ROAD_SQUAREPLOT', 1], ['ROAD_POINTERARROW', 7],
-            ['ICONS', 7], ['LABELS', 7], ['CUSTOM_TEXT', 7], ['DIR_ARROW', 7], ['DIR_ARROW_LABEL', 7],
-            ['NORTH_ARROW', 7], ['UTILITY_POLE', 7], ['UTILITY_POLE_LABEL', 7], ['QR_MARKER', 3], ['QR_LABEL', 3]
-        ];
-
-        function buildDXFEntities() {
-            const entityLines = [];
-
-            paths.forEach(p => {
-                const style = roadStyles[p.type];
-                if (!style) return;
-                const layer = 'ROAD_' + p.type.toUpperCase();
-                if (style.isBox && p.points.length >= 2) {
-                    const p0 = p.points[0], p1 = p.points[1];
-                    const corners = [
-                        { x: p0.x, y: p0.y }, { x: p1.x, y: p0.y },
-                        { x: p1.x, y: p1.y }, { x: p0.x, y: p1.y }
-                    ].map(pt => modelToDxf(pt.x, pt.y, globalDrawingTranslateX, globalDrawingTranslateY));
-                    entityLines.push(...dxfPolyline(layer, corners, true));
-                } else if (p.points.length >= 2) {
-                    const pts = p.points.map(pt => modelToDxf(pt.x, pt.y, globalDrawingTranslateX, globalDrawingTranslateY));
-                    entityLines.push(...dxfPolyline(layer, pts, false));
-                }
+        function openLSMDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(LSM_IDB_NAME, LSM_IDB_VERSION);
+                req.onupgradeneeded = function(e) {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(LSM_STORE)) {
+                        const store = db.createObjectStore(LSM_STORE, { keyPath: 'id', autoIncrement: true });
+                        store.createIndex('name', 'name', { unique: false });
+                        store.createIndex('updatedAt', 'updatedAt', { unique: false });
+                    }
+                };
+                req.onsuccess = function(e) { resolve(e.target.result); };
+                req.onerror = function(e) { reject(e.target.error); };
             });
-
-            document.querySelectorAll('.draggable-item').forEach(item => {
-                const posX = parseFloat(item.style.left) || 0;
-                const posY = parseFloat(item.style.top) || 0;
-                const sliderNode = item.querySelector('.rotation-slider');
-                const angleDeg = sliderNode ? parseInt(sliderNode.value) : 0;
-                const dxfAngle = -angleDeg;
-                const textNode = item.querySelector('.draggable-text-style');
-                const iconNode = item.querySelector('.draggable-icon-style');
-                const svgNode = item.querySelector('.vector-pole-svg');
-                const northNode = item.querySelector('.north-arrow-svg');
-                const dirArrowNode = item.querySelector('.direction-arrow-svg');
-                const qrCanvas = item.querySelector('.draggable-qrcode-wrapper canvas');
-                const labelNode = item.querySelector('.icon-label');
-                const basePos = modelToDxf(posX, posY);
-                const labelText = labelNode ? labelNode.innerText : '';
-
-                if (textNode) {
-                    entityLines.push(...dxfText('CUSTOM_TEXT', basePos, 4, textNode.innerText, dxfAngle));
-                } else if (dirArrowNode) {
-                    const half = 45;
-                    const p1 = rotatePointDeg(posX - half, posY, posX, posY, angleDeg);
-                    const p2 = rotatePointDeg(posX + half, posY, posX, posY, angleDeg);
-                    entityLines.push(...dxfLine('DIR_ARROW', modelToDxf(p1.x, p1.y), modelToDxf(p2.x, p2.y)));
-                    if (labelText) entityLines.push(...dxfText('DIR_ARROW_LABEL', modelToDxf(posX, posY + 20), 3, labelText, 0));
-                } else if (northNode) {
-                    entityLines.push(...dxfText('NORTH_ARROW', basePos, 6, 'N', dxfAngle));
-                } else if (svgNode) {
-                    entityLines.push(...dxfText('UTILITY_POLE', basePos, 3, 'POLE', 0));
-                    if (labelText) entityLines.push(...dxfText('UTILITY_POLE_LABEL', modelToDxf(posX, posY + 18), 3, labelText, 0));
-                } else if (qrCanvas) {
-                    entityLines.push(...dxfText('QR_MARKER', basePos, 3, '[QR]', 0));
-                    if (labelText) entityLines.push(...dxfText('QR_LABEL', modelToDxf(posX, posY + 60), 3, labelText, 0));
-                } else if (iconNode) {
-                    entityLines.push(...dxfText('ICONS', basePos, 5, iconNode.innerText, dxfAngle));
-                    if (labelText) entityLines.push(...dxfText('LABELS', modelToDxf(posX, posY + 15), 3, labelText, 0));
-                }
-            });
-
-            return entityLines;
         }
 
-        function buildDXFContent() {
-            const lines = [];
-            lines.push('999', 'LSM_DXF_EXPORT_BY_Location_Sketch_Maker');
-
-            const stateData = serializeSketchState();
-            if (stateData.bgImageSrc && stateData.bgImageSrc.length > 500000) {
-                stateData.bgImageSrc = null;
-            }
-            const jsonStr = JSON.stringify(stateData);
-            const CHUNK = 200;
-            for (let i = 0; i < jsonStr.length; i += CHUNK) {
-                lines.push('999', 'LSMDATA|' + jsonStr.substring(i, i + CHUNK));
-            }
-
-            lines.push('0', 'SECTION', '2', 'HEADER', '9', '$ACADVER', '1', 'AC1015', '0', 'ENDSEC');
-
-            lines.push('0', 'SECTION', '2', 'TABLES', '0', 'TABLE', '2', 'LAYER', '70', String(DXF_LAYER_DEFS.length));
-            DXF_LAYER_DEFS.forEach(([name, color]) => {
-                lines.push('0', 'LAYER', '2', name, '70', '0', '62', String(color), '6', 'CONTINUOUS');
+        async function idbPutMap(record) {
+            const db = await openLSMDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(LSM_STORE, 'readwrite');
+                const store = tx.objectStore(LSM_STORE);
+                const req = store.put(record);
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
             });
-            lines.push('0', 'ENDTAB', '0', 'ENDSEC');
-
-            lines.push('0', 'SECTION', '2', 'ENTITIES');
-            lines.push(...buildDXFEntities());
-            lines.push('0', 'ENDSEC', '0', 'EOF');
-
-            return lines.join('\n');
         }
 
-        function generateDxfFilename() {
-            const now = new Date();
+        async function idbGetAllMaps() {
+            const db = await openLSMDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(LSM_STORE, 'readonly');
+                const store = tx.objectStore(LSM_STORE);
+                const req = store.getAll();
+                req.onsuccess = () => {
+                    const list = (req.result || []).slice().sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+                    resolve(list);
+                };
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function idbGetMap(id) {
+            const db = await openLSMDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(LSM_STORE, 'readonly');
+                const store = tx.objectStore(LSM_STORE);
+                const req = store.get(Number(id));
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function idbDeleteMap(id) {
+            const db = await openLSMDB();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(LSM_STORE, 'readwrite');
+                const store = tx.objectStore(LSM_STORE);
+                const req = store.delete(Number(id));
+                req.onsuccess = () => resolve();
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        function formatMapDate(ts) {
+            if (!ts) return '';
+            const d = new Date(ts);
             const pad = n => String(n).padStart(2, '0');
-            const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-            const timePart = `${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
-            const counterKey = 'lsm_dxf_counter_' + datePart;
-            let counter = 1;
+            return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        async function saveNamedMapToIDB() {
+            const hasContent = paths.length > 0 || bgImage || document.querySelectorAll('.draggable-item').length > 0;
+            if (!hasContent) {
+                alert('സേവ് ചെയ്യാൻ ഒരു ഉള്ളടക്കവും ഇല്ല. ആദ്യം സ്കെച്ച് വരയ്ക്കുക.');
+                return;
+            }
+
+            let defaultName = 'Location Map ' + formatMapDate(Date.now());
+            if (currentLoadedMapId) {
+                try {
+                    const existing = await idbGetMap(currentLoadedMapId);
+                    if (existing && existing.name) defaultName = existing.name;
+                } catch (err) {}
+            }
+
+            let name = prompt('മാപ്പിന്റെ പേര് നൽകുക (IndexedDB-ൽ സേവ് ചെയ്യും):', defaultName);
+            if (name === null) return;
+            name = name.trim();
+            if (!name) {
+                alert('പേര് ശൂന്യമാകരുത്.');
+                return;
+            }
+
             try {
-                counter = parseInt(localStorage.getItem(counterKey) || '0', 10) + 1;
-                localStorage.setItem(counterKey, String(counter));
-            } catch (err) {}
-            return `LocationMap_${datePart}_${timePart}-${counter}.dxf`;
-        }
-
-        function saveAsDXF() {
-            const defaultName = generateDxfFilename();
-            let filename = prompt('DXF ഫയലിന്റെ പേര് നൽകുക (ശൂന്യമായി വിട്ടാൽ default പേര് ഉപയോഗിക്കും):', defaultName);
-            if (filename === null) return;
-            filename = filename.trim();
-            if (!filename) filename = defaultName;
-            if (!filename.toLowerCase().endsWith('.dxf')) filename += '.dxf';
-
-            const dxfContent = buildDXFContent();
-            const blob = new Blob([dxfContent], { type: 'application/dxf' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = filename;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }
-
-        function parseEmbeddedLSMData(text) {
-            const lines = text.split(/\r\n|\r|\n/);
-            let json = '';
-            for (let i = 0; i < lines.length - 1; i++) {
-                if (lines[i].trim() === '999') {
-                    const val = lines[i + 1];
-                    if (val && val.startsWith('LSMDATA|')) {
-                        json += val.substring('LSMDATA|'.length);
-                    }
-                }
-            }
-            if (!json) return null;
-            try { return JSON.parse(json); } catch (err) { console.warn('LSM DXF data parse failed:', err); return null; }
-        }
-
-        function parseGenericDXFLines(text) {
-            const raw = text.split(/\r\n|\r|\n/);
-            const result = [];
-            const roadTypeKeys = Object.keys(roadStyles);
-            function layerToRoadType(layerName) {
-                if (!layerName) return 'plotLine';
-                const cleaned = layerName.toUpperCase().replace('ROAD_', '');
-                const found = roadTypeKeys.find(k => k.toUpperCase() === cleaned);
-                return found || 'plotLine';
-            }
-            let i = 0;
-            while (i < raw.length - 1) {
-                const code = raw[i].trim();
-                const nextVal = raw[i + 1] ? raw[i + 1].trim() : '';
-                if (code === '0' && (nextVal === 'LWPOLYLINE' || nextVal === 'LINE' || nextVal === 'POLYLINE')) {
-                    let j = i + 2, layer = '0', pts = [], pendingX = null;
-                    while (j < raw.length - 1 && raw[j].trim() !== '0') {
-                        const c = raw[j].trim(); const v = raw[j + 1];
-                        if (c === '8') layer = v.trim();
-                        else if (c === '10' || c === '11') pendingX = parseFloat(v);
-                        else if ((c === '20' || c === '21') && pendingX !== null) {
-                            pts.push({ x: pendingX, y: parseFloat(v) }); pendingX = null;
-                        }
-                        j += 2;
-                    }
-                    if (pts.length >= 2) {
-                        const modelPts = pts.map(p => dxfToModel(p.x, p.y));
-                        result.push({ type: layerToRoadType(layer), points: modelPts });
-                    }
-                    i = j;
+                const state = serializeSketchState();
+                // Avoid storing huge default bg if possible — keep as-is for restore fidelity
+                const record = {
+                    name: name,
+                    data: state,
+                    updatedAt: Date.now()
+                };
+                if (currentLoadedMapId) {
+                    record.id = currentLoadedMapId;
+                    record.createdAt = (await idbGetMap(currentLoadedMapId))?.createdAt || Date.now();
                 } else {
-                    i++;
+                    record.createdAt = Date.now();
                 }
+
+                const id = await idbPutMap(record);
+                currentLoadedMapId = id;
+                clearAutoSave();
+                alert('✅ "' + name + '" സേവ് ചെയ്തു (IndexedDB).');
+            } catch (err) {
+                console.error(err);
+                alert('സേവ് ചെയ്യാൻ കഴിഞ്ഞില്ല: ' + (err && err.message ? err.message : err));
             }
-            return result;
         }
 
-        document.getElementById('dxfUploader').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(ev) {
-                const text = ev.target.result;
-                const data = parseEmbeddedLSMData(text);
-                if (data) {
-                    if (confirm('ഈ ടൂൾ ഉപയോഗിച്ചുണ്ടാക്കിയ DXF ആണ് ഇത്. നിലവിലെ സ്കെച്ച് മാറ്റി ഇത് load ചെയ്യണോ?')) {
-                        resetSketchState();
-                        restoreFromSnapshot(data);
-                    }
-                } else {
-                    if (confirm('ഇത് ഈ ടൂളിൽ ഉണ്ടാക്കിയ DXF അല്ല. റോഡ്/ലൈൻ geometry മാത്രം നിലവിലെ സ്കെച്ചിലേക്ക് ചേർക്കട്ടെ?')) {
-                        const fallbackPaths = parseGenericDXFLines(text);
-                        if (fallbackPaths.length === 0) {
-                            alert('ഈ DXF ഫയലിൽ നിന്ന് വരയ്ക്കാൻ പറ്റിയ line/polyline ഒന്നും കണ്ടെത്താനായില്ല.');
-                        } else {
-                            paths = paths.concat(fallbackPaths);
-                            redrawAll();
-                        }
-                    }
+        function openSavedMapsPanel() {
+            const overlay = document.getElementById('savedMapsOverlay');
+            if (overlay) {
+                overlay.style.display = 'flex';
+                refreshSavedMapsList();
+            }
+        }
+
+        function closeSavedMapsPanel() {
+            const overlay = document.getElementById('savedMapsOverlay');
+            if (overlay) overlay.style.display = 'none';
+        }
+
+        async function refreshSavedMapsList() {
+            const listEl = document.getElementById('savedMapsList');
+            if (!listEl) return;
+            listEl.innerHTML = '<div class="saved-maps-empty">Loading…</div>';
+            try {
+                const maps = await idbGetAllMaps();
+                if (!maps.length) {
+                    listEl.innerHTML = '<div class="saved-maps-empty">സേവ് ചെയ്ത മാപ്പുകൾ ഇല്ല.<br>സ്കെച്ച് വരച്ച ശേഷം «💾 Save Map» ഉപയോഗിക്കുക.</div>';
+                    return;
                 }
-                document.getElementById('dxfUploader').value = '';
-            };
-            reader.readAsText(file);
-        });
+                listEl.innerHTML = '';
+                maps.forEach(m => {
+                    const row = document.createElement('div');
+                    row.className = 'saved-map-row';
+                    row.innerHTML =
+                        '<div class="saved-map-info">' +
+                            '<div class="saved-map-name"></div>' +
+                            '<div class="saved-map-meta"></div>' +
+                        '</div>' +
+                        '<div class="saved-map-actions">' +
+                            '<button type="button" class="btn-load-map">📂 Load</button>' +
+                            '<button type="button" class="btn-rename-map">✏️ Rename</button>' +
+                            '<button type="button" class="btn-delete-map">🗑️</button>' +
+                        '</div>';
+                    row.querySelector('.saved-map-name').textContent = m.name || '(unnamed)';
+                    row.querySelector('.saved-map-meta').textContent =
+                        'Updated: ' + formatMapDate(m.updatedAt) +
+                        (m.id === currentLoadedMapId ? '  •  currently open' : '');
+                    row.querySelector('.btn-load-map').onclick = () => loadMapFromIDB(m.id);
+                    row.querySelector('.btn-rename-map').onclick = () => renameMapInIDB(m.id, m.name);
+                    row.querySelector('.btn-delete-map').onclick = () => deleteMapFromIDB(m.id, m.name);
+                    listEl.appendChild(row);
+                });
+            } catch (err) {
+                console.error(err);
+                listEl.innerHTML = '<div class="saved-maps-empty">Error loading maps: ' + (err.message || err) + '</div>';
+            }
+        }
+
+        async function loadMapFromIDB(id) {
+            try {
+                const rec = await idbGetMap(id);
+                if (!rec || !rec.data) {
+                    alert('മാപ്പ് കണ്ടെത്താനായില്ല.');
+                    return;
+                }
+                if (!confirm('നിലവിലെ സ്കെച്ച് മാറ്റി «' + (rec.name || '') + '» load ചെയ്യണോ?')) return;
+                resetSketchState();
+                restoreFromSnapshot(rec.data);
+                currentLoadedMapId = rec.id;
+                closeSavedMapsPanel();
+                clearAutoSave();
+            } catch (err) {
+                console.error(err);
+                alert('Load ചെയ്യാൻ കഴിഞ്ഞില്ല: ' + (err.message || err));
+            }
+        }
+
+        async function renameMapInIDB(id, oldName) {
+            let name = prompt('പുതിയ പേര്:', oldName || '');
+            if (name === null) return;
+            name = name.trim();
+            if (!name) {
+                alert('പേര് ശൂന്യമാകരുത്.');
+                return;
+            }
+            try {
+                const rec = await idbGetMap(id);
+                if (!rec) return;
+                rec.name = name;
+                rec.updatedAt = Date.now();
+                await idbPutMap(rec);
+                refreshSavedMapsList();
+            } catch (err) {
+                alert('Rename failed: ' + (err.message || err));
+            }
+        }
+
+        async function deleteMapFromIDB(id, name) {
+            if (!confirm('«' + (name || '') + '» ശാശ്വതമായി delete ചെയ്യണോ?')) return;
+            try {
+                await idbDeleteMap(id);
+                if (currentLoadedMapId === id) currentLoadedMapId = null;
+                refreshSavedMapsList();
+            } catch (err) {
+                alert('Delete failed: ' + (err.message || err));
+            }
+        }
+
+        // Clear currentLoadedMapId when user clears the canvas
+        const _origClearMap = typeof clearMap === 'function' ? clearMap : null;
+        // clearMap already calls resetSketchState — hook via wrapping reset if needed
+        const _origResetSketchState = resetSketchState;
+        resetSketchState = function() {
+            currentLoadedMapId = null;
+            _origResetSketchState();
+        };
