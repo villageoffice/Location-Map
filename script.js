@@ -588,21 +588,24 @@ function loadDefaultBackground() {
                     drawNorthArrow(magCtx, 0, 0);
                 } else if (svgNode) {
                     drawVectorUtilityPole(magCtx, 0, -6);
-                    if (labelNode) {
-                        magCtx.font = "bold 11px Arial"; magCtx.fillStyle = "black"; magCtx.textAlign = "center";
-                        magCtx.fillText(labelNode.innerText, 0, 18);
+                    if (labelNode && labelNode.innerText) {
+                        magCtx.font = "bold 11px Arial"; magCtx.fillStyle = "black"; magCtx.textAlign = "center"; magCtx.textBaseline = "top";
+                        drawMultilineCentered(magCtx, labelNode.innerText, 0, 18, 13);
                     }
                 } else if (qrCanvas) {
                     magCtx.fillStyle = "white"; magCtx.fillRect(-51, -51, 102, 102); 
                     magCtx.drawImage(qrCanvas, -45, -45, 90, 90);
-                    if (labelNode) {
-                        magCtx.font = "bold 11px Arial"; magCtx.fillStyle = "#c0392b"; magCtx.textAlign = "center";
-                        magCtx.fillText(labelNode.innerText, 0, 60);
+                    if (labelNode && labelNode.innerText) {
+                        magCtx.font = "bold 11px Arial"; magCtx.fillStyle = "#c0392b"; magCtx.textAlign = "center"; magCtx.textBaseline = "top";
+                        drawMultilineCentered(magCtx, labelNode.innerText, 0, 60, 13);
                     }
                 } else if (iconNode) {
                     magCtx.font = "32px Arial"; magCtx.textAlign = "center"; magCtx.textBaseline = "middle"; magCtx.fillStyle = "black";
                     magCtx.fillText(iconNode.innerText, 0, -10);
-                    if (labelNode) { magCtx.font = "bold 11px Arial"; magCtx.fillText(labelNode.innerText, 0, 15); }
+                    if (labelNode && labelNode.innerText) {
+                        magCtx.font = "bold 11px Arial"; magCtx.textBaseline = "top";
+                        drawMultilineCentered(magCtx, labelNode.innerText, 0, 15, 13);
+                    }
                 }
                 magCtx.restore();
             });
@@ -1119,23 +1122,36 @@ function loadDefaultBackground() {
             makeElementDraggable(el); itemContainer.appendChild(el);
         }
 
+        function drawMultilineCentered(pCtx, text, x, y, lineHeight) {
+            if (!text) return;
+            const lines = String(text).split(/\r\n|\r|\n/);
+            const lh = lineHeight || 13;
+            // y = top of first line (expects textBaseline 'top' or similar)
+            lines.forEach((line, i) => {
+                pCtx.fillText(line, x, y + i * lh);
+            });
+        }
+
         function editLabel(span) {
             const current = span.innerText;
             const currentFs = span.style.fontSize || '11px';
-            const input = document.createElement('input');
-            input.type = 'text';
+            const input = document.createElement('textarea');
             input.value = current;
-            input.placeholder = 'ശൂന്യമാക്കി Enter — label മറയും';
-            input.style.cssText = `font-size:${currentFs};font-weight:bold;width:100px;padding:1px 3px;border:1px solid #1a73e8;border-radius:3px;text-align:center;`;
+            input.rows = Math.max(2, (current.match(/\n/g) || []).length + 1);
+            input.placeholder = 'Enter = save | Ctrl+Enter = പുതിയ ലൈൻ | ശൂന്യം = മറയ്ക്കും';
+            input.style.cssText = `font-size:${currentFs};font-weight:bold;width:120px;min-height:36px;padding:3px 5px;border:2px solid #1a73e8;border-radius:4px;text-align:center;resize:both;line-height:1.25;font-family:Arial,sans-serif;`;
             span.replaceWith(input);
             input.focus();
             input.select();
+            let cancelled = false;
             function commitEdit() {
+                if (cancelled) return;
                 const newSpan = document.createElement('span');
                 newSpan.className = 'icon-label editable-label';
-                newSpan.title = 'Double-click to edit';
+                newSpan.title = 'Double-click to edit · Ctrl+Enter = new line when editing';
                 newSpan.style.fontSize = currentFs;
-                const newVal = input.value.trim();
+                // Preserve internal newlines; trim only outer edges
+                const newVal = input.value.replace(/^\s+|\s+$/g, '');
                 newSpan.innerText = newVal;
                 if (!newVal) {
                     newSpan.style.display = 'none';
@@ -1149,7 +1165,31 @@ function loadDefaultBackground() {
                 input.replaceWith(newSpan);
             }
             input.addEventListener('blur', commitEdit);
-            input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); if (e.key === 'Escape') { input.value = current; input.blur(); } });
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Escape') {
+                    cancelled = true;
+                    input.value = current;
+                    input.blur();
+                    return;
+                }
+                // Ctrl+Enter (or Cmd+Enter on Mac) → insert newline for length control
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    const start = input.selectionStart;
+                    const end = input.selectionEnd;
+                    const val = input.value;
+                    input.value = val.slice(0, start) + '\n' + val.slice(end);
+                    input.selectionStart = input.selectionEnd = start + 1;
+                    // grow rows a bit
+                    input.rows = Math.min(8, Math.max(2, (input.value.match(/\n/g) || []).length + 1));
+                    return;
+                }
+                // plain Enter → save
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    input.blur();
+                }
+            });
         }
 
         function addCustomText() {
@@ -1256,29 +1296,32 @@ function loadDefaultBackground() {
                     pCtx.fillStyle = "black"; pCtx.beginPath();
                     pCtx.moveTo(arrowLen/2, 0); pCtx.lineTo(arrowLen/2 - 10, -5); pCtx.lineTo(arrowLen/2 - 10, 5);
                     pCtx.closePath(); pCtx.fill();
-                    if (labelNode) {
-                        pCtx.font = "bold 11px Arial"; pCtx.fillStyle = "black"; pCtx.textAlign = "center";
-                        pCtx.fillText(labelNode.innerText, 0, 18);
+                    if (labelNode && labelNode.innerText) {
+                        pCtx.font = "bold 11px Arial"; pCtx.fillStyle = "black"; pCtx.textAlign = "center"; pCtx.textBaseline = "top";
+                        drawMultilineCentered(pCtx, labelNode.innerText, 0, 18, 13);
                     }
                 } else if (northNode) {
                     drawNorthArrow(pCtx, 0, 0);
                 } else if (svgNode) {
                     drawVectorUtilityPole(pCtx, 0, -6);
-                    if (labelNode) {
-                        pCtx.font = "bold 11px Arial"; pCtx.fillStyle = "black"; pCtx.textAlign = "center";
-                        pCtx.fillText(labelNode.innerText, 0, 18);
+                    if (labelNode && labelNode.innerText) {
+                        pCtx.font = "bold 11px Arial"; pCtx.fillStyle = "black"; pCtx.textAlign = "center"; pCtx.textBaseline = "top";
+                        drawMultilineCentered(pCtx, labelNode.innerText, 0, 18, 13);
                     }
                 } else if (qrCanvas) {
                     pCtx.fillStyle = "white"; pCtx.fillRect(-51, -51, 102, 102); 
                     pCtx.drawImage(qrCanvas, -45, -45, 90, 90);
-                    if (labelNode) {
-                        pCtx.font = "bold 11px Arial"; pCtx.fillStyle = "#c0392b"; pCtx.textAlign = "center";
-                        pCtx.fillText(labelNode.innerText, 0, 60);
+                    if (labelNode && labelNode.innerText) {
+                        pCtx.font = "bold 11px Arial"; pCtx.fillStyle = "#c0392b"; pCtx.textAlign = "center"; pCtx.textBaseline = "top";
+                        drawMultilineCentered(pCtx, labelNode.innerText, 0, 60, 13);
                     }
                 } else if (iconNode) {
                     pCtx.font = "32px Arial"; pCtx.textAlign = "center"; pCtx.textBaseline = "middle"; pCtx.fillStyle = "black";
                     pCtx.fillText(iconNode.innerText, 0, -10);
-                    if (labelNode) { pCtx.font = "bold 11px Arial"; pCtx.fillText(labelNode.innerText, 0, 15); }
+                    if (labelNode && labelNode.innerText) {
+                        pCtx.font = "bold 11px Arial"; pCtx.textBaseline = "top";
+                        drawMultilineCentered(pCtx, labelNode.innerText, 0, 15, 13);
+                    }
                 }
                 pCtx.restore();
             });

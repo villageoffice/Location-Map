@@ -303,6 +303,11 @@ body {
             border: none;
             color: #000;
             text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
+            white-space: pre-line;
+            max-width: 110px;
+            line-height: 1.25;
+            text-align: center;
+            word-break: break-word;
         }
         /* Show hidden (empty) label as dashed placeholder on hover so user can re-edit */
         .draggable-item:hover .icon-label[style*="display: none"] {
