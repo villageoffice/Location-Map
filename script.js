@@ -320,19 +320,21 @@ function loadDefaultBackground() {
         let isDrawing = false; let paths = []; let currentPath = []; let bgImage = null;
         let activePathIndex = null; 
 
+        // SOI-inspired conventional line styles. These are screen-width drawing styles;
+        // exact printed widths/colours vary by SOI map series and scale.
         const roadStyles = {
-            nh:          { outerWidth: 22, outerColor: 'black', innerWidth: 17, innerColor: 'white', isBox: false },
-            sh:          { outerWidth: 19, outerColor: 'black', innerWidth: 14, innerColor: 'white', isBox: false },
-            pwd:         { outerWidth: 16, outerColor: 'black', innerWidth: 12, innerColor: 'white', isBox: false },
-            panchayat:   { outerWidth: 12, outerColor: 'black', innerWidth: 8,  innerColor: 'white', isBox: false },
-            mud:         { outerWidth: 10, outerColor: '#8B4513', innerWidth: 6, innerColor: '#F5DEB3', dash: [10, 10], isBox: false },
-            path:        { outerWidth: 4,  outerColor: 'black', innerWidth: 0,  innerColor: 'transparent', dash: [6, 6], isBox: false },
-            stream:      { outerWidth: 10, outerColor: '#1a73e8', innerWidth: 6, innerColor: '#8ab4f8', isBox: false },
-            plotLine:    { outerWidth: 3,  outerColor: 'red',   innerWidth: 0,  innerColor: 'transparent', isBox: false },
-            railway:     { outerWidth: 10, outerColor: 'black', innerWidth: 6,  innerColor: 'white', dash: [10, 10], isBox: false },
-            electricLine:{ outerWidth: 2,  outerColor: '#e67e22', innerWidth: 0, innerColor: 'transparent', dash: [8, 8], isBox: false, isElectric: true },
-            squarePlot:  { outerWidth: 3,  outerColor: 'red',   innerWidth: 0,  innerColor: 'transparent', isBox: true },
-            pointerArrow:{ outerWidth: 3,  outerColor: 'black', innerWidth: 0,  innerColor: 'transparent', isBox: false, isArrow: true }
+            nh:          { outerWidth: 20,   outerColor: '#000000', innerWidth: 16.5, innerColor: '#ffffff', isBox: false, isRoad: true },
+            sh:          { outerWidth: 15, outerColor: '#000000', innerWidth: 11.7, innerColor: '#ffffff', isBox: false, isRoad: true },
+            pwd:         { outerWidth: 12,   outerColor: '#000000', innerWidth: 8.7, innerColor: '#ffffff', isBox: false, isRoad: true },
+            panchayat:   { outerWidth: 10, outerColor: '#000000', innerWidth: 6.7, innerColor: '#ffffff', isBox: false, isRoad: true },
+            mud:         { outerWidth: 8, outerColor: '#000000', innerWidth: 5.4, innerColor: '#ffffff', dash: [8, 5], isBox: false, isRoad: true },
+            path:        { outerWidth: 1.8, outerColor: '#000000', innerWidth: 0,   innerColor: 'transparent', dash: [2, 4], isBox: false, isRoad: true },
+            stream:      { outerWidth: 5,   outerColor: '#1769aa', innerWidth: 2.4, innerColor: '#b8d8ef', isBox: false },
+            plotLine:    { outerWidth: 2,   outerColor: 'red', innerWidth: 0, innerColor: 'transparent', isBox: false },
+            railway:     { outerWidth: 1.4, outerColor: '#202020', innerWidth: 0, innerColor: 'transparent', isBox: false, isRailway: true },
+            electricLine:{ outerWidth: 1.6, outerColor: '#333333', innerWidth: 0, innerColor: 'transparent', dash: [5, 5], isBox: false, isElectric: true },
+            squarePlot:  { outerWidth: 2,   outerColor: 'red', innerWidth: 0, innerColor: 'transparent', isBox: true },
+            pointerArrow:{ outerWidth: 2,   outerColor: 'black', innerWidth: 0, innerColor: 'transparent', isBox: false, isArrow: true }
         };
 
         function drawArrowHead(pCtx, fromX, fromY, toX, toY, color) {
@@ -566,6 +568,7 @@ function loadDefaultBackground() {
                 
                 const textNode = item.querySelector('.draggable-text-style');
                 const iconNode = item.querySelector('.draggable-icon-style');
+                const mapSymbolNode = item.querySelector('.vector-map-symbol');
                 const svgNode = item.querySelector('.vector-pole-svg');
                 const northNode = item.querySelector('.north-arrow-svg');
                 const qrCanvas = item.querySelector('.draggable-qrcode-wrapper canvas');
@@ -604,6 +607,12 @@ function loadDefaultBackground() {
                     if (labelNode && labelNode.innerText) {
                         magCtx.font = "bold 11px Arial"; magCtx.fillStyle = "black"; magCtx.textAlign = "center"; magCtx.textBaseline = "top";
                         drawMultilineCentered(magCtx, labelNode.innerText, 0, 18, 13);
+                    }
+                } else if (mapSymbolNode) {
+                    drawSvgSymbolOnCanvas(magCtx, mapSymbolNode, 0, -5, 42, 42);
+                    if (labelNode && labelNode.innerText) {
+                        magCtx.font = "bold 11px Arial"; magCtx.fillStyle = "black"; magCtx.textAlign = "center"; magCtx.textBaseline = "top";
+                        drawMultilineCentered(magCtx, labelNode.innerText, 0, 20, 13);
                     }
                 } else if (qrCanvas) {
                     magCtx.fillStyle = "white"; magCtx.fillRect(-51, -51, 102, 102); 
@@ -764,10 +773,73 @@ function loadDefaultBackground() {
         canvas.addEventListener('mousedown', startDrawing); canvas.addEventListener('mousemove', draw); window.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('touchstart', startDrawing, {passive: false}); canvas.addEventListener('touchmove', draw, {passive: false}); window.addEventListener('touchend', stopDrawing);
 
+        function drawRailwayConventional(points) {
+            // Continuous railway symbol: uninterrupted parallel rails with cross-sleepers.
+            // Keep sleeper spacing continuous across every segment so bends do not create gaps.
+            if (!points || points.length < 2) return;
+            ctx.save();
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 1.35;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            const railOffset = 2.5;
+            const segments = [];
+            let totalLength = 0;
+            for (let i = 0; i < points.length - 1; i++) {
+                const a = points[i], b = points[i + 1];
+                const dx = b.x - a.x, dy = b.y - a.y;
+                const len = Math.hypot(dx, dy);
+                if (len < 0.01) continue;
+                segments.push({ a, b, dx, dy, len, nx: -dy / len, ny: dx / len, start: totalLength });
+                totalLength += len;
+            }
+            if (!segments.length) { ctx.restore(); return; }
+
+            // Draw each rail as a continuous path through all points. Rounded joins prevent
+            // tiny gaps where a user changes direction while drawing the railway.
+            for (const side of [-1, 1]) {
+                ctx.beginPath();
+                let started = false;
+                for (const seg of segments) {
+                    const sx = seg.a.x + side * seg.nx * railOffset;
+                    const sy = seg.a.y + side * seg.ny * railOffset;
+                    const ex = seg.b.x + side * seg.nx * railOffset;
+                    const ey = seg.b.y + side * seg.ny * railOffset;
+                    if (!started) { ctx.moveTo(sx, sy); started = true; }
+                    else ctx.lineTo(sx, sy);
+                    ctx.lineTo(ex, ey);
+                }
+                ctx.stroke();
+            }
+
+            // Cross-sleepers at regular intervals along the complete railway line.
+            const sleeperSpacing = 10;
+            const sleeperHalf = 4.2;
+            for (let distance = 0; distance <= totalLength; distance += sleeperSpacing) {
+                let seg = segments[segments.length - 1];
+                for (const candidate of segments) {
+                    if (distance <= candidate.start + candidate.len) { seg = candidate; break; }
+                }
+                const t = Math.max(0, Math.min(1, (distance - seg.start) / seg.len));
+                const x = seg.a.x + seg.dx * t;
+                const y = seg.a.y + seg.dy * t;
+                ctx.beginPath();
+                ctx.moveTo(x - seg.nx * sleeperHalf, y - seg.ny * sleeperHalf);
+                ctx.lineTo(x + seg.nx * sleeperHalf, y + seg.ny * sleeperHalf);
+                ctx.stroke();
+            }
+            ctx.restore();
+        }
+
         function drawPass(points, type, layer, fillColor) {
             if (points.length < 2) return;
             const style = roadStyles[type];
             if (!style) return;
+            if (style.isRailway) {
+                if (layer === 'outer') drawRailwayConventional(points);
+                return;
+            }
             ctx.lineCap = 'butt'; ctx.lineJoin = 'miter'; ctx.miterLimit = 10;
             ctx.beginPath();
             
@@ -1064,76 +1136,141 @@ function loadDefaultBackground() {
             itemContainer.appendChild(el);
         }
 
+
+        // Clean, monochrome vector map symbols. All symbols are inline SVG so they scale sharply.
+        const MAP_SYMBOLS = {
+          PLOT_MARKER:'<path d="M12 2 21 20H3Z"/><circle cx="12" cy="14" r="2.5"/>',
+          HOUSE:'<path d="M3 11 12 3l9 8M5.5 9.5V21h13V9.5M9 21v-7h6v7"/>',
+          BUILDING:'<rect x="5" y="2.5" width="14" height="19" rx="1"/><path d="M8 6h2m4 0h2M8 10h2m4 0h2M8 14h2m4 0h2M10 21v-4h4v4"/>',
+          TEMPLE:'<path d="M3 10h18M5 10v10m14-10v10M3 20h18M12 3 4 8h16zM9 14h6M12 10v10"/>',
+          MOSQUE:'<path d="M3 20V11h18v9M2 20h20M7 11V8a5 5 0 0 1 10 0v3M12 3V1M6 6 4 4m14 2 2-2M10 20v-5h4v5"/>',
+          CHURCH:'<path d="M4 21V10l8-5 8 5v11M2 21h20M12 2v8m-3-5h6M9 21v-6h6v6"/>',
+          TREE:'<path d="M12 2 5 11h4l-5 6h6v5h4v-5h6l-5-6h4z"/>',
+          POND:'<path d="M3 8c2-2 4 2 6 0s4-2 6 0 4 2 6 0M3 13c2-2 4 2 6 0s4-2 6 0 4 2 6 0M3 18c2-2 4 2 6 0s4-2 6 0 4 2 6 0"/>',
+          WELL:'<path d="M4 8h16M6 8v12h12V8M3 20h18M8 5h8M12 2v3M8 12h8"/>',
+          JUNCTION:'<circle cx="12" cy="12" r="9"/><path d="M12 3v6m0 6v6M3 12h6m6 0h6"/>',
+          PETROL_PUMP:'<rect x="5" y="3" width="11" height="18" rx="1.5"/><path d="M8 6h5v5H8zM16 7h2l2 3v7a2 2 0 0 1-4 0v-5M8 21v-2m5 2v-2"/>',
+          HOSPITAL:'<rect x="3" y="4" width="18" height="17" rx="1"/><path d="M10 8h4m-2-2v8M8 21v-5h8v5"/>',
+          BANK:'<path d="M2 8h20L12 3zM4 10v8m5-8v8m6-8v8m5-8v8M2 21h20M3 18h18"/>',
+          SCHOOL:'<path d="M3 21V8l9-5 9 5v13M2 8h20M8 21v-6h8v6M7 10h2m6 0h2"/>',
+          BUS_STOP:'<rect x="4" y="3" width="16" height="15" rx="3"/><path d="M7 7h10v5H7zM7 18l-2 3m12-3 2 3M4 15h16M8 18v1m8-1v1"/>',
+          RAILWAY_STATION:'<path d="M7 3h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zM7 7h10v5H7zM8 19l-3 3m11-3 3 3M8 16h.01M16 16h.01"/>',
+          POLICE_STATION:'<path d="M12 2 21 6v6c0 5-4 8-9 10-5-2-9-5-9-10V6z"/><path d="M12 7v10m-5-5h10"/>',
+          FIRE_STATION:'<path d="M12 2c2 4-1 5 2 8 1-2 2-3 2-4 4 4 5 7 3 11a8 8 0 0 1-14-1c-1-4 1-7 4-10 0 3 1 4 2 5 2-3 1-6 1-9z"/>',
+          VILLAGE_OFFICE:'<path d="M2 9 12 3l10 6M4 10h16M5 10v9m4-9v9m6-9v9m4-9v9M2 21h20M10 14h4"/>',
+          PANCHAYAT_OFFICE:'<path d="M3 21V8l9-5 9 5v13M2 8h20M7 12h3m4 0h3M7 16h3m4 0h3M10 21v-3h4v3"/>',
+          SHOP:'<path d="M4 10v11h16V10M3 10l2-6h14l2 6M3 10a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0M8 21v-6h5v6"/>',
+          MARKET:'<path d="M3 9h18l-2-5H5zM4 9v12h16V9M8 13h8v8M3 9a2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0 2 2 0 0 0 4 0"/>',
+          POST_OFFICE:'<rect x="3" y="5" width="18" height="14" rx="1"/><path d="m4 7 8 6 8-6M3 18l6-6m12 6-6-6"/>',
+          MOBILE_TOWER:'<path d="m12 3-7 18m7-18 7 18M8 13h8M6 18h12M10 8h4M3 7a13 13 0 0 1 0 10M21 7a13 13 0 0 0 0 10M6 9a8 8 0 0 1 0 6m12-6a8 8 0 0 0 0 6"/>',
+          TRANSFORMER:'<path d="M4 6h16v12H4zM8 6V3m8 3V3M8 18v3m8-3v3M7 9h3v6H7zm7 0h3v6h-3z"/>',
+          WATER_TANK:'<path d="M4 8h16l-2 13H6zM3 8h18M7 5h10M9 5V3h6v2M8 12h8"/>',
+          WATER_TAP:'<path d="M4 8h12a3 3 0 0 1 3 3v2M8 8V5h8v3M4 5h4M19 13v3m-2-1h4M19 19v2"/>',
+          BRIDGE:'<path d="M2 8h20M4 8v12m16-12v12M2 20h20M4 8c2 8 14 8 16 0M8 10v5m8-5v5"/>',
+          PARKING:'<circle cx="12" cy="12" r="9"/><path d="M9 18V6h4a4 4 0 0 1 0 8H9"/>',
+          FACTORY:'<path d="M3 21V10l6 4V9l6 5V6h3l3 4v11zM6 18h2m3 0h2m3 0h2M15 3h3"/>',
+          CONSTRUCTION:'<path d="M3 21h18M6 21V8h12v13M4 8h16M8 8V4h8v4M9 12h6m-6 4h6"/>',
+          FOREST:'<path d="M7 2 2 10h3l-3 5h5v6h4v-6h4l-3-5h3L10 2zM17 7l-4 6h3l-2 4h4v4h3v-4h2l-2-4h2z"/>',
+          COCONUT_TREE:'<path d="M12 21 13 9M13 9C8 7 6 5 5 3c4 0 7 2 8 5 1-4 4-6 7-6-1 4-3 6-7 7M13 9c-3-2-6-2-9-1 2 3 5 4 9 3m0-2c3-2 5-2 8-1-2 3-5 4-8 3"/>',
+          CEMETERY:'<path d="M7 21V9a3 3 0 0 1 6 0v12M4 21h12M15 21V12a3 3 0 0 1 6 0v9M17 14h2"/>',
+          FARM:'<path d="M3 21V10l9-6 9 6v11M2 21h20M8 21v-6h8v6M6 11h3m6 0h3"/>',
+          CATTLE_FARM:'<path d="M4 11 3 7l4 2h10l4-2-1 4v7H4zM8 18v3m8-3v3M8 12h.01M16 12h.01M10 15h4"/>',
+          AUTO_STAND:'<path d="M4 15 6 8h12l2 7v5H4zM6 15h12M7 20v2m10-2v2M7 11h10"/>',
+          TAXI_STAND:'<path d="M3 14 5 8h14l2 6v6H3zM5 14h14M7 20v2m10-2v2M8 5h8v3H8zM7 11h10"/>',
+          HARBOUR:'<path d="M12 3v13M8 7h8M3 13l9 5 9-5M4 17c2 3 4 4 8 4s6-1 8-4"/>',
+          GROUND:'<path d="M3 18c3-2 5-2 9 0s6 2 9 0M4 14l8-10 8 10zM8 14v-3h8v3"/>',
+          ROAD_WORK:'<path d="m12 3 9 17H3zM12 9v5m0 3h.01M6 21l2-3m10 3-2-3"/>',
+          UTILITY_POLE:'<path d="M12 22V3M4 7h16M7 4h10M5 7l-2 3m16-3 2 3M8 10h8M9 13h6"/>',
+          NORTH_ARROW:'<path d="M12 2 4 21l8-5 8 5z"/><path d="M12 2v14"/>',
+          DIR_ARROW:'<path d="M2 12h18m-7-7 7 7-7 7"/>',
+          VILLAGE_OPEN:'<path d="M3 17 8 9l5 5 4-7 4 10"/><circle cx="6" cy="6" r="1.5"/><circle cx="18" cy="4" r="1.5"/>',
+          VILLAGE_BUILTUP:'<rect x="3" y="4" width="7" height="7"/><rect x="13" y="3" width="8" height="6"/><rect x="7" y="14" width="9" height="7"/><path d="M5 6h3m-3 2h3m8-3h3m-9 9h3m-3 2h3"/>',
+          ROAD_METALLED:'<path d="M5 2 9 22M19 2l-4 20"/><path d="M12 3v3m0 4v4m0 4v3" stroke-dasharray="2 2"/>',
+          ROAD_UNMETALLED:'<path d="M7 2 10 22M17 2l-3 20" stroke-dasharray="2 1.5"/>',
+          FOOTPATH:'<path d="M3 21 7 16 9 12 14 9 17 4 21 2" stroke-dasharray="1.5 2"/>',
+          RAILWAY_LINE:'<path d="M3 2v20M7 2v20M1 5h8M1 9h8M1 13h8M1 17h8M1 21h8"/>',
+          LEVEL_CROSSING:'<path d="M2 12h20M12 2v20M7 7l10 10m0-10L7 17"/>',
+          CULVERT:'<path d="M2 8h20M2 16h20"/><rect x="8" y="8" width="8" height="8"/><path d="M10 11h4m-4 2h4"/>',
+          STREAM_PERENNIAL:'<path d="M3 3c8 3-2 6 6 9s-2 6 6 9 3-1 6 0"/>',
+          STREAM_NONPERENNIAL:'<path d="M3 3c8 3-2 6 6 9s-2 6 6 9 3-1 6 0" stroke-dasharray="2 2"/>',
+          CANAL:'<path d="M3 2c3 3 3 5 0 8s-3 5 0 8 3 3 0 4M21 2c-3 3-3 5 0 8s3 5 0 8-3 3 0 4M8 5h8m-8 7h8m-8 7h8"/>',
+          RESERVOIR:'<path d="M3 7c3-2 5 2 8 0s5-2 10 0v12H3zM3 11c3-2 5 2 8 0s5-2 10 0M3 15c3-2 5 2 8 0s5-2 10 0"/>',
+          MARSH:'<path d="M3 6h5m8 0h5M5 12h5m4 0h5M3 18h5m8 0h5M5 4v4m12-4v4M7 10v4m10-4v4M5 16v4m12-4v4"/>',
+          SPOT_HEIGHT:'<circle cx="12" cy="12" r="2"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5"/><circle cx="12" cy="12" r="7" stroke-dasharray="1 2"/>',
+          BOUNDARY_PILLAR:'<path d="M7 4h10v16H7zM5 4h14M5 20h14M12 7v10"/>',
+          BENCH_MARK:'<path d="M3 18h18M5 18v-5h14v5M8 13V8h8v5M12 8V3m-3 3 3-3 3 3"/>',
+          TRIANGULATION_STATION:'<path d="M12 2 3 20h18zM12 2v18M3 20l9-8 9 8"/>',
+          ORCHARD:'<circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/>',
+          SCATTERED_TREES:'<circle cx="5" cy="7" r="2.5"/><circle cx="16" cy="5" r="2"/><circle cx="12" cy="15" r="2.5"/><circle cx="20" cy="19" r="2"/><path d="M5 9v3m11-5v3m-4 8v3m8-1v2"/>',
+          ROCKY_GROUND:'<path d="m2 18 5-9 4 5 4-10 7 14zM5 18l3-3m6 3 2-4"/>',
+          EMBANKMENT:'<path d="M2 18 12 6l10 12zM4 20h16M7 16h10M9 12h6"/>',
+          DAM:'<path d="M3 4 8 20h8l5-16M2 20h20M5 8h14M6 12h12M7 16h10"/>',
+          AERODROME:'<path d="M12 2 14 10 22 15 21 18 14 15 13 21 16 22 16 23 12 22 8 23 8 22 11 21 10 15 3 18 2 15 10 10z"/>',
+          LIGHTHOUSE:'<path d="M8 21h8l-2-13h-4zM9 8h6M10 5h4M12 2v3M6 5l3 2m9-2-3 2M5 21h14"/>',
+          RUINS:'<path d="M3 21V8l4 3V6l5 4 4-5v5l5-3v14zM7 15h2m4 2h2m3-4h1"/>',
+          POWER_LINE:'<path d="M4 3 8 21M20 3l-4 18M2 7h20M5 7l-3 4m17-4 3 4M7 12h10"/>',
+          TELEPHONE_LINE:'<path d="M4 4h16M4 20h16M4 4v16M20 4v16M4 4l16 16M20 4 4 20" stroke-dasharray="2 2"/>'
+        };
+        // Survey of India conventional-sign inspired rendering: plain cartographic marks,
+        // no emoji, no Google-style circular POI badges. Water and vegetation retain
+        // conventional map colours; built features use restrained black linework.
+        const MAP_SYMBOL_COLORS = {
+          PLOT_MARKER:'#111111', NORTH_ARROW:'#111111', DIR_ARROW:'#111111',
+          HOUSE:'#111111', BUILDING:'#111111', TEMPLE:'#111111', MOSQUE:'#111111', CHURCH:'#111111',
+          TREE:'#237A3B', FOREST:'#237A3B', COCONUT_TREE:'#237A3B', FARM:'#237A3B', CATTLE_FARM:'#111111',
+          POND:'#1676B8', WELL:'#1676B8', WATER_TANK:'#1676B8', WATER_TAP:'#1676B8', BRIDGE:'#111111', HARBOUR:'#1676B8',
+          JUNCTION:'#111111', ROAD_WORK:'#111111', CONSTRUCTION:'#111111', GROUND:'#111111',
+          PETROL_PUMP:'#111111', HOSPITAL:'#111111', BANK:'#111111', SCHOOL:'#111111', BUS_STOP:'#111111',
+          RAILWAY_STATION:'#111111', POLICE_STATION:'#111111', FIRE_STATION:'#111111', VILLAGE_OFFICE:'#111111',
+          PANCHAYAT_OFFICE:'#111111', SHOP:'#111111', MARKET:'#111111', POST_OFFICE:'#111111',
+          MOBILE_TOWER:'#111111', TRANSFORMER:'#111111', PARKING:'#111111', FACTORY:'#111111',
+          CEMETERY:'#111111', AUTO_STAND:'#111111', TAXI_STAND:'#111111', UTILITY_POLE:'#111111',
+          VILLAGE_OPEN:'#111111', VILLAGE_BUILTUP:'#111111', LEVEL_CROSSING:'#111111', CULVERT:'#1676B8', STREAM_PERENNIAL:'#1676B8', STREAM_NONPERENNIAL:'#1676B8',
+          CANAL:'#1676B8', RESERVOIR:'#1676B8', MARSH:'#1676B8', SPOT_HEIGHT:'#111111', BOUNDARY_PILLAR:'#111111', BENCH_MARK:'#111111',
+          TRIANGULATION_STATION:'#111111', ORCHARD:'#237A3B', SCATTERED_TREES:'#237A3B', ROCKY_GROUND:'#777777', EMBANKMENT:'#8A5A2B',
+          DAM:'#8A5A2B', AERODROME:'#111111', LIGHTHOUSE:'#111111', RUINS:'#777777', POWER_LINE:'#111111', TELEPHONE_LINE:'#111111'
+        };
+        function makeMapSymbolSvg(code, size) {
+            const content = MAP_SYMBOLS[code] || MAP_SYMBOLS.PLOT_MARKER;
+            const color = MAP_SYMBOL_COLORS[code] || '#111111';
+            // Transparent canvas and plain conventional-sign linework for clear map printing.
+            return `<svg class=\"vector-map-symbol soi-conventional-symbol\" data-symbol-code=\"${code}\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" width=\"${size}\" height=\"${size}\" aria-label=\"${code.replaceAll('_',' ')}\" role=\"img\"><g fill=\"none\" stroke=\"${color}\" stroke-width=\"1.25\" stroke-linecap=\"round\" stroke-linejoin=\"round\">${content}</g></svg>`;
+        }
+        const symbolImageCache = new Map();
+        function getSymbolImage(svgNode) {
+            const code = svgNode?.dataset?.symbolCode;
+            if (!code) return null;
+            if (symbolImageCache.has(code)) return symbolImageCache.get(code);
+            const svg = svgNode.outerHTML.replace(/currentColor/g, '#111');
+            const img = new Image();
+            img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+            symbolImageCache.set(code, img);
+            return img;
+        }
+        function drawSvgSymbolOnCanvas(ctx, svgNode, x, y, width, height) {
+            const img = getSymbolImage(svgNode);
+            if (!img) return;
+            if (img.complete && img.naturalWidth) ctx.drawImage(img, x-width/2, y-height/2, width, height);
+        }
+
         function addIcon() {
             const val = document.getElementById('iconSelect').value.split('|');
+            const code = val[0];
             const sizeVal = document.getElementById('iconSizeSelect').value;
             const labelFs = document.getElementById('labelFontSize').value;
-            const sizePx = sizeVal === 'large' ? '42px' : sizeVal === 'small' ? '22px' : '32px';
-            const svgSize = sizeVal === 'large' ? '60px' : sizeVal === 'small' ? '30px' : '45px';
-            const northSize = sizeVal === 'large' ? '70px' : sizeVal === 'small' ? '35px' : '50px';
-            const el = document.createElement('div'); el.className = 'draggable-item';
+            const svgSize = sizeVal === 'large' ? 60 : sizeVal === 'small' ? 30 : 45;
+            const el = document.createElement('div');
+            el.className = 'draggable-item';
             el.style.left = '50%'; el.style.top = '50%';
-            const displayState = rotateTabActive ? "block" : "none";
+            const displayState = rotateTabActive ? 'block' : 'none';
             const defaultLabel = val[1];
-
-            if (val[0] === "UTILITY_POLE") {
-                el.innerHTML = `
-                    <div class="rotate-wrapper">
-                        <svg class="vector-pole-svg" viewBox="0 0 40 40" style="width:${svgSize};height:${svgSize};">
-                            <line x1="20" y1="36" x2="20" y2="4" stroke="black" stroke-width="2.5" />
-                            <line x1="4" y1="12" x2="36" y2="12" stroke="black" stroke-width="3.5" />
-                            <line x1="12" y1="6" x2="28" y2="6" stroke="black" stroke-width="2" />
-                            <circle cx="6" cy="10" r="1.5" stroke="black" stroke-width="1" fill="none" />
-                            <circle cx="15" cy="4" r="1.5" stroke="black" stroke-width="1" fill="none" />
-                            <circle cx="25" cy="4" r="1.5" stroke="black" stroke-width="1" fill="none" />
-                            <circle cx="34" cy="10" r="1.5" stroke="black" stroke-width="1" fill="none" />
-                            <rect x="22" y="16" width="7" height="9" fill="black" />
-                        </svg>
-                        <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
-                    </div>
-                    <span class="icon-label editable-label" style="font-size:${labelFs};" ondblclick="editLabel(this)" title="Double-click to edit">${defaultLabel}</span>
-                    <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
-                `;
-            } else if (val[0] === "DIR_ARROW") {
-                const arrowW = sizeVal === 'large' ? '120px' : sizeVal === 'small' ? '70px' : '90px';
-                el.innerHTML = `
-                    <div class="rotate-wrapper">
-                        <svg class="direction-arrow-svg" viewBox="0 0 100 50" style="width:${arrowW};height:calc(${arrowW} * 0.5);">
-                            <defs>
-                                <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-                                    <polygon points="0 0, 8 3, 0 6" fill="black"/>
-                                </marker>
-                            </defs>
-                            <line x1="5" y1="25" x2="88" y2="25" stroke="black" stroke-width="3" marker-end="url(#arrowhead)"/>
-                        </svg>
-                        <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
-                    </div>
-                    <span class="icon-label editable-label" style="font-size:${labelFs};text-align:center;display:block;" ondblclick="editLabel(this)" title="Double-click to edit">${defaultLabel}</span>
-                    <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
-                `;
-            } else if (val[0] === "NORTH_ARROW") {
-                el.innerHTML = `
-                    <div class="rotate-wrapper">
-                        <svg class="north-arrow-svg" viewBox="-20 -50 40 80" style="width:${northSize};height:calc(${northSize} * 1.6);">
-                            <text x="0" y="-30" font-family="Arial" font-size="22" font-weight="bold" text-anchor="middle" dominant-baseline="central" fill="black">N</text>
-                            <polygon points="0,-15 -12,25 0,15" fill="black"/>
-                            <polygon points="0,-15 12,25 0,15" fill="white" stroke="black" stroke-width="1"/>
-                        </svg>
-                        <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
-                    </div>
-                    <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
-                `;
+            if (code === 'NORTH_ARROW') {
+                el.innerHTML = `<div class="rotate-wrapper">${makeMapSymbolSvg(code, svgSize)}<span class="north-label">N</span><input type="range" class="rotation-slider" min="0" max="360" value="0" style="display:${displayState};" oninput="rotateElement(this)"></div><div class="delete-btn" onclick="this.parentElement.remove()">X</div>`;
             } else {
-                el.innerHTML = `
-                    <div class="rotate-wrapper">
-                        <div class="draggable-icon-style" style="font-size: ${sizePx};">${val[0]}</div>
-                        <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display: ${displayState};" oninput="rotateElement(this)">
-                    </div>
-                    <span class="icon-label editable-label" style="font-size:${labelFs};" ondblclick="editLabel(this)" title="Double-click to edit">${defaultLabel}</span>
-                    <div class="delete-btn" onclick="this.parentElement.remove()">X</div>
-                `;
+                el.innerHTML = `<div class="rotate-wrapper">${makeMapSymbolSvg(code, svgSize)}<input type="range" class="rotation-slider" min="0" max="360" value="0" style="display:${displayState};" oninput="rotateElement(this)"></div><span class="icon-label editable-label" style="font-size:${labelFs};" ondblclick="editLabel(this)" title="Double-click to edit">${defaultLabel}</span><div class="delete-btn" onclick="this.parentElement.remove()">X</div>`;
             }
-            makeElementDraggable(el); itemContainer.appendChild(el);
+            makeElementDraggable(el);
+            itemContainer.appendChild(el);
         }
 
         function drawMultilineCentered(pCtx, text, x, y, lineHeight) {
@@ -1641,7 +1778,13 @@ function loadDefaultBackground() {
             }
         }
 
-        function compileAndSavePDF() {
+        async function compileAndSavePDF() {
+            const pendingSymbols = Array.from(document.querySelectorAll('.vector-map-symbol')).map(node => {
+                const img = getSymbolImage(node);
+                if (!img || (img.complete && img.naturalWidth)) return Promise.resolve();
+                return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
+            });
+            await Promise.all(pendingSymbols);
             const pdfCanvas = document.createElement('canvas');
             pdfCanvas.width = pageTargetWidth; pdfCanvas.height = pageTargetHeight;
             const pCtx = pdfCanvas.getContext('2d');
@@ -1653,6 +1796,7 @@ function loadDefaultBackground() {
                 const posX = parseFloat(item.style.left); const posY = parseFloat(item.style.top);
                 const textNode = item.querySelector('.draggable-text-style');
                 const iconNode = item.querySelector('.draggable-icon-style');
+                const mapSymbolNode = item.querySelector('.vector-map-symbol');
                 const svgNode = item.querySelector('.vector-pole-svg');
                 const northNode = item.querySelector('.north-arrow-svg');
                 const dirArrowNode = item.querySelector('.direction-arrow-svg');
@@ -1700,6 +1844,13 @@ function loadDefaultBackground() {
                     if (labelNode && labelNode.innerText) {
                         pCtx.font = "bold 11px Arial"; pCtx.fillStyle = "black"; pCtx.textAlign = "center"; pCtx.textBaseline = "top";
                         drawMultilineCentered(pCtx, labelNode.innerText, 0, 18, 13);
+                    }
+                } else if (mapSymbolNode) {
+                    const symbolSize = parseFloat(mapSymbolNode.getAttribute('width')) || 45;
+                    drawSvgSymbolOnCanvas(pCtx, mapSymbolNode, 0, -5, symbolSize, symbolSize);
+                    if (labelNode && labelNode.innerText) {
+                        pCtx.font = `bold ${labelNode.style.fontSize || '11px'} Arial`; pCtx.fillStyle = "black"; pCtx.textAlign = "center"; pCtx.textBaseline = "top";
+                        drawMultilineCentered(pCtx, labelNode.innerText, 0, symbolSize/2 + 2, 13);
                     }
                 } else if (qrCanvas) {
                     pCtx.fillStyle = "white"; pCtx.fillRect(-51, -51, 102, 102); 

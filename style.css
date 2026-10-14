@@ -569,3 +569,7 @@ body {
     .saved-map-row { flex-wrap: wrap; }
     .saved-map-actions { width: 100%; justify-content: flex-end; }
 }
+
+/* International-style monochrome vector map symbols */
+.vector-map-symbol { display:block; flex-shrink:0; overflow:visible; }
+.north-label { display:block; font:700 13px Arial,sans-serif; line-height:1; color:#111; margin-bottom:2px; }
