@@ -1,0 +1,3297 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Location Map - Master Location Sketch Studio V4.0</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&display=swap">
+    
+    <!-- PDF.js, jsPDF, QRCode.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <style>
+        :root {
+            --g-bg: #f8f9fa;
+            --g-toolbar: #edf2fa;
+            --g-border: #dadce0;
+            --g-text: #1f1f1f;
+            --g-muted: #5f6368;
+            --g-blue: #1a73e8;
+            --g-blue-light: #d3e3fd;
+            --g-canvas-bg: #e8eaed;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans Malayalam', Arial, sans-serif;
+            background-color: var(--g-canvas-bg);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            color: var(--g-text);
+        }
+
+        /* ================= GOOGLE SLIDES STYLE HEADER ================= */
+        .g-header {
+            background: #ffffff;
+            border-bottom: 1px solid var(--g-border);
+            padding: 6px 14px 2px 14px;
+            display: flex;
+            flex-direction: column;
+            z-index: 300;
+            flex-shrink: 0;
+        }
+
+        .g-title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .g-brand-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .g-doc-icon {
+            width: 36px;
+            height: 36px;
+            background: #fbbc04;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+
+        .g-doc-icon svg {
+            width: 22px;
+            height: 22px;
+            stroke: #fff;
+            fill: none;
+            stroke-width: 2.2;
+        }
+
+        .g-title-stack {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .g-title-input-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .g-doc-title {
+            font-size: 17px;
+            font-weight: 500;
+            color: #1f1f1f;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            padding: 1px 6px;
+            background: transparent;
+            width: 200px;
+        }
+        .g-doc-title:hover { border-color: var(--g-border); }
+        .g-doc-title:focus { border-color: var(--g-blue); outline: none; background: #fff; }
+
+        .g-status-icon {
+            color: var(--g-muted);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+        .g-status-icon:hover { background: #f1f3f4; }
+
+        /* MENU BAR (File, Edit, View, Insert, Format, Slide, Arrange, Tools...) */
+        .g-menubar {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+            margin-top: 1px;
+            flex-wrap: wrap;
+        }
+
+        .g-menu-item {
+            position: relative;
+            font-size: 13px;
+            color: #202124;
+            padding: 3px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .g-menu-item:hover, .g-menu-item.active {
+            background: #f1f3f4;
+        }
+
+        .g-header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .g-pill-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 18px;
+            font-size: 12.5px;
+            font-weight: 600;
+            border: 1px solid var(--g-border);
+            background: #fff;
+            color: #1f1f1f;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .g-pill-btn:hover { background: #f1f3f4; }
+        .g-pill-btn.primary {
+            background: #1a73e8;
+            color: #fff;
+            border-color: #1a73e8;
+        }
+        .g-pill-btn.primary:hover { background: #1557b0; }
+        .g-pill-btn.success {
+            background: #1e8e3e;
+            color: #fff;
+            border-color: #1e8e3e;
+        }
+        .g-pill-btn.success:hover { background: #137333; }
+        .g-pill-btn.purple {
+            background: #8e44ad;
+            color: #fff;
+            border-color: #8e44ad;
+        }
+        .g-pill-btn.danger {
+            background: #d93025;
+            color: #fff;
+            border-color: #d93025;
+        }
+
+        /* ================= GOOGLE SLIDES ROUNDED ICON TOOLBAR ================= */
+        .g-toolbar-wrap {
+            background: #ffffff;
+            padding: 4px 12px 6px 12px;
+            border-bottom: 1px solid var(--g-border);
+            z-index: 250;
+            flex-shrink: 0;
+        }
+
+        .g-toolbar {
+            background: var(--g-toolbar);
+            border-radius: 24px;
+            min-height: 40px;
+            padding: 3px 12px;
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            flex-wrap: wrap;
+        }
+
+        .tb-sep {
+            width: 1px;
+            height: 20px;
+            background: #c7c7c7;
+            margin: 0 4px;
+            flex-shrink: 0;
+        }
+
+        .tb-btn {
+            height: 30px;
+            min-width: 30px;
+            padding: 0 7px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: #1f1f1f;
+            font-size: 12.5px;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            cursor: pointer;
+            position: relative;
+            white-space: nowrap;
+        }
+        .tb-btn:hover { background: rgba(0,0,0,0.07); }
+        .tb-btn.active {
+            background: var(--g-blue-light);
+            color: #0b57d0;
+            font-weight: 600;
+        }
+        .tb-btn svg {
+            width: 17px;
+            height: 17px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.9;
+        }
+
+        .tb-select {
+            height: 28px;
+            padding: 0 6px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            background: transparent;
+            font-size: 12.5px;
+            font-weight: 500;
+            color: #1f1f1f;
+            cursor: pointer;
+        }
+        .tb-select:hover { background: rgba(0,0,0,0.06); border-color: #c7c7c7; }
+        .tb-select:focus { outline: none; border-color: var(--g-blue); background: #fff; }
+
+        .tb-input-num {
+            width: 42px;
+            height: 26px;
+            text-align: center;
+            border: 1px solid #c7c7c7;
+            border-radius: 4px;
+            font-size: 12px;
+            background: #fff;
+        }
+
+        /* ================= DROPDOWN POPOVERS (Line, Shape/Symbols, Menus) ================= */
+        .g-dropdown {
+            position: fixed;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.18), 0 0 1px rgba(0,0,0,0.25);
+            padding: 6px 0;
+            z-index: 2000;
+            display: none;
+            min-width: 250px;
+            max-height: 82vh;
+            overflow-y: auto;
+        }
+        .g-dropdown.open { display: block; }
+
+        .g-dd-header {
+            padding: 6px 14px 4px;
+            font-size: 10.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--g-muted);
+        }
+
+        .g-dd-sep {
+            height: 1px;
+            background: #e8eaed;
+            margin: 5px 0;
+        }
+
+        .g-dd-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 7px 14px;
+            font-size: 13px;
+            color: #1f1f1f;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+        .g-dd-item:hover { background: #f1f3f4; }
+        .g-dd-item.selected {
+            background: #e8f0fe;
+            color: #1a73e8;
+            font-weight: 600;
+        }
+        .g-dd-item .dd-icon {
+            width: 24px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .g-dd-item .dd-shortcut {
+            margin-left: auto;
+            font-size: 11px;
+            color: #80868b;
+        }
+
+        /* Survey Symbols Mega Grid inside Shape Menu */
+        .symbols-mega-panel {
+            width: 480px;
+            max-width: 94vw;
+            padding: 10px 12px;
+        }
+
+        .symbols-controls-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #e8eaed;
+            flex-wrap: wrap;
+        }
+
+        .symbols-search {
+            flex: 1;
+            min-width: 140px;
+            padding: 6px 10px;
+            border: 1px solid var(--g-border);
+            border-radius: 6px;
+            font-size: 12.5px;
+        }
+
+        .symbols-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+            gap: 6px;
+            max-height: 370px;
+            overflow-y: auto;
+            padding: 2px;
+        }
+
+        .symbol-card {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 7px 4px;
+            border: 1px solid #e8eaed;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            background: #fff;
+            transition: all 0.12s;
+        }
+        .symbol-card:hover {
+            background: #e8f0fe;
+            border-color: var(--g-blue);
+            transform: translateY(-1px);
+        }
+        .symbol-card svg {
+            width: 28px;
+            height: 28px;
+            margin-bottom: 4px;
+        }
+        .symbol-card span {
+            font-size: 10.5px;
+            color: #202124;
+            line-height: 1.15;
+            word-break: break-word;
+        }
+
+        /* ================= MAIN BODY: SIDEBAR + RULERS + WORKSPACE ================= */
+        .studio-body {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Left Slide Thumbnail Sidebar (like Google Slides) */
+        .slide-sidebar {
+            width: 195px;
+            background: #ffffff;
+            border-right: 1px solid var(--g-border);
+            display: flex;
+            flex-direction: column;
+            padding: 14px 12px;
+            gap: 12px;
+            z-index: 100;
+            flex-shrink: 0;
+            overflow-y: auto;
+        }
+        .slide-sidebar.hidden { display: none; }
+
+        .slide-thumb-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        .slide-num {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--g-muted);
+            padding-top: 4px;
+        }
+        .slide-thumb-box {
+            flex: 1;
+            border: 2.5px solid #1a73e8;
+            border-radius: 8px;
+            background: #fff;
+            padding: 4px;
+            box-shadow: 0 2px 6px rgba(26,115,232,0.15);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .slide-thumb-box canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+            border: 1px solid #eee;
+        }
+
+        .sidebar-section {
+            border-top: 1px solid #e8eaed;
+            padding-top: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .sidebar-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--g-muted);
+            text-transform: uppercase;
+        }
+
+        /* Center Area with Top & Left Rulers */
+        .stage-column {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+            position: relative;
+        }
+
+        .ruler-top {
+            height: 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid var(--g-border);
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+            background-image: repeating-linear-gradient(to right, #bdbdbd 0, #bdbdbd 1px, transparent 1px, transparent 10px),
+                              repeating-linear-gradient(to right, #757575 0, #757575 1px, transparent 1px, transparent 50px);
+            background-size: 10px 6px, 50px 12px;
+            background-position: 20px bottom;
+            background-repeat: repeat-x;
+        }
+
+        .stage-row {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+            position: relative;
+        }
+
+        .ruler-left {
+            width: 20px;
+            background: #f8f9fa;
+            border-right: 1px solid var(--g-border);
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+            background-image: repeating-linear-gradient(to bottom, #bdbdbd 0, #bdbdbd 1px, transparent 1px, transparent 10px),
+                              repeating-linear-gradient(to bottom, #757575 0, #757575 1px, transparent 1px, transparent 50px);
+            background-size: 6px 10px, 12px 50px;
+            background-position: right 0;
+            background-repeat: repeat-y;
+        }
+
+        /* Canvas Workspace */
+        .workspace-wrapper {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+            position: relative;
+            width: 100%;
+            background-color: #e3e5e8;
+            cursor: default;
+            touch-action: none;
+        }
+
+        .workspace-container {
+            position: absolute;
+            width: 794px;
+            height: 1123px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform-origin: 0 0;
+        }
+
+        .a4-page {
+            width: 794px;
+            height: 1123px;
+            background-color: white;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.22), 0 0 1px rgba(0,0,0,0.3);
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .a4-page.show-grid::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: linear-gradient(to right, rgba(26,115,232,0.08) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(26,115,232,0.08) 1px, transparent 1px);
+            background-size: 20px 20px;
+            pointer-events: none;
+            z-index: 4;
+        }
+
+        .screen-metadata {
+            position: absolute;
+            bottom: -44px;
+            color: #ffffff;
+            font-size: 14px;
+            font-weight: bold;
+            background-color: rgba(20, 30, 40, 0.78);
+            padding: 6px 18px;
+            border-radius: 20px;
+            text-align: center;
+            letter-spacing: 0.4px;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .canvas-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #mapCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        /* Screen-only Watermark */
+        .bg-watermark {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            pointer-events: none;
+            z-index: 5;
+            transform: rotate(-18deg);
+        }
+        .bg-watermark span {
+            font-family: 'Noto Sans Malayalam', Arial, sans-serif;
+            font-size: 15px;
+            font-weight: bold;
+            line-height: 1.6;
+            color: rgba(200, 30, 30, 0.30);
+            letter-spacing: 0.3px;
+            user-select: none;
+        }
+
+        /* Draggable Items (Symbols, Shapes, Text Boxes, QR Codes) */
+        .draggable-item {
+            position: absolute;
+            cursor: grab;
+            user-select: none;
+            touch-action: none;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 50;
+        }
+        .draggable-item:active { cursor: grabbing; }
+        .draggable-item.selected-item {
+            outline: 1.5px dashed #1a73e8;
+            outline-offset: 4px;
+        }
+
+        .rotate-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transition: transform 0.05s linear;
+        }
+
+        .draggable-text-style {
+            font-weight: bold;
+            background-color: transparent;
+            padding: 5px 8px;
+            border: 1px solid transparent;
+            border-radius: 3px;
+            white-space: pre-wrap;
+            width: 170px;
+            min-width: 45px;
+            min-height: 30px;
+            box-sizing: border-box;
+            overflow: auto;
+            resize: both;
+            text-align: center;
+            color: #000000;
+            text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 2px #fff;
+            cursor: text;
+            outline: none;
+            line-height: 1.3;
+            word-break: break-word;
+        }
+        .draggable-text-style.is-selected,
+        .draggable-text-style.is-editing {
+            border: 1px dashed #1a73e8;
+            box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.15);
+            text-shadow: none;
+        }
+        .draggable-text-style.is-placeholder {
+            color: #80868b;
+            font-weight: normal;
+            border: 1px dashed #c0c4c8;
+            background: rgba(255,255,255,0.65);
+            text-shadow: none;
+        }
+
+        .rotation-slider {
+            width: 70px !important;
+            margin-top: 5px;
+            cursor: pointer;
+            display: none;
+        }
+
+        .icon-label {
+            font-size: 11px;
+            background: transparent;
+            display: block;
+            margin-top: 2px;
+            font-weight: bold;
+            color: #000;
+            text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 3px #fff;
+            white-space: pre-line;
+            max-width: 120px;
+            line-height: 1.25;
+            text-align: center;
+            word-break: break-word;
+        }
+
+        .editable-label { cursor: text; outline: none; }
+
+        .delete-btn {
+            position: absolute;
+            top: -11px;
+            right: -11px;
+            background: #d93025;
+            color: white;
+            border-radius: 50%;
+            width: 19px;
+            height: 19px;
+            font-size: 11px;
+            line-height: 19px;
+            text-align: center;
+            cursor: pointer;
+            display: none;
+            font-weight: bold;
+            z-index: 60;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        }
+        .draggable-item:hover .delete-btn,
+        .draggable-item.selected-item .delete-btn { display: block; }
+
+        .vector-map-symbol { display: block; flex-shrink: 0; overflow: visible; }
+        .north-label { display: block; font: 700 13px Arial, sans-serif; line-height: 1; color: #111; margin-bottom: 2px; }
+
+        .draggable-qrcode-wrapper {
+            background: white;
+            padding: 6px;
+            border: 2px solid #2c3e50;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            display: inline-block;
+        }
+        .draggable-qrcode-wrapper canvas,
+        .draggable-qrcode-wrapper img {
+            position: static !important;
+            width: 90px !important;
+            height: 90px !important;
+            display: block;
+        }
+
+        /* Magnifier Loupe */
+        #magnifier {
+            position: fixed;
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            border: 3px solid #1a73e8;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.45);
+            display: none;
+            pointer-events: none;
+            z-index: 9999;
+            overflow: hidden;
+            background-color: white;
+        }
+        #magnifierCanvas { width: 140px; height: 140px; }
+
+        /* Online Users Badge & Active Tool Pill */
+        #onlineUsersBadge {
+            position: fixed;
+            bottom: 14px;
+            right: 16px;
+            z-index: 500;
+            background: rgba(20, 30, 40, 0.86);
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 6px 13px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #2ecc71;
+            animation: pulseDot 1.8s infinite;
+        }
+        @keyframes pulseDot {
+            0% { box-shadow: 0 0 0 0 rgba(46,204,113,0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(46,204,113,0); }
+            100% { box-shadow: 0 0 0 0 rgba(46,204,113,0); }
+        }
+
+        #polyHintBanner {
+            position: fixed;
+            bottom: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1a73e8;
+            color: #fff;
+            padding: 7px 16px;
+            border-radius: 20px;
+            font-size: 12.5px;
+            font-weight: 600;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.28);
+            z-index: 600;
+            display: none;
+        }
+
+        /* Modals & Overlays */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.52);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .modal-overlay.open { display: flex; }
+
+        .modal-card {
+            background: #fff;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 82vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.32);
+            overflow: hidden;
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 13px 18px;
+            background: #f8f9fa;
+            border-bottom: 1px solid var(--g-border);
+        }
+        .modal-header h3 { margin: 0; font-size: 16px; color: #202124; }
+        .modal-body { padding: 16px 18px; overflow-y: auto; flex: 1; }
+        .modal-footer {
+            padding: 10px 18px;
+            border-top: 1px solid var(--g-border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            background: #f8f9fa;
+        }
+
+        /* Toast Notification */
+        #toastBox {
+            position: fixed;
+            top: 96px;
+            right: 20px;
+            background: #202124;
+            color: #fff;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 11000;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+            display: none;
+        }
+
+        .saved-map-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid var(--g-border);
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: #fafbfc;
+        }
+        .saved-map-row:hover { background: #e8f0fe; border-color: #1a73e8; }
+
+        @media (max-width: 768px) {
+            .slide-sidebar { display: none; }
+            .g-doc-title { width: 130px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ================= GOOGLE SLIDES STYLE TOP HEADER ================= -->
+    <header class="g-header">
+        <div class="g-title-row">
+            <div class="g-brand-left">
+                <div class="g-doc-icon" title="Location Sketch Map Studio" onclick="resetZoomAndPan()">
+                    <svg viewBox="0 0 24 24">
+                        <rect x="3" y="4" width="18" height="16" rx="2"/>
+                        <path d="M9 4v16M15 4v16M3 10h18"/>
+                    </svg>
+                </div>
+                <div class="g-title-stack">
+                    <div class="g-title-input-row">
+                        <input type="text" id="docTitleInput" class="g-doc-title" value="Location Map" title="Rename Map">
+                        <span class="g-status-icon" title="Star Document" onclick="this.textContent = this.textContent === '☆' ? '★' : '☆'">☆</span>
+                        <span class="g-status-icon" title="Saved Maps Folder" onclick="openSavedMapsPanel()">📁</span>
+                        <span class="g-status-icon" title="Auto-saved in Browser Storage">☁️</span>
+                    </div>
+                    <!-- Google Slides Menu Bar -->
+                    <nav class="g-menubar">
+                        <div class="g-menu-item" onclick="openMenuDropdown(event, 'fileMenu')">File</div>
+                        <div class="g-menu-item" onclick="openMenuDropdown(event, 'editMenu')">Edit</div>
+                        <div class="g-menu-item" onclick="openMenuDropdown(event, 'viewMenu')">View</div>
+                        <div class="g-menu-item" onclick="openMenuDropdown(event, 'insertMenu')" style="font-weight:600; color:#1a73e8;">Insert</div>
+                        <div class="g-menu-item" onclick="openMenuDropdown(event, 'formatMenu')">Format</div>
+                        <div class="g-menu-item" onclick="openMenuDropdown(event, 'slideMenu')">Slide</div>
+                        <div class="g-menu-item" onclick="openMenuDropdown(event, 'arrangeMenu')">Arrange</div>
+                        <div class="g-menu-item" onclick="openMenuDropdown(event, 'toolsMenu')">Tools</div>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Quick Save & Mode Actions -->
+            <div class="g-header-right">
+                <button class="g-pill-btn" id="deviceModeBtn" onclick="toggleDeviceMode()">🖥️ PC Mode</button>
+                <button class="g-pill-btn" onclick="openModal('qrModal')">📍 Map QR</button>
+                <button class="g-pill-btn purple" onclick="saveNamedMapToIDB()">💾 Save Map</button>
+                <button class="g-pill-btn" onclick="openSavedMapsPanel()">📂 My Maps</button>
+                <button class="g-pill-btn success" onclick="compileAndSavePDF()">📥 Save PDF</button>
+                <button class="g-pill-btn danger" onclick="openModal('clearConfirmModal')">🗑️ Clear</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ================= GOOGLE SLIDES / DRAWINGS ICON TOOLBAR ================= -->
+    <div class="g-toolbar-wrap">
+        <div class="g-toolbar">
+            <!-- Sidebar Toggle & Undo/Redo/Print -->
+            <button class="tb-btn" onclick="toggleSidebar()" title="Toggle Slide Thumbnail Panel">
+                <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="9" y1="4" x2="9" y2="20"/></svg>
+            </button>
+            <button class="tb-btn" onclick="undoLast()" title="Undo Line/Erase (Ctrl+Z)">
+                <svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
+            </button>
+            <button class="tb-btn" onclick="redoLast()" title="Redo Line/Erase (Ctrl+Y)">
+                <svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
+            </button>
+            <button class="tb-btn" onclick="compileAndSavePDF()" title="Print / Export A4 PDF">
+                <svg viewBox="0 0 24 24"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            </button>
+
+            <div class="tb-sep"></div>
+
+            <!-- Zoom Select -->
+            <select id="zoomSelect" class="tb-select" onchange="applyPresetZoom(this.value)" title="Zoom Level">
+                <option value="fit" selected>Fit</option>
+                <option value="0.5">50%</option>
+                <option value="0.75">75%</option>
+                <option value="1">100%</option>
+                <option value="1.25">125%</option>
+                <option value="1.5">150%</option>
+                <option value="2">200%</option>
+            </select>
+
+            <div class="tb-sep"></div>
+
+            <!-- Select / Move Items Cursor (Google Slides Blue Pointer Icon) -->
+            <button id="selectToolBtn" class="tb-btn active" onclick="activateSelectTool()" title="Select / Move Items & Symbols">
+                <svg viewBox="0 0 24 24"><path d="m4 3 7 18 2.5-7.5L21 11z" fill="currentColor"/></svg>
+            </button>
+
+            <!-- Pan / Hand Tool -->
+            <button id="panToolBtn" class="tb-btn" onclick="activatePanTool()" title="Pan / Move Page">
+                <svg viewBox="0 0 24 24"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"/></svg>
+            </button>
+
+            <!-- Text Box Button (T inside box) + Paste -->
+            <button class="tb-btn" onclick="addCustomText()" title="Insert Text Box">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 8h8M12 8v9"/></svg>
+            </button>
+            <button class="tb-btn" onclick="pasteTextFromClipboard()" title="Paste Text with Font from Word/Clipboard">
+                📋
+            </button>
+
+            <!-- INSERT SHAPE & SURVEY SYMBOLS BUTTON (Circle+Square icon from screenshot) -->
+            <button id="shapeDropdownBtn" class="tb-btn" onclick="openMenuDropdown(event, 'shapeSymbolsMenu')" title="Shapes & Survey Conventional Symbols">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="9" cy="9" r="6"/>
+                    <rect x="10" y="10" width="10" height="10" rx="1" fill="#edf2fa"/>
+                </svg>
+                <span>Symbols</span>
+                <span style="font-size:10px;">▾</span>
+            </button>
+
+            <!-- INSERT LINE & DOUBLE ROAD LINE DROPDOWN BUTTON (Diagonal Line icon from screenshot) -->
+            <button id="lineDropdownBtn" class="tb-btn" onclick="openMenuDropdown(event, 'lineToolsMenu')" title="Line, Connectors & Double-Line Roads">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="5" cy="19" r="2.2" fill="currentColor"/>
+                    <circle cx="19" cy="5" r="2.2" fill="currentColor"/>
+                    <line x1="6.5" y1="17.5" x2="17.5" y2="6.5" stroke-width="2.2"/>
+                </svg>
+                <span id="activeLineLabel">Line / Road</span>
+                <span style="font-size:10px;">▾</span>
+            </button>
+
+            <!-- Eraser Button -->
+            <button id="eraserToggleBtn" class="tb-btn" onclick="toggleEraserMode()" title="Eraser Tool">
+                🧽 <span id="eraserStatusText">Eraser</span>
+            </button>
+            <select id="eraserSize" class="tb-select" onchange="updateEraserSize()" title="Eraser Size">
+                <option value="12">S (12px)</option>
+                <option value="20" selected>M (20px)</option>
+                <option value="34">L (34px)</option>
+            </select>
+
+            <div class="tb-sep"></div>
+
+            <!-- Line / Polygon Color & Straight Lock -->
+            <label class="tb-btn" title="Polygon / Shape Fill Color">
+                🎨 <input type="color" id="polygonFillColor" value="#90EE90" style="width:20px;height:20px;border:none;padding:0;background:transparent;cursor:pointer;">
+            </label>
+            <label class="tb-btn" style="font-size:11.5px;" title="Enable Polygon Interior Fill">
+                <input type="checkbox" id="polygonFillEnabled" checked> Fill
+            </label>
+            <label class="tb-btn" style="font-size:11.5px;" title="Snap Road/Line Segments Together">
+                <input type="checkbox" id="straightMode" checked> Snap
+            </label>
+
+            <div class="tb-sep"></div>
+
+            <!-- TEXT FORMATTING: Font Family, Size, B, I, U, Color, Text Align, Line Spacing -->
+            <select id="fontFamilySelect" class="tb-select" style="max-width:125px;" title="Font Family">
+                <option value="Arial" selected>Arial</option>
+                <option value="'Noto Sans Malayalam', Arial">Malayalam (Noto)</option>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Georgia">Georgia</option>
+                <option value="Verdana">Verdana</option>
+                <option value="Tahoma">Tahoma</option>
+                <option value="Trebuchet MS">Trebuchet MS</option>
+                <option value="Courier New">Courier New</option>
+                <option value="Impact">Impact</option>
+            </select>
+
+            <button class="tb-btn" onclick="stepFontSize(-2)" title="Decrease Font Size">−</button>
+            <select id="fontSizeSelect" class="tb-select" title="Font Size">
+                <option value="9px">9</option>
+                <option value="10px">10</option>
+                <option value="11px">11</option>
+                <option value="12px">12</option>
+                <option value="14px">14</option>
+                <option value="16px">16</option>
+                <option value="18px" selected>18</option>
+                <option value="20px">20</option>
+                <option value="24px">24</option>
+                <option value="28px">28</option>
+                <option value="32px">32</option>
+                <option value="42px">42</option>
+            </select>
+            <button class="tb-btn" onclick="stepFontSize(2)" title="Increase Font Size">+</button>
+
+            <button class="tb-btn" id="boldBtn" onclick="toggleTextFormat('bold')" title="Bold" style="font-weight:700;">B</button>
+            <button class="tb-btn" id="italicBtn" onclick="toggleTextFormat('italic')" title="Italic" style="font-style:italic;">I</button>
+            <button class="tb-btn" id="underlineBtn" onclick="toggleTextFormat('underline')" title="Underline" style="text-decoration:underline;">U</button>
+            <label class="tb-btn" title="Text Color">
+                <span style="font-weight:700;border-bottom:3px solid #000;" id="textColorIndicator">A</span>
+                <input type="color" id="textColorPicker" value="#000000" onchange="applyTextColor(this.value)" style="width:0;height:0;opacity:0;position:absolute;">
+            </label>
+
+            <!-- Text & Line Alignment Dropdown -->
+            <button class="tb-btn" onclick="openMenuDropdown(event, 'alignMenu')" title="Text Align, Line Spacing & Item Alignment">
+                <svg viewBox="0 0 24 24"><line x1="3" y1="6" x2="21" y2="6"/><line x1="6" y1="12" x2="18" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+                <span style="font-size:10px;">▾</span>
+            </button>
+
+            <div class="tb-sep"></div>
+
+            <!-- Rotate & Zoom Loupe Toggles -->
+            <button id="rotateToggleBtn" class="tb-btn" onclick="toggleRotateTab()" title="Show Rotation Sliders on Symbols/Text">
+                🔄 Rotate
+            </button>
+            <button id="magnifierToggleBtn" class="tb-btn active" onclick="toggleMagnifier()" title="2x Magnifier Zoom Box while Drawing">
+                🔍 Loupe
+            </button>
+        </div>
+    </div>
+
+    <!-- ================= DROPDOWN 1: LINE & DOUBLE-LINE ROAD MENU (Matches Screenshot + Survey Roads) ================= -->
+    <div id="lineToolsMenu" class="g-dropdown" style="width: 295px;">
+        <div class="g-dd-header">Google Drawing Lines & Connectors</div>
+        <div class="g-dd-item" data-line="basicLine" onclick="selectDrawingLine('basicLine', 'Line')">
+            <span class="dd-icon"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="5" r="2.5"/><line x1="5" y1="19" x2="19" y2="5" stroke="#202124" stroke-width="2"/></svg></span>
+            <span>Line</span>
+            <span class="dd-shortcut">Straight</span>
+        </div>
+        <div class="g-dd-item" data-line="pointerArrow" onclick="selectDrawingLine('pointerArrow', 'Arrow')">
+            <span class="dd-icon"><svg width="18" height="18" viewBox="0 0 24 24"><line x1="5" y1="19" x2="19" y2="5" stroke="#202124" stroke-width="2"/><polyline points="10 5 19 5 19 14" fill="none" stroke="#202124" stroke-width="2"/></svg></span>
+            <span>Arrow</span>
+            <span class="dd-shortcut">Pointer</span>
+        </div>
+        <div class="g-dd-item" data-line="elbowConnector" onclick="selectDrawingLine('elbowConnector', 'Elbow Connector')">
+            <span class="dd-icon"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="4" cy="19" r="2"/><circle cx="20" cy="5" r="2"/><polyline points="4 19 12 19 12 5 20 5" fill="none" stroke="#202124" stroke-width="2"/></svg></span>
+            <span>Elbow Connector</span>
+            <span class="dd-shortcut">90° Bend</span>
+        </div>
+        <div class="g-dd-item" data-line="curvedConnector" onclick="selectDrawingLine('curvedConnector', 'Curved Connector')">
+            <span class="dd-icon"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="4" cy="19" r="2"/><circle cx="20" cy="5" r="2"/><path d="M4 19 C 12 19, 12 5, 20 5" fill="none" stroke="#202124" stroke-width="2"/></svg></span>
+            <span>Curved Connector</span>
+            <span class="dd-shortcut">Smooth</span>
+        </div>
+        <div class="g-dd-item" data-line="curveLine" onclick="selectDrawingLine('curveLine', 'Curve')">
+            <span class="dd-icon"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M3 17 C 8 5, 16 22, 21 7" fill="none" stroke="#202124" stroke-width="2"/></svg></span>
+            <span>Curve</span>
+            <span class="dd-shortcut">Multi-Pt</span>
+        </div>
+        <div class="g-dd-item" data-line="polylineTool" onclick="selectDrawingLine('polylineTool', 'Polyline')">
+            <span class="dd-icon"><svg width="18" height="18" viewBox="0 0 24 24"><polyline points="4 18 9 7 16 15 20 5" fill="none" stroke="#202124" stroke-width="2"/><circle cx="9" cy="7" r="2"/><circle cx="16" cy="15" r="2"/></svg></span>
+            <span>Polyline</span>
+            <span class="dd-shortcut">Click Pts</span>
+        </div>
+        <div class="g-dd-item" data-line="scribbleTool" onclick="selectDrawingLine('scribbleTool', 'Scribble')">
+            <span class="dd-icon"><svg width="18" height="18" viewBox="0 0 24 24"><path d="M3 15c3-6 6 6 9 0s6 4 9-3" fill="none" stroke="#202124" stroke-width="2"/></svg></span>
+            <span>Scribble</span>
+            <span class="dd-shortcut">Freehand</span>
+        </div>
+
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-header">🛣️ Double-Line Roads & Survey Lines</div>
+
+        <div class="g-dd-item selected" data-line="nh" onclick="selectDrawingLine('nh', '🛣️ NH Road')">
+            <span class="dd-icon"><svg width="22" height="14" viewBox="0 0 24 14"><line x1="1" y1="3" x2="23" y2="3" stroke="#000" stroke-width="2.2"/><line x1="1" y1="11" x2="23" y2="11" stroke="#000" stroke-width="2.2"/></svg></span>
+            <span>🛣️ NH Road (Double Line - Wide)</span>
+        </div>
+        <div class="g-dd-item" data-line="sh" onclick="selectDrawingLine('sh', '🛤️ SH Road')">
+            <span class="dd-icon"><svg width="22" height="14" viewBox="0 0 24 14"><line x1="1" y1="4" x2="23" y2="4" stroke="#000" stroke-width="2"/><line x1="1" y1="10" x2="23" y2="10" stroke="#000" stroke-width="2"/></svg></span>
+            <span>🛤️ SH Road (State Highway)</span>
+        </div>
+        <div class="g-dd-item" data-line="pwd" onclick="selectDrawingLine('pwd', 'PWD Road')">
+            <span class="dd-icon"><svg width="22" height="14" viewBox="0 0 24 14"><line x1="1" y1="4.5" x2="23" y2="4.5" stroke="#000" stroke-width="1.8"/><line x1="1" y1="9.5" x2="23" y2="9.5" stroke="#000" stroke-width="1.8"/></svg></span>
+            <span>PWD Road (Double Line)</span>
+        </div>
+        <div class="g-dd-item" data-line="panchayat" onclick="selectDrawingLine('panchayat', 'Panchayat Road')">
+            <span class="dd-icon"><svg width="22" height="14" viewBox="0 0 24 14"><line x1="1" y1="5" x2="23" y2="5" stroke="#000" stroke-width="1.5"/><line x1="1" y1="9" x2="23" y2="9" stroke="#000" stroke-width="1.5"/></svg></span>
+            <span>Panchayat Road (Double Line)</span>
+        </div>
+        <div class="g-dd-item" data-line="mud" onclick="selectDrawingLine('mud', 'Mud Road')">
+            <span class="dd-icon"><svg width="22" height="14" viewBox="0 0 24 14"><line x1="1" y1="4.5" x2="23" y2="4.5" stroke="#000" stroke-width="1.5" stroke-dasharray="4 3"/><line x1="1" y1="9.5" x2="23" y2="9.5" stroke="#000" stroke-width="1.5" stroke-dasharray="4 3"/></svg></span>
+            <span>Mud Road (Dashed Double Line)</span>
+        </div>
+        <div class="g-dd-item" data-line="path" onclick="selectDrawingLine('path', '🚶 Foot Path')">
+            <span class="dd-icon"><svg width="22" height="14" viewBox="0 0 24 14"><line x1="1" y1="7" x2="23" y2="7" stroke="#000" stroke-width="2" stroke-dasharray="2 3"/></svg></span>
+            <span>🚶 Foot Path (Dotted)</span>
+        </div>
+        <div class="g-dd-item" data-line="stream" onclick="selectDrawingLine('stream', '🌊 Stream')">
+            <span class="dd-icon"><svg width="22" height="14" viewBox="0 0 24 14"><line x1="1" y1="7" x2="23" y2="7" stroke="#1769aa" stroke-width="5"/><line x1="1" y1="7" x2="23" y2="7" stroke="#b8d8ef" stroke-width="2.4"/></svg></span>
+            <span>🌊 Stream / Canal (Blue Double)</span>
+        </div>
+        <div class="g-dd-item" data-line="railway" onclick="selectDrawingLine('railway', '🚂 Railway')">
+            <span class="dd-icon"><svg width="22" height="14" viewBox="0 0 24 14"><line x1="1" y1="4.5" x2="23" y2="4.5" stroke="#000" stroke-width="1.4"/><line x1="1" y1="9.5" x2="23" y2="9.5" stroke="#000" stroke-width="1.4"/><line x1="5" y1="2.5" x2="5" y2="11.5" stroke="#000" stroke-width="1.4"/><line x1="12" y1="2.5" x2="12" y2="11.5" stroke="#000" stroke-width="1.4"/><line x1="19" y1="2.5" x2="19" y2="11.5" stroke="#000" stroke-width="1.4"/></svg></span>
+            <span>🚂 Railway Track</span>
+        </div>
+        <div class="g-dd-item" data-line="electricLine" onclick="selectDrawingLine('electricLine', '⚡ Electric Line')">
+            <span class="dd-icon">⚡</span>
+            <span>⚡ Electric Line</span>
+        </div>
+        <div class="g-dd-item" data-line="plotLine" onclick="selectDrawingLine('plotLine', '🟥 Plot Line')">
+            <span class="dd-icon"><svg width="22" height="14" viewBox="0 0 24 14"><line x1="1" y1="7" x2="23" y2="7" stroke="red" stroke-width="2.5"/></svg></span>
+            <span>🟥 Plot Boundary Line (Red)</span>
+        </div>
+        <div class="g-dd-item" data-line="squarePlot" onclick="selectDrawingLine('squarePlot', '🟩 Square Plot')">
+            <span class="dd-icon">🟩</span>
+            <span>🟩 Square Plot / Polygon Box</span>
+        </div>
+    </div>
+
+    <!-- ================= DROPDOWN 2: SHAPES & SURVEY SYMBOLS MEGA MENU ================= -->
+    <div id="shapeSymbolsMenu" class="g-dropdown symbols-mega-panel">
+        <div class="symbols-controls-bar">
+            <input type="text" id="symbolSearchInput" class="symbols-search" placeholder="🔍 Search Survey Symbols (House, Temple, Well, Bridge...)" oninput="filterSymbolGrid(this.value)">
+            <select id="iconSizeSelect" class="tb-select" style="border:1px solid #dadce0;" title="Symbol Size">
+                <option value="small">Small</option>
+                <option value="medium" selected>Medium</option>
+                <option value="large">Large</option>
+            </select>
+            <select id="labelFontSize" class="tb-select" style="border:1px solid #dadce0;" title="Label Font Size">
+                <option value="9px">Label 9px</option>
+                <option value="11px" selected>Label 11px</option>
+                <option value="13px">Label 13px</option>
+                <option value="15px">Label 15px</option>
+            </select>
+        </div>
+        <div class="g-dd-header" style="padding-left:2px;">Click any Survey Symbol or SOI Conventional Sign to Place on Map</div>
+        <div id="symbolsGridContainer" class="symbols-grid"></div>
+    </div>
+
+    <!-- ================= DROPDOWN 3: ALIGNMENT & LINE SPACING MENU ================= -->
+    <div id="alignMenu" class="g-dropdown" style="width: 235px;">
+        <div class="g-dd-header">Text Horizontal Align</div>
+        <div class="g-dd-item" onclick="setTextAlignment('left')"><span>⬅️ Align Left</span></div>
+        <div class="g-dd-item" onclick="setTextAlignment('center')"><span>↔️ Align Center</span></div>
+        <div class="g-dd-item" onclick="setTextAlignment('right')"><span>➡️ Align Right</span></div>
+        <div class="g-dd-item" onclick="setTextAlignment('justify')"><span>☰ Justify</span></div>
+
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-header">Line Spacing (Height)</div>
+        <div class="g-dd-item" onclick="setTextLineHeight('1.0')"><span>1.0 Single</span></div>
+        <div class="g-dd-item" onclick="setTextLineHeight('1.25')"><span>1.25 Compact</span></div>
+        <div class="g-dd-item" onclick="setTextLineHeight('1.5')"><span>1.5 Normal</span></div>
+        <div class="g-dd-item" onclick="setTextLineHeight('2.0')"><span>2.0 Double</span></div>
+
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-header">Selected Item Page Alignment</div>
+        <div class="g-dd-item" onclick="alignSelectedItemOnPage('left')"><span>⇤ Align Left of Page</span></div>
+        <div class="g-dd-item" onclick="alignSelectedItemOnPage('center')"><span> centre Horizontally</span></div>
+        <div class="g-dd-item" onclick="alignSelectedItemOnPage('right')"><span>⇥ Align Right of Page</span></div>
+        <div class="g-dd-item" onclick="alignSelectedItemOnPage('top')"><span>⇡ Align Top of Page</span></div>
+        <div class="g-dd-item" onclick="alignSelectedItemOnPage('middle')"><span>Vertical Center</span></div>
+        <div class="g-dd-item" onclick="alignSelectedItemOnPage('bottom')"><span>⇣ Align Bottom of Page</span></div>
+    </div>
+
+    <!-- ================= TOP MENU BAR DROPDOWNS (File, Edit, View, Insert, Format, Slide, Arrange, Tools) ================= -->
+    <div id="fileMenu" class="g-dropdown">
+        <div class="g-dd-item" onclick="openModal('clearConfirmModal');closeAllDropdowns()"><span>📄 New Blank Sketch</span></div>
+        <div class="g-dd-item" onclick="loadKeralaRevenueTemplate();closeAllDropdowns()"><span>📋 Load Official Location Sketch Template</span></div>
+        <div class="g-dd-item" onclick="document.getElementById('bgUploader').click();closeAllDropdowns()"><span>🖼️ Upload Background (Image / PDF)</span></div>
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-item" onclick="saveNamedMapToIDB();closeAllDropdowns()"><span>💾 Save Map to Browser (IndexedDB)</span></div>
+        <div class="g-dd-item" onclick="openSavedMapsPanel();closeAllDropdowns()"><span>📂 Open Saved Maps</span></div>
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-item" onclick="compileAndSavePDF();closeAllDropdowns()"><span>📥 Download as PDF (A4)</span></div>
+        <div class="g-dd-item" onclick="exportMapAsPNG();closeAllDropdowns()"><span>🖼️ Download as PNG Image</span></div>
+    </div>
+
+    <div id="editMenu" class="g-dropdown">
+        <div class="g-dd-item" onclick="undoLast();closeAllDropdowns()"><span>↩️ Undo Drawing / Erase</span><span class="dd-shortcut">Ctrl+Z</span></div>
+        <div class="g-dd-item" onclick="redoLast();closeAllDropdowns()"><span>↪️ Redo Drawing / Erase</span><span class="dd-shortcut">Ctrl+Y</span></div>
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-item" onclick="undoLastItem();closeAllDropdowns()"><span>↩️ Undo Last Added Symbol/Item</span></div>
+        <div class="g-dd-item" onclick="redoLastItem();closeAllDropdowns()"><span>↪️ Redo Last Symbol/Item</span></div>
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-item" onclick="pasteTextFromClipboard();closeAllDropdowns()"><span>📋 Paste Text with Formatting</span><span class="dd-shortcut">Ctrl+V</span></div>
+        <div class="g-dd-item" onclick="deleteSelectedItem();closeAllDropdowns()"><span>🗑️ Delete Selected Item</span><span class="dd-shortcut">Del</span></div>
+    </div>
+
+    <div id="viewMenu" class="g-dropdown">
+        <div class="g-dd-item" onclick="resetZoomAndPan();closeAllDropdowns()"><span>🔍 Zoom to Fit Page</span></div>
+        <div class="g-dd-item" onclick="toggleGridLines();closeAllDropdowns()"><span>📏 Toggle Drawing Grid</span></div>
+        <div class="g-dd-item" onclick="toggleMagnifier();closeAllDropdowns()"><span>🔎 Toggle 2x Zoom Loupe</span></div>
+        <div class="g-dd-item" onclick="toggleSidebar();closeAllDropdowns()"><span>📑 Toggle Left Thumbnail Panel</span></div>
+    </div>
+
+    <!-- INSERT MENU: Directly exposes Text Box, Shape/Survey Symbols, Line/Double-Line Roads, QR Code, Background -->
+    <div id="insertMenu" class="g-dropdown" style="width: 260px;">
+        <div class="g-dd-item" onclick="addCustomText();closeAllDropdowns()">
+            <span class="dd-icon">📝</span>
+            <span>Text Box</span>
+        </div>
+        <div class="g-dd-item" onclick="closeAllDropdowns();openMenuById('shapeSymbolsMenu', document.getElementById('shapeDropdownBtn'))">
+            <span class="dd-icon">🏛️</span>
+            <span>Shape & Survey Symbols ▸</span>
+        </div>
+        <div class="g-dd-item" onclick="closeAllDropdowns();openMenuById('lineToolsMenu', document.getElementById('lineDropdownBtn'))">
+            <span class="dd-icon">🛣️</span>
+            <span>Line & Double-Line Roads ▸</span>
+        </div>
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-item" onclick="closeAllDropdowns();openModal('qrModal')">
+            <span class="dd-icon">📍</span>
+            <span>Google Map QR Code</span>
+        </div>
+        <div class="g-dd-item" onclick="closeAllDropdowns();addQuickSymbol('NORTH_ARROW','North Arrow')">
+            <span class="dd-icon">🧭</span>
+            <span>North Compass Arrow</span>
+        </div>
+        <div class="g-dd-item" onclick="closeAllDropdowns();addQuickSymbol('PLOT_MARKER','Main Plot')">
+            <span class="dd-icon">📐</span>
+            <span>Main Plot Marker</span>
+        </div>
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-item" onclick="closeAllDropdowns();document.getElementById('bgUploader').click()">
+            <span class="dd-icon">🖼️</span>
+            <span>Background Image / PDF</span>
+        </div>
+    </div>
+
+    <div id="formatMenu" class="g-dropdown">
+        <div class="g-dd-item" onclick="toggleTextFormat('bold');closeAllDropdowns()"><span><b>B</b> Bold Text</span></div>
+        <div class="g-dd-item" onclick="toggleTextFormat('italic');closeAllDropdowns()"><span><i>I</i> Italic Text</span></div>
+        <div class="g-dd-item" onclick="toggleTextFormat('underline');closeAllDropdowns()"><span><u>U</u> Underline Text</span></div>
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-item" onclick="setTextAlignment('left');closeAllDropdowns()"><span>⬅️ Align Left</span></div>
+        <div class="g-dd-item" onclick="setTextAlignment('center');closeAllDropdowns()"><span>↔️ Align Center</span></div>
+        <div class="g-dd-item" onclick="setTextAlignment('right');closeAllDropdowns()"><span>➡️ Align Right</span></div>
+    </div>
+
+    <div id="slideMenu" class="g-dropdown">
+        <div class="g-dd-item" onclick="setOrientationValue('portrait');closeAllDropdowns()"><span>▯ Portrait Page (A4)</span></div>
+        <div class="g-dd-item" onclick="setOrientationValue('landscape');closeAllDropdowns()"><span>▭ Landscape Page (A4)</span></div>
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-item" onclick="loadKeralaRevenueTemplate();closeAllDropdowns()"><span>📄 Apply Village Office Sketch Form</span></div>
+        <div class="g-dd-item" onclick="removeUploadedBackground();closeAllDropdowns()"><span>❌ Clear Background Template</span></div>
+    </div>
+
+    <div id="arrangeMenu" class="g-dropdown">
+        <div class="g-dd-item" onclick="toggleRotateTab();closeAllDropdowns()"><span>🔄 Toggle Rotation Sliders</span></div>
+        <div class="g-dd-item" onclick="bringSelectedToFront();closeAllDropdowns()"><span>⬆️ Bring Selected Item to Front</span></div>
+        <div class="g-dd-item" onclick="alignSelectedItemOnPage('center');closeAllDropdowns()"><span>↔️ Center Item Horizontally</span></div>
+        <div class="g-dd-item" onclick="alignSelectedItemOnPage('middle');closeAllDropdowns()"><span>↕️ Center Item Vertically</span></div>
+    </div>
+
+    <div id="toolsMenu" class="g-dropdown">
+        <div class="g-dd-item" onclick="toggleEraserMode();closeAllDropdowns()"><span>🧽 Toggle Eraser Mode</span></div>
+        <div class="g-dd-item" onclick="openModal('qrModal');closeAllDropdowns()"><span>📍 Location QR Generator</span></div>
+        <div class="g-dd-item" onclick="toggleDeviceMode();closeAllDropdowns()"><span>📱 Switch PC / Mobile Touch Mode</span></div>
+    </div>
+
+    <!-- Hidden File Input for Background Image / PDF -->
+    <input type="file" id="bgUploader" accept="image/*,application/pdf" style="display:none;">
+    <!-- Hidden Road Type Select for compatibility -->
+    <select id="roadType" style="display:none;">
+        <option value="nh" selected>NH</option>
+        <option value="sh">SH</option>
+        <option value="pwd">PWD</option>
+        <option value="panchayat">Panchayat</option>
+        <option value="mud">Mud</option>
+        <option value="path">Path</option>
+        <option value="stream">Stream</option>
+        <option value="railway">Railway</option>
+        <option value="electricLine">Electric</option>
+        <option value="plotLine">Plot</option>
+        <option value="squarePlot">Square Plot</option>
+        <option value="pointerArrow">Arrow</option>
+        <option value="basicLine">Line</option>
+        <option value="elbowConnector">Elbow Connector</option>
+        <option value="curvedConnector">Curved Connector</option>
+        <option value="curveLine">Curve</option>
+        <option value="polylineTool">Polyline</option>
+        <option value="scribbleTool">Scribble</option>
+    </select>
+
+    <!-- ================= MAIN STUDIO WORKSPACE ================= -->
+    <div class="studio-body">
+        <!-- Left Thumbnail Sidebar (Matches Google Slides Screenshot) -->
+        <aside class="slide-sidebar" id="slideSidebar">
+            <div class="slide-thumb-row">
+                <span class="slide-num">1</span>
+                <div class="slide-thumb-box" onclick="resetZoomAndPan()" title="Click to Center Page">
+                    <canvas id="thumbCanvas" width="150" height="212"></canvas>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <span class="sidebar-label">Page Setup</span>
+                <select id="pageOrientation" class="tb-select" style="border:1px solid #dadce0;width:100%;height:32px;" onchange="changePageOrientation()">
+                    <option value="portrait" selected>▯ Portrait (A4)</option>
+                    <option value="landscape">▭ Landscape (A4)</option>
+                </select>
+            </div>
+
+            <div class="sidebar-section">
+                <span class="sidebar-label">Background Form</span>
+                <button class="g-pill-btn" style="width:100%;justify-content:center;" onclick="document.getElementById('bgUploader').click()">🖼️ Upload Image/PDF</button>
+                <button class="g-pill-btn" style="width:100%;justify-content:center;" onclick="loadKeralaRevenueTemplate()">📋 Official Form</button>
+                <button class="g-pill-btn" style="width:100%;justify-content:center;color:#d93025;" onclick="removeUploadedBackground()">❌ Remove BG</button>
+            </div>
+
+            <div class="sidebar-section">
+                <span class="sidebar-label">Quick Add</span>
+                <button class="g-pill-btn" style="width:100%;justify-content:center;" onclick="addQuickSymbol('NORTH_ARROW','North Arrow')">🧭 North Arrow</button>
+                <button class="g-pill-btn" style="width:100%;justify-content:center;" onclick="addQuickSymbol('HOUSE','House')">🏠 House</button>
+                <button class="g-pill-btn" style="width:100%;justify-content:center;" onclick="addCustomText()">📝 Text Box</button>
+            </div>
+        </aside>
+
+        <!-- Rulers + Canvas Stage -->
+        <div class="stage-column">
+            <div class="ruler-top"></div>
+            <div class="stage-row">
+                <div class="ruler-left"></div>
+                <div class="workspace-wrapper" id="wrapper">
+                    <div class="workspace-container" id="container">
+                        <div class="a4-page" id="a4Page">
+                            <div class="canvas-container" id="canvasContainer">
+                                <canvas id="mapCanvas" width="794" height="1123"></canvas>
+                                <div class="bg-watermark" id="bgWatermark">
+                                    <span>ഇത് ഒരു മാതൃക (ടെംപ്ലേറ്റ്) മാത്രമാണ്<br>ഇത് മാറ്റാൻ / നീക്കം ചെയ്യാൻ മുകളിൽ Insert → Background എന്നതിൽ<br>പുതിയ ഫയൽ അപ്‌ലോഡ് ചെയ്യുക അല്ലെങ്കിൽ ❌ Remove BG ക്ലിക്ക് ചെയ്യുക</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="screen-metadata">👤 Muraleedharan P | 📞 9400849115</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Polyline / Curve Helper Banner -->
+    <div id="polyHintBanner">
+        ✏️ Click points on the map to add vertices • <b>Double-Click</b> or press <b>Enter</b> to finish line
+    </div>
+
+    <!-- Magnifier Loupe -->
+    <div id="magnifier">
+        <canvas id="magnifierCanvas" width="140" height="140"></canvas>
+    </div>
+
+    <!-- Online Users Counter -->
+    <div id="onlineUsersBadge" title="Users currently using this tool">
+        <span class="pulse-dot"></span>
+        <span id="onlineUsersCount">12</span> Online
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toastBox"></div>
+
+    <!-- ================= MODAL 1: QR CODE GENERATOR ================= -->
+    <div id="qrModal" class="modal-overlay" onclick="if(event.target===this)closeModal('qrModal')">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>📍 Generate Google Map Location QR Code</h3>
+                <button class="tb-btn" onclick="closeModal('qrModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-top:0;font-size:13px;color:#5f6368;">Paste a Google Maps Share Link or GPS coordinates below to place a scannable QR code on your sketch:</p>
+                <input type="text" id="mapLinkInput" placeholder="https://maps.google.com/?q=..." style="width:100%;padding:10px 12px;border:1px solid #dadce0;border-radius:6px;font-size:13.5px;margin-bottom:10px;">
+                <input type="text" id="qrCustomLabel" value="📍 Scan for Location" placeholder="QR Label..." style="width:100%;padding:8px 12px;border:1px solid #dadce0;border-radius:6px;font-size:13px;">
+            </div>
+            <div class="modal-footer">
+                <button class="g-pill-btn" onclick="closeModal('qrModal')">Cancel</button>
+                <button class="g-pill-btn primary" onclick="addGoogleMapQRCode()">➕ Insert QR on Map</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 2: SAVED MAPS (IndexedDB) ================= -->
+    <div id="savedMapsOverlay" class="modal-overlay" onclick="if(event.target===this)closeSavedMapsPanel()">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3>📂 Saved Location Maps (IndexedDB)</h3>
+                <button class="tb-btn" onclick="closeSavedMapsPanel()">✕</button>
+            </div>
+            <div class="modal-body" id="savedMapsList">
+                <div style="text-align:center;color:#80868b;padding:24px;">Loading…</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= MODAL 3: CLEAR CONFIRM ================= -->
+    <div id="clearConfirmModal" class="modal-overlay" onclick="if(event.target===this)closeModal('clearConfirmModal')">
+        <div class="modal-card" style="max-width:380px;">
+            <div class="modal-header">
+                <h3>🗑️ Clear Entire Sketch?</h3>
+                <button class="tb-btn" onclick="closeModal('clearConfirmModal')">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin:0;font-size:13.5px;">Are you sure you want to clear all drawn roads, lines, and symbols from the canvas?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="g-pill-btn" onclick="closeModal('clearConfirmModal')">Cancel</button>
+                <button class="g-pill-btn danger" onclick="resetSketchState();closeModal('clearConfirmModal')">Yes, Clear All</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= APPLICATION SCRIPT ================= -->
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        const wrapper = document.getElementById('wrapper');
+        const container = document.getElementById('container');
+        const a4Page = document.getElementById('a4Page');
+        const canvas = document.getElementById('mapCanvas');
+        const ctx = canvas.getContext('2d');
+        const itemContainer = document.getElementById('canvasContainer');
+        const thumbCanvas = document.getElementById('thumbCanvas');
+        const thumbCtx = thumbCanvas.getContext('2d');
+        const magnifier = document.getElementById('magnifier');
+        const magCanvas = document.getElementById('magnifierCanvas');
+        const magCtx = magCanvas.getContext('2d');
+
+        let zoomScale = 1;
+        let panX = 0;
+        let panY = 0;
+        let isPanning = false;
+        let startX = 0;
+        let startY = 0;
+        let offSubMode = 'items';
+        let rotateTabActive = false;
+        let currentDeviceMode = 'pc';
+        let magnifierEnabled = true;
+
+        let pageTargetWidth = 794;
+        let pageTargetHeight = 1123;
+
+        let isMovingDrawingBlock = false;
+        let blockOffsetX = 0;
+        let blockOffsetY = 0;
+        let globalDrawingTranslateX = 0;
+        let globalDrawingTranslateY = 0;
+
+        let drawModeOn = false;
+        let eraseModeOn = false;
+        let isErasing = false;
+        let eraserRadius = 20;
+        let eraserPointerModel = null;
+        let eraseStrokeSnapshot = null;
+        let eraseSnapshotStack = [];
+        let eraseRedoStack = [];
+        let lastActionType = null;
+        let lastUndoWasErase = false;
+
+        let isDrawing = false;
+        let paths = [];
+        let currentPath = [];
+        let bgImage = null;
+        let activePathIndex = null;
+        let multiPointPolyActive = false;
+
+        let activeTextBox = null;
+        let selectedDraggableItem = null;
+
+        // Toast Helper (replaces native alert)
+        let toastTimer = null;
+        function showToast(msg) {
+            const box = document.getElementById('toastBox');
+            box.textContent = msg;
+            box.style.display = 'block';
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => { box.style.display = 'none'; }, 3200);
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.add('open');
+        }
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('open');
+        }
+
+        // ================= OFFICIAL KERALA LOCATION SKETCH FORM GENERATOR =================
+        function createOfficialTemplateDataURL() {
+            const tCanvas = document.createElement('canvas');
+            tCanvas.width = 794;
+            tCanvas.height = 1123;
+            const tCtx = tCanvas.getContext('2d');
+
+            tCtx.fillStyle = '#ffffff';
+            tCtx.fillRect(0, 0, 794, 1123);
+
+            // Outer Double Border (mirrors screenshot template)
+            tCtx.strokeStyle = '#333333';
+            tCtx.lineWidth = 2;
+            tCtx.strokeRect(28, 28, 738, 1067);
+            tCtx.lineWidth = 1;
+            tCtx.strokeRect(33, 33, 728, 1057);
+
+            // Header Title
+            tCtx.fillStyle = '#111111';
+            tCtx.font = 'bold 20px Arial';
+            tCtx.textAlign = 'center';
+            tCtx.fillText('LOCATION SKETCH / ലൊക്കേഷൻ സ്കെച്ച്', 397, 68);
+
+            tCtx.font = '12px Arial';
+            tCtx.textAlign = 'left';
+            tCtx.fillText('District / ജില്ല : ..............................................', 52, 100);
+            tCtx.fillText('Taluk / താലൂക്ക് : ..........................................', 310, 100);
+            tCtx.fillText('Village / വില്ലേജ് : ........................................', 545, 100);
+
+            tCtx.fillText('Re-Survey / Block No : ..................................', 52, 126);
+            tCtx.fillText('Thandaper / തണ്ടപ്പേർ : .................................', 310, 126);
+            tCtx.fillText('Extent / വിസ്തീർണ്ണം : ...............................', 545, 126);
+
+            // Main Sketch Drawing Frame
+            tCtx.lineWidth = 1.5;
+            tCtx.strokeRect(48, 145, 698, 795);
+
+            // Footer Certificate & Signature Boxes
+            tCtx.font = '12px Arial';
+            tCtx.fillText('Name & Address of Applicant : ..........................................................................................................', 52, 968);
+            tCtx.fillText('Purpose of Location Sketch : ............................................................................................................', 52, 994);
+
+            tCtx.fillText('Prepared by:', 52, 1045);
+            tCtx.fillText(' Countersigned by:', 330, 1045);
+            tCtx.fillText('Village Officer (Seal & Sign):', 565, 1045);
+
+            return tCanvas.toDataURL('image/png');
+        }
+
+        function loadKeralaRevenueTemplate() {
+            bgImage = new Image();
+            bgImage.onload = function() {
+                document.getElementById('bgWatermark').style.display = 'flex';
+                redrawAll();
+            };
+            bgImage.src = createOfficialTemplateDataURL();
+        }
+
+        // ================= DROPDOWN MENUS LOGIC =================
+        function closeAllDropdowns() {
+            document.querySelectorAll('.g-dropdown').forEach(d => d.classList.remove('open'));
+            document.querySelectorAll('.g-menu-item').forEach(m => m.classList.remove('active'));
+        }
+
+        function openMenuDropdown(e, menuId) {
+            e.stopPropagation();
+            const menu = document.getElementById(menuId);
+            const wasOpen = menu.classList.contains('open');
+            closeAllDropdowns();
+            if (!wasOpen) {
+                openMenuById(menuId, e.currentTarget);
+            }
+        }
+
+        function openMenuById(menuId, anchorEl) {
+            const menu = document.getElementById(menuId);
+            if (!menu || !anchorEl) return;
+            const rect = anchorEl.getBoundingClientRect();
+            menu.classList.add('open');
+            let left = rect.left;
+            let top = rect.bottom + 4;
+            const mWidth = menu.offsetWidth || 280;
+            if (left + mWidth > window.innerWidth - 12) {
+                left = Math.max(10, window.innerWidth - mWidth - 12);
+            }
+            menu.style.left = left + 'px';
+            menu.style.top = top + 'px';
+        }
+
+        window.addEventListener('click', (e) => {
+            if (!e.target.closest('.g-dropdown')) {
+                closeAllDropdowns();
+            }
+        });
+
+        // ================= LINE & DOUBLE-LINE ROAD STYLES =================
+        const roadStyles = {
+            nh:              { outerWidth: 20,  outerColor: '#000000', innerWidth: 16.5, innerColor: '#ffffff', isBox: false, isRoad: true },
+            sh:              { outerWidth: 15,  outerColor: '#000000', innerWidth: 11.7, innerColor: '#ffffff', isBox: false, isRoad: true },
+            pwd:             { outerWidth: 12,  outerColor: '#000000', innerWidth: 8.7,  innerColor: '#ffffff', isBox: false, isRoad: true },
+            panchayat:       { outerWidth: 10,  outerColor: '#000000', innerWidth: 6.7,  innerColor: '#ffffff', isBox: false, isRoad: true },
+            mud:             { outerWidth: 8,   outerColor: '#000000', innerWidth: 5.4,  innerColor: '#ffffff', dash: [8, 5], isBox: false, isRoad: true },
+            path:            { outerWidth: 1.8, outerColor: '#000000', innerWidth: 0,    innerColor: 'transparent', dash: [2, 4], isBox: false, isRoad: true },
+            stream:          { outerWidth: 5,   outerColor: '#1769aa', innerWidth: 2.4,  innerColor: '#b8d8ef', isBox: false },
+            plotLine:        { outerWidth: 2.2, outerColor: '#d93025', innerWidth: 0,    innerColor: 'transparent', isBox: false },
+            railway:         { outerWidth: 1.4, outerColor: '#202020', innerWidth: 0,    innerColor: 'transparent', isBox: false, isRailway: true },
+            electricLine:    { outerWidth: 1.6, outerColor: '#333333', innerWidth: 0,    innerColor: 'transparent', dash: [5, 5], isBox: false, isElectric: true },
+            squarePlot:      { outerWidth: 2,   outerColor: '#d93025', innerWidth: 0,    innerColor: 'transparent', isBox: true },
+            pointerArrow:    { outerWidth: 2,   outerColor: '#000000', innerWidth: 0,    innerColor: 'transparent', isBox: false, isArrow: true },
+            basicLine:       { outerWidth: 2,   outerColor: '#000000', innerWidth: 0,    innerColor: 'transparent', isBox: false },
+            elbowConnector:  { outerWidth: 2,   outerColor: '#000000', innerWidth: 0,    innerColor: 'transparent', isBox: false, isElbow: true },
+            curvedConnector: { outerWidth: 2,   outerColor: '#000000', innerWidth: 0,    innerColor: 'transparent', isBox: false, isCurvedConn: true },
+            curveLine:       { outerWidth: 2,   outerColor: '#000000', innerWidth: 0,    innerColor: 'transparent', isBox: false, isSmoothCurve: true, isMultiVertex: true },
+            polylineTool:    { outerWidth: 2,   outerColor: '#000000', innerWidth: 0,    innerColor: 'transparent', isBox: false, isMultiVertex: true },
+            scribbleTool:    { outerWidth: 2,   outerColor: '#000000', innerWidth: 0,    innerColor: 'transparent', isBox: false, isFreehand: true }
+        };
+
+        function selectDrawingLine(typeKey, labelText) {
+            finishActiveMultiVertexPath();
+            document.getElementById('roadType').value = typeKey;
+            document.getElementById('activeLineLabel').textContent = labelText;
+
+            document.querySelectorAll('#lineToolsMenu .g-dd-item').forEach(item => {
+                item.classList.toggle('selected', item.dataset.line === typeKey);
+            });
+
+            if (eraseModeOn) toggleEraserMode();
+            drawModeOn = true;
+            updateToolButtonsUI();
+            closeAllDropdowns();
+
+            const st = roadStyles[typeKey];
+            document.getElementById('polyHintBanner').style.display = (st && st.isMultiVertex) ? 'block' : 'none';
+        }
+
+        function activateSelectTool() {
+            finishActiveMultiVertexPath();
+            drawModeOn = false;
+            if (eraseModeOn) toggleEraserMode();
+            offSubMode = 'items';
+            updateToolButtonsUI();
+            document.getElementById('polyHintBanner').style.display = 'none';
+        }
+
+        function activatePanTool() {
+            finishActiveMultiVertexPath();
+            drawModeOn = false;
+            if (eraseModeOn) toggleEraserMode();
+            offSubMode = 'page';
+            updateToolButtonsUI();
+            document.getElementById('polyHintBanner').style.display = 'none';
+        }
+
+        function updateToolButtonsUI() {
+            const selectBtn = document.getElementById('selectToolBtn');
+            const panBtn = document.getElementById('panToolBtn');
+            const lineBtn = document.getElementById('lineDropdownBtn');
+            const eraserBtn = document.getElementById('eraserToggleBtn');
+
+            selectBtn.classList.toggle('active', !drawModeOn && !eraseModeOn && offSubMode === 'items');
+            panBtn.classList.toggle('active', !drawModeOn && !eraseModeOn && offSubMode === 'page');
+            lineBtn.classList.toggle('active', drawModeOn);
+            eraserBtn.classList.toggle('active', eraseModeOn);
+
+            if (drawModeOn || eraseModeOn) {
+                canvas.style.cursor = 'crosshair';
+            } else if (offSubMode === 'page') {
+                canvas.style.cursor = 'grab';
+            } else {
+                canvas.style.cursor = 'default';
+            }
+        }
+
+        // ================= SURVEY SYMBOLS & SOI CONVENTIONAL SIGNS =================
+        const MAP_SYMBOLS = {
+            NORTH_ARROW:'<path d="M12 2 4 21l8-5 8 5z"/><path d="M12 2v14"/>',
+            DIR_ARROW:'<path d="M2 12h18m-7-7 7 7-7 7"/>',
+            PLOT_MARKER:'<path d="M12 2 21 20H3Z"/><circle cx="12" cy="14" r="2.5"/>',
+            UTILITY_POLE:'<path d="M12 22V3M4 7h16M7 4h10M5 7l-2 3m16-3 2 3M8 10h8M9 13h6"/>',
+            HOUSE:'<path d="M3 11 12 3l9 8M5.5 9.5V21h13V9.5M9 21v-7h6v7"/>',
+            BUILDING:'<rect x="5" y="2.5" width="14" height="19" rx="1"/><path d="M8 6h2m4 0h2M8 10h2m4 0h2M8 14h2m4 0h2M10 21v-4h4v4"/>',
+            TEMPLE:'<path d="M3 10h18M5 10v10m14-10v10M3 20h18M12 3 4 8h16zM9 14h6M12 10v10"/>',
+            MOSQUE:'<path d="M3 20V11h18v9M2 20h20M7 11V8a5 5 0 0 1 10 0v3M12 3V1M6 6 4 4m14 2 2-2M10 20v-5h4v5"/>',
+            CHURCH:'<path d="M4 21V10l8-5 8 5v11M2 21h20M12 2v8m-3-5h6M9 21v-6h6v6"/>',
+            TREE:'<path d="M12 2 5 11h4l-5 6h6v5h4v-5h6l-5-6h4z"/>',
+            COCONUT_TREE:'<path d="M12 21 13 9M13 9C8 7 6 5 5 3c4 0 7 2 8 5 1-4 4-6 7-6-1 4-3 6-7 7M13 9c-3-2-6-2-9-1 2 3 5 4 9 3m0-2c3-2 5-2 8-1-2 3-5 4-8 3"/>',
+            POND:'<path d="M3 8c2-2 4 2 6 0s4-2 6 0 4 2 6 0M3 13c2-2 4 2 6 0s4-2 6 0 4 2 6 0M3 18c2-2 4 2 6 0s4-2 6 0 4 2 6 0"/>',
+            WELL:'<path d="M4 8h16M6 8v12h12V8M3 20h18M8 5h8M12 2v3M8 12h8"/>',
+            JUNCTION:'<circle cx="12" cy="12" r="9"/><path d="M12 3v6m0 6v6M3 12h6m6 0h6"/>',
+            PETROL_PUMP:'<rect x="5" y="3" width="11" height="18" rx="1.5"/><path d="M8 6h5v5H8zM16 7h2l2 3v7a2 2 0 0 1-4 0v-5M8 21v-2m5 2v-2"/>',
+            HOSPITAL:'<rect x="3" y="4" width="18" height="17" rx="1"/><path d="M10 8h4m-2-2v8M8 21v-5h8v5"/>',
+            BANK:'<path d="M2 8h20L12 3zM4 10v8m5-8v8m6-8v8m5-8v8M2 21h20M3 18h18"/>',
+            SCHOOL:'<path d="M3 21V8l9-5 9 5v13M2 8h20M8 21v-6h8v6M7 10h2m6 0h2"/>',
+            BUS_STOP:'<rect x="4" y="3" width="16" height="15" rx="3"/><path d="M7 7h10v5H7zM7 18l-2 3m12-3 2 3M4 15h16M8 18v1m8-1v1"/>',
+            RAILWAY_STATION:'<path d="M7 3h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V6a3 3 0 0 1 3-3zM7 7h10v5H7zM8 19l-3 3m11-3 3 3M8 16h.01M16 16h.01"/>',
+            POLICE_STATION:'<path d="M12 2 21 6v6c0 5-4 8-9 10-5-2-9-5-9-10V6z"/><path d="M12 7v10m-5-5h10"/>',
+            FIRE_STATION:'<path d="M12 2c2 4-1 5 2 8 1-2 2-3 2-4 4 4 5 7 3 11a8 8 0 0 1-14-1c-1-4 1-7 4-10 0 3 1 4 2 5 2-3 1-6 1-9z"/>',
+            VILLAGE_OFFICE:'<path d="M2 9 12 3l10 6M4 10h16M5 10v9m4-9v9m6-9v9m4-9v9M2 21h20M10 14h4"/>',
+            PANCHAYAT_OFFICE:'<path d="M3 21V8l9-5 9 5v13M2 8h20M7 12h3m4 0h3M7 16h3m4 0h3M10 21v-3h4v3"/>',
+            SHOP:'<path d="M4 10v11h16V10M3 10l2-6h14l2 6M3 10a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 5 0M8 21v-6h5v6"/>',
+            MARKET:'<path d="M3 9h18l-2-5H5zM4 9v12h16V9M8 13h8v8"/>',
+            POST_OFFICE:'<rect x="3" y="5" width="18" height="14" rx="1"/><path d="m4 7 8 6 8-6M3 18l6-6m12 6-6-6"/>',
+            MOBILE_TOWER:'<path d="m12 3-7 18m7-18 7 18M8 13h8M6 18h12M10 8h4M3 7a13 13 0 0 1 0 10M21 7a13 13 0 0 0 0 10"/>',
+            TRANSFORMER:'<path d="M4 6h16v12H4zM8 6V3m8 3V3M8 18v3m8-3v3M7 9h3v6H7zm7 0h3v6h-3z"/>',
+            WATER_TANK:'<path d="M4 8h16l-2 13H6zM3 8h18M7 5h10M9 5V3h6v2M8 12h8"/>',
+            WATER_TAP:'<path d="M4 8h12a3 3 0 0 1 3 3v2M8 8V5h8v3M4 5h4M19 13v3m-2-1h4M19 19v2"/>',
+            BRIDGE:'<path d="M2 8h20M4 8v12m16-12v12M2 20h20M4 8c2 8 14 8 16 0M8 10v5m8-5v5"/>',
+            PARKING:'<circle cx="12" cy="12" r="9"/><path d="M9 18V6h4a4 4 0 0 1 0 8H9"/>',
+            FACTORY:'<path d="M3 21V10l6 4V9l6 5V6h3l3 4v11zM6 18h2m3 0h2m3 0h2M15 3h3"/>',
+            CONSTRUCTION:'<path d="M3 21h18M6 21V8h12v13M4 8h16M8 8V4h8v4M9 12h6m-6 4h6"/>',
+            FOREST:'<path d="M7 2 2 10h3l-3 5h5v6h4v-6h4l-3-5h3L10 2zM17 7l-4 6h3l-2 4h4v4h3v-4h2l-2-4h2z"/>',
+            CEMETERY:'<path d="M7 21V9a3 3 0 0 1 6 0v12M4 21h12M15 21V12a3 3 0 0 1 6 0v9M17 14h2"/>',
+            FARM:'<path d="M3 21V10l9-6 9 6v11M2 21h20M8 21v-6h8v6M6 11h3m6 0h3"/>',
+            CATTLE_FARM:'<path d="M4 11 3 7l4 2h10l4-2-1 4v7H4zM8 18v3m8-3v3M10 15h4"/>',
+            AUTO_STAND:'<path d="M4 15 6 8h12l2 7v5H4zM6 15h12M7 20v2m10-2v2M7 11h10"/>',
+            TAXI_STAND:'<path d="M3 14 5 8h14l2 6v6H3zM5 14h14M7 20v2m10-2v2M8 5h8v3H8z"/>',
+            HARBOUR:'<path d="M12 3v13M8 7h8M3 13l9 5 9-5M4 17c2 3 4 4 8 4s6-1 8-4"/>',
+            GROUND:'<path d="M3 18c3-2 5-2 9 0s6 2 9 0M4 14l8-10 8 10zM8 14v-3h8v3"/>',
+            ROAD_WORK:'<path d="m12 3 9 17H3zM12 9v5m0 3h.01M6 21l2-3m10 3-2-3"/>',
+            VILLAGE_OPEN:'<path d="M3 17 8 9l5 5 4-7 4 10"/><circle cx="6" cy="6" r="1.5"/><circle cx="18" cy="4" r="1.5"/>',
+            VILLAGE_BUILTUP:'<rect x="3" y="4" width="7" height="7"/><rect x="13" y="3" width="8" height="6"/><rect x="7" y="14" width="9" height="7"/>',
+            LEVEL_CROSSING:'<path d="M2 12h20M12 2v20M7 7l10 10m0-10L7 17"/>',
+            CULVERT:'<path d="M2 8h20M2 16h20"/><rect x="8" y="8" width="8" height="8"/>',
+            STREAM_PERENNIAL:'<path d="M3 3c8 3-2 6 6 9s-2 6 6 9 3-1 6 0"/>',
+            STREAM_NONPERENNIAL:'<path d="M3 3c8 3-2 6 6 9s-2 6 6 9 3-1 6 0" stroke-dasharray="2 2"/>',
+            CANAL:'<path d="M3 2c3 3 3 5 0 8s-3 5 0 8 3 3 0 4M21 2c-3 3-3 5 0 8s3 5 0 8-3 3 0 4M8 5h8m-8 7h8m-8 7h8"/>',
+            RESERVOIR:'<path d="M3 7c3-2 5 2 8 0s5-2 10 0v12H3zM3 11c3-2 5 2 8 0s5-2 10 0"/>',
+            MARSH:'<path d="M3 6h5m8 0h5M5 12h5m4 0h5M3 18h5m8 0h5"/>',
+            SPOT_HEIGHT:'<circle cx="12" cy="12" r="2"/><path d="M12 2v5m0 10v5M2 12h5m10 0h5"/>',
+            BOUNDARY_PILLAR:'<path d="M7 4h10v16H7zM5 4h14M5 20h14M12 7v10"/>',
+            BENCH_MARK:'<path d="M3 18h18M5 18v-5h14v5M8 13V8h8v5M12 8V3"/>',
+            TRIANGULATION_STATION:'<path d="M12 2 3 20h18zM12 2v18"/>',
+            ORCHARD:'<circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/>',
+            SCATTERED_TREES:'<circle cx="5" cy="7" r="2.5"/><circle cx="16" cy="5" r="2"/><circle cx="12" cy="15" r="2.5"/><path d="M5 9v3m11-5v3m-4 8v3"/>',
+            ROCKY_GROUND:'<path d="m2 18 5-9 4 5 4-10 7 14z"/>',
+            EMBANKMENT:'<path d="M2 18 12 6l10 12zM4 20h16"/>',
+            DAM:'<path d="M3 4 8 20h8l5-16M2 20h20M5 8h14M6 12h12"/>',
+            AERODROME:'<path d="M12 2 14 10 22 15 21 18 14 15 13 21 16 22 16 23 12 22 8 23 8 22 11 21 10 15 3 18 2 15 10 10z"/>',
+            LIGHTHOUSE:'<path d="M8 21h8l-2-13h-4zM9 8h6M12 2v3M5 21h14"/>',
+            RUINS:'<path d="M3 21V8l4 3V6l5 4 4-5v5l5-3v14z"/>',
+            POWER_LINE:'<path d="M4 3 8 21M20 3l-4 18M2 7h20M7 12h10"/>',
+            TELEPHONE_LINE:'<path d="M4 4h16M4 20h16M4 4v16M20 4v16M4 4l16 16M20 4 4 20" stroke-dasharray="2 2"/>'
+        };
+
+        const MAP_SYMBOL_COLORS = {
+            TREE:'#237A3B', FOREST:'#237A3B', COCONUT_TREE:'#237A3B', FARM:'#237A3B', ORCHARD:'#237A3B', SCATTERED_TREES:'#237A3B',
+            POND:'#1676B8', WELL:'#1676B8', WATER_TANK:'#1676B8', WATER_TAP:'#1676B8', HARBOUR:'#1676B8',
+            CULVERT:'#1676B8', STREAM_PERENNIAL:'#1676B8', STREAM_NONPERENNIAL:'#1676B8', CANAL:'#1676B8', RESERVOIR:'#1676B8', MARSH:'#1676B8',
+            EMBANKMENT:'#8A5A2B', DAM:'#8A5A2B'
+        };
+
+        const SYMBOL_LABELS = [
+            ['NORTH_ARROW','North Arrow'],['DIR_ARROW','Direction Arrow'],['PLOT_MARKER','Main Plot'],['UTILITY_POLE','Electric Post'],
+            ['HOUSE','House'],['BUILDING','Building'],['TEMPLE','Temple'],['MOSQUE','Mosque'],['CHURCH','Church'],
+            ['TREE','Tree'],['COCONUT_TREE','Coconut Tree'],['POND','Pond'],['WELL','Well'],['JUNCTION','Junction'],
+            ['PETROL_PUMP','Petrol Pump'],['HOSPITAL','Hospital'],['BANK','Bank'],['SCHOOL','School'],['BUS_STOP','Bus Stop'],
+            ['RAILWAY_STATION','Railway Station'],['POLICE_STATION','Police Station'],['FIRE_STATION','Fire Station'],
+            ['VILLAGE_OFFICE','Village Office'],['PANCHAYAT_OFFICE','Panchayat Office'],['SHOP','Shop'],['MARKET','Market'],
+            ['POST_OFFICE','Post Office'],['MOBILE_TOWER','Mobile Tower'],['TRANSFORMER','Transformer'],
+            ['WATER_TANK','Water Tank'],['WATER_TAP','Water Tap'],['BRIDGE','Bridge'],['PARKING','Parking'],
+            ['FACTORY','Factory'],['CONSTRUCTION','Construction'],['FOREST','Forest'],['CEMETERY','Cemetery'],
+            ['FARM','Farm'],['CATTLE_FARM','Cattle Farm'],['AUTO_STAND','Auto Stand'],['TAXI_STAND','Taxi Stand'],
+            ['HARBOUR','Harbour'],['GROUND','Ground'],['ROAD_WORK','Road Work'],['VILLAGE_OPEN','Village (Open)'],
+            ['VILLAGE_BUILTUP','Village (Built)'],['LEVEL_CROSSING','Level Crossing'],['CULVERT','Culvert'],
+            ['STREAM_PERENNIAL','Perennial Stream'],['STREAM_NONPERENNIAL','Dry Stream'],['CANAL','Canal'],
+            ['RESERVOIR','Reservoir'],['MARSH','Marsh / Swamp'],['SPOT_HEIGHT','Spot Height'],
+            ['BOUNDARY_PILLAR','Boundary Pillar'],['BENCH_MARK','Bench Mark'],['TRIANGULATION_STATION','Triangulation'],
+            ['ORCHARD','Orchard'],['SCATTERED_TREES','Scattered Trees'],['ROCKY_GROUND','Rocky Ground'],
+            ['EMBANKMENT','Embankment'],['DAM','Dam'],['AERODROME','Aerodrome'],['LIGHTHOUSE','Lighthouse'],
+            ['RUINS','Ruins'],['POWER_LINE','Power Line'],['TELEPHONE_LINE','Telephone Line']
+        ];
+
+        function makeMapSymbolSvg(code, size) {
+            const content = MAP_SYMBOLS[code] || MAP_SYMBOLS.PLOT_MARKER;
+            const color = MAP_SYMBOL_COLORS[code] || '#111111';
+            return `<svg class="vector-map-symbol soi-conventional-symbol" data-symbol-code="${code}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}"><g fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${content}</g></svg>`;
+        }
+
+        function buildSymbolsMegaGrid() {
+            const grid = document.getElementById('symbolsGridContainer');
+            grid.innerHTML = '';
+            SYMBOL_LABELS.forEach(([code, label]) => {
+                const card = document.createElement('div');
+                card.className = 'symbol-card';
+                card.dataset.search = (code + ' ' + label).toLowerCase();
+                card.innerHTML = `${makeMapSymbolSvg(code, 28)}<span>${label}</span>`;
+                card.onclick = () => {
+                    addQuickSymbol(code, label);
+                    closeAllDropdowns();
+                };
+                grid.appendChild(card);
+            });
+        }
+
+        function filterSymbolGrid(query) {
+            const q = (query || '').toLowerCase().trim();
+            document.querySelectorAll('#symbolsGridContainer .symbol-card').forEach(card => {
+                card.style.display = card.dataset.search.includes(q) ? 'flex' : 'none';
+            });
+        }
+
+        const symbolImageCache = new Map();
+        function getSymbolImage(svgNode) {
+            const code = svgNode?.dataset?.symbolCode;
+            if (!code) return null;
+            if (symbolImageCache.has(code)) return symbolImageCache.get(code);
+            const svg = svgNode.outerHTML.replace(/currentColor/g, '#111');
+            const img = new Image();
+            img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+            symbolImageCache.set(code, img);
+            return img;
+        }
+
+        function drawSvgSymbolOnCanvas(pCtx, svgNode, x, y, width, height) {
+            const img = getSymbolImage(svgNode);
+            if (!img) return;
+            if (img.complete && img.naturalWidth) pCtx.drawImage(img, x - width / 2, y - height / 2, width, height);
+        }
+
+        function addQuickSymbol(code, defaultLabel) {
+            activateSelectTool();
+            const sizeVal = document.getElementById('iconSizeSelect').value;
+            const labelFs = document.getElementById('labelFontSize').value;
+            const svgSize = sizeVal === 'large' ? 60 : sizeVal === 'small' ? 30 : 45;
+            const el = document.createElement('div');
+            el.className = 'draggable-item';
+            el.style.left = '50%';
+            el.style.top = '50%';
+            const displayState = rotateTabActive ? 'block' : 'none';
+
+            if (code === 'NORTH_ARROW') {
+                el.innerHTML = `<div class="rotate-wrapper">${makeMapSymbolSvg(code, svgSize)}<span class="north-label">N</span><input type="range" class="rotation-slider" min="0" max="360" value="0" style="display:${displayState};" oninput="rotateElement(this)"></div><div class="delete-btn" onclick="this.parentElement.remove();updateThumbnail();">✕</div>`;
+            } else {
+                el.innerHTML = `<div class="rotate-wrapper">${makeMapSymbolSvg(code, svgSize)}<input type="range" class="rotation-slider" min="0" max="360" value="0" style="display:${displayState};" oninput="rotateElement(this)"></div><span class="icon-label editable-label" style="font-size:${labelFs};" ondblclick="editLabel(this)" title="Double-click to edit">${defaultLabel}</span><div class="delete-btn" onclick="this.parentElement.remove();updateThumbnail();">✕</div>`;
+            }
+            makeElementDraggable(el);
+            itemContainer.appendChild(el);
+            selectItemElement(el);
+            updateThumbnail();
+        }
+
+        // ================= VIEWPORT, ZOOM & ORIENTATION =================
+        function updateTransform() {
+            container.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomScale})`;
+        }
+
+        function applyPresetZoom(val) {
+            if (val === 'fit') {
+                resetZoomAndPan();
+                return;
+            }
+            const num = parseFloat(val);
+            if (!isNaN(num)) {
+                zoomScale = num;
+                const wWidth = wrapper.clientWidth;
+                const wHeight = wrapper.clientHeight;
+                panX = (wWidth - (pageTargetWidth * zoomScale)) / 2;
+                panY = Math.max(12, (wHeight - (pageTargetHeight * zoomScale)) / 2);
+                updateTransform();
+            }
+        }
+
+        function setOrientationValue(val) {
+            document.getElementById('pageOrientation').value = val;
+            changePageOrientation();
+        }
+
+        function changePageOrientation() {
+            const orientation = document.getElementById('pageOrientation').value;
+            if (orientation === 'landscape') {
+                pageTargetWidth = 1123;
+                pageTargetHeight = 794;
+                thumbCanvas.width = 180;
+                thumbCanvas.height = 127;
+            } else {
+                pageTargetWidth = 794;
+                pageTargetHeight = 1123;
+                thumbCanvas.width = 150;
+                thumbCanvas.height = 212;
+            }
+            container.style.width = pageTargetWidth + 'px';
+            container.style.height = pageTargetHeight + 'px';
+            a4Page.style.width = pageTargetWidth + 'px';
+            a4Page.style.height = pageTargetHeight + 'px';
+            canvas.width = pageTargetWidth;
+            canvas.height = pageTargetHeight;
+
+            resetZoomAndPan();
+            redrawAll();
+        }
+
+        function resetZoomAndPan() {
+            const wWidth = wrapper.clientWidth;
+            const wHeight = wrapper.clientHeight;
+            const scaleX = (wWidth - 44) / pageTargetWidth;
+            const scaleY = (wHeight - 44) / pageTargetHeight;
+            zoomScale = Math.min(scaleX, scaleY);
+            if (zoomScale > 1.15) zoomScale = 1.15;
+            if (zoomScale < 0.15) zoomScale = 0.15;
+            panX = (wWidth - (pageTargetWidth * zoomScale)) / 2;
+            panY = Math.max(12, (wHeight - (pageTargetHeight * zoomScale)) / 2);
+            document.getElementById('zoomSelect').value = 'fit';
+            updateTransform();
+        }
+
+        function toggleSidebar() {
+            document.getElementById('slideSidebar').classList.toggle('hidden');
+            setTimeout(resetZoomAndPan, 50);
+        }
+
+        function toggleGridLines() {
+            a4Page.classList.toggle('show-grid');
+        }
+
+        function toggleDeviceMode() {
+            const btn = document.getElementById('deviceModeBtn');
+            if (currentDeviceMode === 'mobile') {
+                currentDeviceMode = 'pc';
+                btn.innerHTML = '🖥️ PC Mode';
+            } else {
+                currentDeviceMode = 'mobile';
+                btn.innerHTML = '📱 Mobile Mode';
+            }
+            resetZoomAndPan();
+        }
+
+        window.addEventListener('resize', resetZoomAndPan);
+
+        // Mouse Wheel Zoom
+        wrapper.addEventListener('wheel', (e) => {
+            if (currentDeviceMode !== 'pc') return;
+            e.preventDefault();
+            const zoomFactor = 1.08;
+            const rect = wrapper.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            const currentScale = zoomScale;
+            if (e.deltaY < 0) zoomScale = Math.min(zoomScale * zoomFactor, 3.0);
+            else zoomScale = Math.max(zoomScale / zoomFactor, 0.15);
+            panX = mouseX - (mouseX - panX) * (zoomScale / currentScale);
+            panY = mouseY - (mouseY - panY) * (zoomScale / currentScale);
+            updateTransform();
+        }, { passive: false });
+
+        wrapper.addEventListener('contextmenu', e => e.preventDefault());
+
+        // ================= DRAWING & CONNECTOR ENGINE =================
+        function getCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: (clientX - rect.left) * (canvas.width / rect.width),
+                y: (clientY - rect.top) * (canvas.height / rect.height)
+            };
+        }
+
+        function getActivePolygonFill() {
+            const enabled = document.getElementById('polygonFillEnabled');
+            const colorEl = document.getElementById('polygonFillColor');
+            if (enabled && enabled.checked && colorEl) return colorEl.value;
+            return null;
+        }
+
+        function finishActiveMultiVertexPath() {
+            if (multiPointPolyActive && currentPath.length >= 2) {
+                const activeType = document.getElementById('roadType').value;
+                paths.push({
+                    type: activeType,
+                    points: currentPath.slice(),
+                    fillColor: null
+                });
+                lastActionType = 'draw';
+            }
+            multiPointPolyActive = false;
+            isDrawing = false;
+            currentPath = [];
+            activePathIndex = null;
+            magnifier.style.display = 'none';
+            redrawAll();
+        }
+
+        function startDrawing(e) {
+            if (eraseModeOn) {
+                if (e.target === canvas) startErasing(e);
+                return;
+            }
+            if (!drawModeOn || e.target !== canvas || e.button === 2) return;
+            if (e.touches && e.touches.length > 1) return;
+
+            e.preventDefault();
+            const coord = getCoordinates(e);
+            let targetModelCoord = {
+                x: coord.x - globalDrawingTranslateX,
+                y: coord.y - globalDrawingTranslateY
+            };
+
+            const activeType = document.getElementById('roadType').value;
+            const style = roadStyles[activeType];
+
+            // Multi-point Polyline / Curve click mode
+            if (style && style.isMultiVertex) {
+                if (!multiPointPolyActive) {
+                    multiPointPolyActive = true;
+                    isDrawing = true;
+                    currentPath = [targetModelCoord, targetModelCoord];
+                } else {
+                    currentPath[currentPath.length - 1] = targetModelCoord;
+                    currentPath.push(targetModelCoord);
+                }
+                redrawAll();
+                return;
+            }
+
+            isDrawing = true;
+            activePathIndex = null;
+
+            // Snap to end of previous road segment of same type
+            if (document.getElementById('straightMode').checked && paths.length > 0 && !style.isBox && !style.isFreehand) {
+                for (let i = paths.length - 1; i >= 0; i--) {
+                    if (paths[i].type === activeType) {
+                        let pts = paths[i].points;
+                        let lastPt = pts[pts.length - 1];
+                        if (Math.hypot(targetModelCoord.x - lastPt.x, targetModelCoord.y - lastPt.y) < 34) {
+                            targetModelCoord = { x: lastPt.x, y: lastPt.y };
+                            activePathIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            currentPath = [targetModelCoord];
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            triggerMagnifierRender(clientX, clientY, coord.x, coord.y);
+        }
+
+        function draw(e) {
+            if (eraseModeOn) { eraseMove(e); return; }
+            if (!isDrawing || !drawModeOn) return;
+            if (e.touches && e.touches.length > 1) return;
+
+            e.preventDefault();
+            const coord = getCoordinates(e);
+            let targetModelCoord = {
+                x: coord.x - globalDrawingTranslateX,
+                y: coord.y - globalDrawingTranslateY
+            };
+
+            const activeType = document.getElementById('roadType').value;
+            const style = roadStyles[activeType];
+
+            if (multiPointPolyActive && style && style.isMultiVertex) {
+                currentPath[currentPath.length - 1] = targetModelCoord;
+                redrawAll();
+                return;
+            }
+
+            if (style.isFreehand) {
+                currentPath.push(targetModelCoord);
+            } else if (style.isBox || style.isElbow || style.isCurvedConn || document.getElementById('straightMode').checked) {
+                currentPath = [currentPath[0], targetModelCoord];
+            } else {
+                currentPath.push(targetModelCoord);
+            }
+
+            redrawAll();
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            triggerMagnifierRender(clientX, clientY, coord.x, coord.y);
+        }
+
+        function stopDrawing() {
+            if (eraseModeOn) { stopErasing(); return; }
+            const activeType = document.getElementById('roadType').value;
+            const style = roadStyles[activeType];
+            if (style && style.isMultiVertex && multiPointPolyActive) {
+                return; // Wait for double-click or Enter
+            }
+
+            if (isDrawing && currentPath.length > 1) {
+                if (activePathIndex !== null) {
+                    paths[activePathIndex].points.push(currentPath[1]);
+                } else {
+                    const entry = { type: activeType, points: currentPath };
+                    if (style && style.isBox) {
+                        entry.fillColor = getActivePolygonFill();
+                    }
+                    paths.push(entry);
+                }
+                lastActionType = 'draw';
+            }
+            isDrawing = false;
+            currentPath = [];
+            activePathIndex = null;
+            magnifier.style.display = 'none';
+            redrawAll();
+        }
+
+        canvas.addEventListener('dblclick', (e) => {
+            if (multiPointPolyActive) {
+                e.preventDefault();
+                if (currentPath.length > 2) currentPath.pop();
+                finishActiveMultiVertexPath();
+            }
+        });
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && multiPointPolyActive) {
+                finishActiveMultiVertexPath();
+            } else if (e.key === 'Escape' && multiPointPolyActive) {
+                multiPointPolyActive = false;
+                isDrawing = false;
+                currentPath = [];
+                redrawAll();
+            } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+                const t = e.target;
+                if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+                e.preventDefault();
+                undoLast();
+            } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+                const t = e.target;
+                if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+                e.preventDefault();
+                redoLast();
+            }
+        });
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('mousemove', draw);
+        window.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('touchstart', startDrawing, { passive: false });
+        canvas.addEventListener('touchmove', draw, { passive: false });
+        window.addEventListener('touchend', stopDrawing);
+
+        // ================= CANVAS RENDERING (Roads, Connectors, Curves, Railway) =================
+        function drawArrowHead(pCtx, fromX, fromY, toX, toY, color) {
+            const headLength = 15;
+            const angle = Math.atan2(toY - fromY, toX - fromX);
+            pCtx.save();
+            pCtx.fillStyle = color;
+            pCtx.beginPath();
+            pCtx.moveTo(toX, toY);
+            pCtx.lineTo(toX - headLength * Math.cos(angle - Math.PI / 7), toY - headLength * Math.sin(angle - Math.PI / 7));
+            pCtx.lineTo(toX - headLength * 0.6 * Math.cos(angle), toY - headLength * 0.6 * Math.sin(angle));
+            pCtx.lineTo(toX - headLength * Math.cos(angle + Math.PI / 7), toY - headLength * Math.sin(angle + Math.PI / 7));
+            pCtx.closePath();
+            pCtx.fill();
+            pCtx.restore();
+        }
+
+        function drawRailwayConventionalOnCtx(pCtx, points) {
+            if (!points || points.length < 2) return;
+            pCtx.save();
+            pCtx.strokeStyle = '#000000';
+            pCtx.lineWidth = 1.35;
+            pCtx.lineCap = 'round';
+            pCtx.lineJoin = 'round';
+
+            const railOffset = 2.5;
+            const segments = [];
+            let totalLength = 0;
+            for (let i = 0; i < points.length - 1; i++) {
+                const a = points[i], b = points[i + 1];
+                const dx = b.x - a.x, dy = b.y - a.y;
+                const len = Math.hypot(dx, dy);
+                if (len < 0.01) continue;
+                segments.push({ a, b, dx, dy, len, nx: -dy / len, ny: dx / len, start: totalLength });
+                totalLength += len;
+            }
+            if (!segments.length) { pCtx.restore(); return; }
+
+            for (const side of [-1, 1]) {
+                pCtx.beginPath();
+                let started = false;
+                for (const seg of segments) {
+                    const sx = seg.a.x + side * seg.nx * railOffset;
+                    const sy = seg.a.y + side * seg.ny * railOffset;
+                    const ex = seg.b.x + side * seg.nx * railOffset;
+                    const ey = seg.b.y + side * seg.ny * railOffset;
+                    if (!started) { pCtx.moveTo(sx, sy); started = true; }
+                    else pCtx.lineTo(sx, sy);
+                    pCtx.lineTo(ex, ey);
+                }
+                pCtx.stroke();
+            }
+
+            const sleeperSpacing = 10;
+            const sleeperHalf = 4.2;
+            for (let distance = 0; distance <= totalLength; distance += sleeperSpacing) {
+                let seg = segments[segments.length - 1];
+                for (const candidate of segments) {
+                    if (distance <= candidate.start + candidate.len) { seg = candidate; break; }
+                }
+                const t = Math.max(0, Math.min(1, (distance - seg.start) / seg.len));
+                const x = seg.a.x + seg.dx * t;
+                const y = seg.a.y + seg.dy * t;
+                pCtx.beginPath();
+                pCtx.moveTo(x - seg.nx * sleeperHalf, y - seg.ny * sleeperHalf);
+                pCtx.lineTo(x + seg.nx * sleeperHalf, y + seg.ny * sleeperHalf);
+                pCtx.stroke();
+            }
+            pCtx.restore();
+        }
+
+        function drawPathGeometryOnCtx(pCtx, points, style) {
+            pCtx.beginPath();
+            if (style.isBox) {
+                let s = points[0], e = points[1];
+                pCtx.rect(s.x, s.y, e.x - s.x, e.y - s.y);
+            } else if (style.isElbow && points.length >= 2) {
+                let s = points[0], e = points[points.length - 1];
+                let midX = (s.x + e.x) / 2;
+                pCtx.moveTo(s.x, s.y);
+                pCtx.lineTo(midX, s.y);
+                pCtx.lineTo(midX, e.y);
+                pCtx.lineTo(e.x, e.y);
+            } else if (style.isCurvedConn && points.length >= 2) {
+                let s = points[0], e = points[points.length - 1];
+                let midX = (s.x + e.x) / 2;
+                pCtx.moveTo(s.x, s.y);
+                pCtx.bezierCurveTo(midX, s.y, midX, e.y, e.x, e.y);
+            } else if (style.isSmoothCurve && points.length >= 3) {
+                pCtx.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length - 1; i++) {
+                    const xc = (points[i].x + points[i + 1].x) / 2;
+                    const yc = (points[i].y + points[i + 1].y) / 2;
+                    pCtx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+                }
+                const last = points[points.length - 1];
+                pCtx.lineTo(last.x, last.y);
+            } else {
+                pCtx.moveTo(points[0].x, points[0].y);
+                for (let i = 1; i < points.length; i++) {
+                    pCtx.lineTo(points[i].x, points[i].y);
+                }
+            }
+        }
+
+        function drawPassOnCtx(pCtx, points, type, layer, fillColor) {
+            if (!points || points.length < 2) return;
+            const style = roadStyles[type];
+            if (!style) return;
+            if (style.isRailway) {
+                if (layer === 'outer') drawRailwayConventionalOnCtx(pCtx, points);
+                return;
+            }
+            pCtx.save();
+            pCtx.lineCap = style.isFreehand ? 'round' : 'butt';
+            pCtx.lineJoin = style.isFreehand ? 'round' : 'miter';
+            pCtx.miterLimit = 10;
+
+            drawPathGeometryOnCtx(pCtx, points, style);
+
+            if (layer === 'outer' && style.isBox && fillColor) {
+                pCtx.fillStyle = fillColor;
+                pCtx.fill();
+            }
+
+            if (layer === 'outer' && style.outerWidth > 0) {
+                pCtx.lineWidth = style.outerWidth;
+                pCtx.strokeStyle = style.outerColor;
+                pCtx.setLineDash(style.dash || []);
+                pCtx.stroke();
+
+                if (style.isElectric) {
+                    pCtx.font = '12px Arial';
+                    pCtx.fillStyle = '#e67e22';
+                    pCtx.textAlign = 'center';
+                    pCtx.textBaseline = 'middle';
+                    for (let i = 0; i < points.length - 1; i++) {
+                        let p1 = points[i], p2 = points[i + 1];
+                        pCtx.fillText('⚡', (p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+                    }
+                }
+
+                if (style.isArrow && points.length >= 2) {
+                    const tip = points[points.length - 1];
+                    const prev = points[points.length - 2];
+                    drawArrowHead(pCtx, prev.x, prev.y, tip.x, tip.y, style.outerColor);
+                }
+            }
+
+            if (layer === 'inner' && style.innerWidth > 0 && !style.isBox) {
+                pCtx.lineWidth = style.innerWidth;
+                pCtx.strokeStyle = style.innerColor;
+                pCtx.setLineDash(style.dash || []);
+                pCtx.stroke();
+            }
+            pCtx.restore();
+        }
+
+        let redrawPending = false;
+        function redrawAll() {
+            if (redrawPending) return;
+            redrawPending = true;
+            requestAnimationFrame(() => {
+                performRedraw();
+                redrawPending = false;
+            });
+        }
+
+        function getCombinedPaths() {
+            let allPaths = [];
+            paths.forEach((p, idx) => {
+                if (idx === activePathIndex && isDrawing && currentPath.length > 0) {
+                    allPaths.push({ type: p.type, points: [...p.points, currentPath[1]], fillColor: p.fillColor });
+                } else {
+                    allPaths.push(p);
+                }
+            });
+            if (activePathIndex === null && isDrawing && currentPath.length > 0) {
+                const liveType = document.getElementById('roadType').value;
+                const liveEntry = { type: liveType, points: currentPath };
+                if (roadStyles[liveType] && roadStyles[liveType].isBox) {
+                    liveEntry.fillColor = getActivePolygonFill();
+                }
+                allPaths.push(liveEntry);
+            }
+            return allPaths;
+        }
+
+        function performRedraw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (bgImage) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.translate(globalDrawingTranslateX, globalDrawingTranslateY);
+            const allPaths = getCombinedPaths();
+
+            allPaths.forEach(p => drawPassOnCtx(ctx, p.points, p.type, 'outer', p.fillColor));
+            allPaths.forEach(p => drawPassOnCtx(ctx, p.points, p.type, 'inner', p.fillColor));
+
+            if (eraseModeOn && eraserPointerModel) {
+                ctx.save();
+                ctx.setLineDash([4, 4]);
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.arc(eraserPointerModel.x, eraserPointerModel.y, eraserRadius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+            }
+            ctx.restore();
+
+            updateThumbnail();
+        }
+
+        function updateThumbnail() {
+            if (!thumbCtx) return;
+            thumbCtx.fillStyle = '#ffffff';
+            thumbCtx.fillRect(0, 0, thumbCanvas.width, thumbCanvas.height);
+            thumbCtx.drawImage(canvas, 0, 0, thumbCanvas.width, thumbCanvas.height);
+        }
+
+        // ================= ERASER ENGINE =================
+        function ptDist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
+
+        function deepClonePaths(arr) {
+            return arr.map(p => ({
+                type: p.type,
+                points: p.points.map(pt => ({ x: pt.x, y: pt.y })),
+                fillColor: p.fillColor || null
+            }));
+        }
+
+        function densifyPoints(points, maxLen) {
+            if (points.length < 2) return points.slice();
+            let result = [points[0]];
+            for (let i = 1; i < points.length; i++) {
+                const p0 = points[i - 1], p1 = points[i];
+                const segLen = ptDist(p0, p1);
+                if (segLen > maxLen) {
+                    const steps = Math.ceil(segLen / maxLen);
+                    for (let s = 1; s <= steps; s++) {
+                        const t = s / steps;
+                        result.push({ x: p0.x + (p1.x - p0.x) * t, y: p0.y + (p1.y - p0.y) * t });
+                    }
+                } else {
+                    result.push(p1);
+                }
+            }
+            return result;
+        }
+
+        function distToSegment(p, a, b) {
+            const l2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2;
+            if (l2 === 0) return ptDist(p, a);
+            let t = ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            return ptDist(p, { x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) });
+        }
+
+        function eraseAt(mx, my, radius) {
+            let changed = false;
+            const newPaths = [];
+            paths.forEach(path => {
+                const style = roadStyles[path.type];
+                if (style && style.isBox) {
+                    const c0 = path.points[0], c1 = path.points[1];
+                    const rx0 = Math.min(c0.x, c1.x), rx1 = Math.max(c0.x, c1.x);
+                    const ry0 = Math.min(c0.y, c1.y), ry1 = Math.max(c0.y, c1.y);
+                    const corners = [{ x: rx0, y: ry0 }, { x: rx1, y: ry0 }, { x: rx1, y: ry1 }, { x: rx0, y: ry1 }];
+                    let minD = Infinity;
+                    for (let i = 0; i < 4; i++) {
+                        minD = Math.min(minD, distToSegment({ x: mx, y: my }, corners[i], corners[(i + 1) % 4]));
+                    }
+                    if (minD <= radius) { changed = true; return; }
+                    newPaths.push(path);
+                    return;
+                }
+
+                const dense = densifyPoints(path.points, 6);
+                let chain = [];
+                dense.forEach(pt => {
+                    if (ptDist(pt, { x: mx, y: my }) <= radius) {
+                        changed = true;
+                        if (chain.length >= 2) newPaths.push({ type: path.type, points: chain, fillColor: path.fillColor || null });
+                        chain = [];
+                    } else {
+                        chain.push(pt);
+                    }
+                });
+                if (chain.length >= 2) newPaths.push({ type: path.type, points: chain, fillColor: path.fillColor || null });
+            });
+            if (changed) paths = newPaths;
+            return changed;
+        }
+
+        function toggleEraserMode() {
+            finishActiveMultiVertexPath();
+            eraseModeOn = !eraseModeOn;
+            if (eraseModeOn) {
+                drawModeOn = false;
+            } else {
+                isErasing = false;
+                eraseStrokeSnapshot = null;
+                eraserPointerModel = null;
+                magnifier.style.display = 'none';
+            }
+            updateToolButtonsUI();
+            redrawAll();
+        }
+
+        function updateEraserSize() {
+            eraserRadius = parseInt(document.getElementById('eraserSize').value, 10) || 20;
+        }
+
+        function startErasing(e) {
+            if (e.touches && e.touches.length > 1) return;
+            e.preventDefault();
+            isErasing = true;
+            eraseStrokeSnapshot = deepClonePaths(paths);
+            const coord = getCoordinates(e);
+            const mx = coord.x - globalDrawingTranslateX, my = coord.y - globalDrawingTranslateY;
+            eraserPointerModel = { x: mx, y: my };
+            eraseAt(mx, my, eraserRadius);
+            redrawAll();
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            triggerMagnifierRender(clientX, clientY, coord.x, coord.y);
+        }
+
+        function eraseMove(e) {
+            const coord = getCoordinates(e);
+            const mx = coord.x - globalDrawingTranslateX, my = coord.y - globalDrawingTranslateY;
+            eraserPointerModel = { x: mx, y: my };
+            if (!isErasing) { redrawAll(); return; }
+            if (e.touches && e.touches.length > 1) return;
+            e.preventDefault();
+            eraseAt(mx, my, eraserRadius);
+            redrawAll();
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            triggerMagnifierRender(clientX, clientY, coord.x, coord.y);
+        }
+
+        function stopErasing() {
+            if (!isErasing) return;
+            isErasing = false;
+            const changed = eraseStrokeSnapshot && JSON.stringify(eraseStrokeSnapshot) !== JSON.stringify(paths);
+            if (changed) {
+                eraseSnapshotStack.push(eraseStrokeSnapshot);
+                eraseRedoStack = [];
+                lastActionType = 'erase';
+            }
+            eraseStrokeSnapshot = null;
+            magnifier.style.display = 'none';
+            redrawAll();
+        }
+
+        // ================= MAGNIFIER LOUPE =================
+        function toggleMagnifier() {
+            magnifierEnabled = !magnifierEnabled;
+            document.getElementById('magnifierToggleBtn').classList.toggle('active', magnifierEnabled);
+            if (!magnifierEnabled) magnifier.style.display = 'none';
+        }
+
+        function triggerMagnifierRender(screenX, screenY, centerModelX, centerModelY) {
+            if (!magnifierEnabled) return;
+            magnifier.style.display = 'block';
+            magnifier.style.left = (screenX - 70) + 'px';
+            magnifier.style.top = Math.max(10, (screenY - 160)) + 'px';
+
+            magCtx.fillStyle = '#ffffff';
+            magCtx.fillRect(0, 0, 140, 140);
+            magCtx.save();
+            magCtx.translate(70, 70);
+            magCtx.scale(2, 2);
+            magCtx.translate(-centerModelX, -centerModelY);
+            magCtx.drawImage(canvas, 0, 0);
+            magCtx.restore();
+        }
+
+        // ================= UNDO / REDO =================
+        let redoStack = [];
+        let itemRedoStack = [];
+
+        function undoLast() {
+            if (lastActionType === 'erase' && eraseSnapshotStack.length > 0) {
+                eraseRedoStack.push(deepClonePaths(paths));
+                paths = eraseSnapshotStack.pop();
+                lastActionType = eraseSnapshotStack.length > 0 ? 'erase' : null;
+                lastUndoWasErase = true;
+                redrawAll();
+                return;
+            }
+            if (paths.length === 0) return;
+            let lastPath = paths[paths.length - 1];
+            if (lastPath.points.length > 2) {
+                redoStack.push({ type: 'point', pathIndex: paths.length - 1, point: lastPath.points.pop() });
+            } else {
+                redoStack.push({ type: 'path', path: paths.pop() });
+            }
+            lastUndoWasErase = false;
+            redrawAll();
+        }
+
+        function redoLast() {
+            if (lastUndoWasErase && eraseRedoStack.length > 0) {
+                eraseSnapshotStack.push(deepClonePaths(paths));
+                paths = eraseRedoStack.pop();
+                lastActionType = 'erase';
+                if (eraseRedoStack.length === 0) lastUndoWasErase = false;
+                redrawAll();
+                return;
+            }
+            if (redoStack.length === 0) return;
+            const item = redoStack.pop();
+            if (item.type === 'path') paths.push(item.path);
+            else if (item.type === 'point' && paths[item.pathIndex]) paths[item.pathIndex].points.push(item.point);
+            redrawAll();
+        }
+
+        function undoLastItem() {
+            const items = document.querySelectorAll('.draggable-item');
+            if (items.length > 0) {
+                const last = items[items.length - 1];
+                itemRedoStack.push({ html: last.outerHTML, left: last.style.left, top: last.style.top });
+                last.remove();
+            }
+        }
+
+        function redoLastItem() {
+            if (itemRedoStack.length === 0) return;
+            const saved = itemRedoStack.pop();
+            const temp = document.createElement('div');
+            temp.innerHTML = saved.html;
+            const el = temp.firstChild;
+            makeElementDraggable(el);
+            el.querySelectorAll('.editable-label').forEach(span => { span.ondblclick = function() { editLabel(this); }; });
+            el.querySelectorAll('.draggable-text-style').forEach(td => { td.dataset.boundEdit = ''; bindTextBoxEditing(td); });
+            itemContainer.appendChild(el);
+        }
+
+        // ================= DRAGGABLE ITEMS & PAGE ALIGNMENT =================
+        let draggedElement = null;
+
+        function selectItemElement(el) {
+            document.querySelectorAll('.draggable-item.selected-item').forEach(n => n.classList.remove('selected-item'));
+            selectedDraggableItem = el;
+            if (el) el.classList.add('selected-item');
+        }
+
+        function makeElementDraggable(el) {
+            el.addEventListener('mousedown', startDrag);
+            el.addEventListener('touchstart', startDrag, { passive: false });
+        }
+
+        function startDrag(e) {
+            selectItemElement(this);
+            if (drawModeOn || eraseModeOn || offSubMode !== 'items' || e.target.className === 'delete-btn' || e.target.className === 'rotation-slider' || e.button === 2) return;
+            if (e.target.isContentEditable || (e.target.classList && e.target.classList.contains('is-editing'))) return;
+            if (e.touches && e.touches.length > 1) return;
+
+            e.preventDefault();
+            draggedElement = this;
+
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const modelCoord = getCoordinates(e);
+            triggerMagnifierRender(clientX, clientY, modelCoord.x, modelCoord.y);
+        }
+
+        wrapper.addEventListener('mousedown', (e) => {
+            if (e.target === canvas) {
+                selectItemElement(null);
+            }
+            if ((offSubMode === 'page' && !drawModeOn && !eraseModeOn) || e.button === 2) {
+                isPanning = true;
+                wrapper.style.cursor = 'grabbing';
+                startX = e.clientX - panX;
+                startY = e.clientY - panY;
+                return;
+            }
+            if (offSubMode === 'items' && !drawModeOn && !eraseModeOn && e.target === canvas && e.button === 0) {
+                isMovingDrawingBlock = true;
+                canvas.style.cursor = 'move';
+                const rect = itemContainer.getBoundingClientRect();
+                blockOffsetX = (e.clientX - rect.left) / zoomScale - globalDrawingTranslateX;
+                blockOffsetY = (e.clientY - rect.top) / zoomScale - globalDrawingTranslateY;
+            }
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (isPanning) {
+                panX = e.clientX - startX;
+                panY = e.clientY - startY;
+                updateTransform();
+            } else if (isMovingDrawingBlock) {
+                const rect = itemContainer.getBoundingClientRect();
+                globalDrawingTranslateX = (e.clientX - rect.left) / zoomScale - blockOffsetX;
+                globalDrawingTranslateY = (e.clientY - rect.top) / zoomScale - blockOffsetY;
+                redrawAll();
+            } else if (draggedElement) {
+                e.preventDefault();
+                const containerRect = itemContainer.getBoundingClientRect();
+                let x = (e.clientX - containerRect.left) / zoomScale;
+                let y = (e.clientY - containerRect.top) / zoomScale;
+                draggedElement.style.left = x + 'px';
+                draggedElement.style.top = y + 'px';
+
+                const modelCoord = getCoordinates(e);
+                triggerMagnifierRender(e.clientX, e.clientY, modelCoord.x, modelCoord.y);
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            isPanning = false;
+            isMovingDrawingBlock = false;
+            draggedElement = null;
+            magnifier.style.display = 'none';
+            updateToolButtonsUI();
+        });
+
+        function alignSelectedItemOnPage(pos) {
+            const target = selectedDraggableItem || (activeTextBox && activeTextBox.closest('.draggable-item'));
+            if (!target) {
+                showToast('Select a symbol or text box on the map first');
+                return;
+            }
+            if (pos === 'left') target.style.left = '120px';
+            if (pos === 'center') target.style.left = (pageTargetWidth / 2) + 'px';
+            if (pos === 'right') target.style.left = (pageTargetWidth - 120) + 'px';
+            if (pos === 'top') target.style.top = '190px';
+            if (pos === 'middle') target.style.top = (pageTargetHeight / 2) + 'px';
+            if (pos === 'bottom') target.style.top = (pageTargetHeight - 160) + 'px';
+            closeAllDropdowns();
+        }
+
+        function bringSelectedToFront() {
+            if (selectedDraggableItem) {
+                itemContainer.appendChild(selectedDraggableItem);
+            }
+        }
+
+        function deleteSelectedItem() {
+            if (selectedDraggableItem) {
+                selectedDraggableItem.remove();
+                selectedDraggableItem = null;
+            }
+        }
+
+        function toggleRotateTab() {
+            rotateTabActive = !rotateTabActive;
+            document.getElementById('rotateToggleBtn').classList.toggle('active', rotateTabActive);
+            document.querySelectorAll('.rotation-slider').forEach(s => {
+                s.style.display = rotateTabActive ? 'block' : 'none';
+            });
+        }
+
+        function rotateElement(slider) {
+            slider.previousElementSibling.style.transform = `rotate(${slider.value}deg)`;
+        }
+
+        function editLabel(span) {
+            const current = span.innerText;
+            const currentFs = span.style.fontSize || '11px';
+            const input = document.createElement('textarea');
+            input.value = current;
+            input.rows = Math.max(2, (current.match(/\n/g) || []).length + 1);
+            input.style.cssText = `font-size:${currentFs};font-weight:bold;width:130px;min-height:36px;padding:3px 5px;border:2px solid #1a73e8;border-radius:4px;text-align:center;line-height:1.25;`;
+            span.replaceWith(input);
+            input.focus();
+            input.select();
+
+            function commitEdit() {
+                const newSpan = document.createElement('span');
+                newSpan.className = 'icon-label editable-label';
+                newSpan.style.fontSize = currentFs;
+                const newVal = input.value.trim();
+                newSpan.innerText = newVal;
+                newSpan.style.display = newVal ? 'block' : 'none';
+                newSpan.ondblclick = function() { this.style.display = 'block'; editLabel(this); };
+                input.replaceWith(newSpan);
+            }
+            input.addEventListener('blur', commitEdit);
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) {
+                    e.preventDefault();
+                    input.blur();
+                }
+            });
+        }
+
+        // ================= TEXT BOXES, FONT FORMATTING & ALIGNMENT =================
+        function getSelectedTextFont() {
+            const famEl = document.getElementById('fontFamilySelect');
+            const sizeEl = document.getElementById('fontSizeSelect');
+            return {
+                family: (famEl && famEl.value) ? famEl.value : 'Arial',
+                size: (sizeEl && sizeEl.value) ? sizeEl.value : '18px'
+            };
+        }
+
+        function selectTextBox(textDiv) {
+            if (!textDiv) return;
+            document.querySelectorAll('.draggable-text-style.is-selected').forEach(node => {
+                if (node !== textDiv) node.classList.remove('is-selected');
+            });
+            activeTextBox = textDiv;
+            textDiv.classList.add('is-selected');
+            selectItemElement(textDiv.closest('.draggable-item'));
+        }
+
+        function stepFontSize(delta) {
+            const sel = document.getElementById('fontSizeSelect');
+            let curr = parseInt(sel.value, 10) || 18;
+            if (activeTextBox && activeTextBox.style.fontSize) {
+                curr = parseInt(activeTextBox.style.fontSize, 10) || curr;
+            }
+            const next = Math.max(8, Math.min(72, curr + delta)) + 'px';
+            if (activeTextBox) activeTextBox.style.fontSize = next;
+            let matched = false;
+            for (const opt of sel.options) {
+                if (opt.value === next) { sel.value = next; matched = true; break; }
+            }
+            if (!matched) {
+                const o = document.createElement('option');
+                o.value = next;
+                o.textContent = parseInt(next, 10);
+                sel.appendChild(o);
+                sel.value = next;
+            }
+        }
+
+        function toggleTextFormat(type) {
+            if (!activeTextBox) {
+                showToast('Click a Text Box first to format');
+                return;
+            }
+            if (type === 'bold') {
+                const isNormal = activeTextBox.style.fontWeight === 'normal';
+                activeTextBox.style.fontWeight = isNormal ? 'bold' : 'normal';
+            } else if (type === 'italic') {
+                const isItalic = activeTextBox.style.fontStyle === 'italic';
+                activeTextBox.style.fontStyle = isItalic ? 'normal' : 'italic';
+            } else if (type === 'underline') {
+                const isU = activeTextBox.style.textDecoration === 'underline';
+                activeTextBox.style.textDecoration = isU ? 'none' : 'underline';
+            }
+        }
+
+        function applyTextColor(colorVal) {
+            document.getElementById('textColorIndicator').style.borderBottomColor = colorVal;
+            if (activeTextBox) {
+                activeTextBox.style.color = colorVal;
+            }
+        }
+
+        function setTextAlignment(alignVal) {
+            if (!activeTextBox) {
+                showToast('Select a Text Box first to change alignment');
+                return;
+            }
+            activeTextBox.style.textAlign = alignVal;
+            closeAllDropdowns();
+        }
+
+        function setTextLineHeight(lhVal) {
+            if (!activeTextBox) {
+                showToast('Select a Text Box first');
+                return;
+            }
+            activeTextBox.style.lineHeight = lhVal;
+            closeAllDropdowns();
+        }
+
+        function bindTextBoxEditing(textDiv) {
+            if (!textDiv || textDiv.dataset.boundEdit === '1') return;
+            textDiv.dataset.boundEdit = '1';
+            textDiv.addEventListener('click', (e) => {
+                e.stopPropagation();
+                selectTextBox(textDiv);
+            });
+            textDiv.addEventListener('dblclick', (e) => {
+                e.stopPropagation();
+                startTextBoxEdit(textDiv);
+            });
+        }
+
+        function startTextBoxEdit(textDiv) {
+            if (textDiv.isContentEditable) return;
+            selectTextBox(textDiv);
+            if (textDiv.classList.contains('is-placeholder')) {
+                textDiv.textContent = '';
+                textDiv.classList.remove('is-placeholder');
+            }
+            textDiv.classList.add('is-editing');
+            textDiv.contentEditable = 'true';
+            textDiv.focus();
+
+            function finish() {
+                textDiv.contentEditable = 'false';
+                textDiv.classList.remove('is-editing');
+                textDiv.classList.remove('is-selected');
+                textDiv.removeEventListener('blur', finish);
+                let val = (textDiv.innerText || '').trim();
+                if (!val) {
+                    textDiv.textContent = 'Type here…';
+                    textDiv.classList.add('is-placeholder');
+                }
+            }
+            textDiv.addEventListener('blur', finish);
+        }
+
+        function addCustomText(initialText, initialFont) {
+            activateSelectTool();
+            const font = initialFont || getSelectedTextFont();
+            const el = document.createElement('div');
+            el.className = 'draggable-item';
+            el.style.left = '50%';
+            el.style.top = '50%';
+            const displayState = rotateTabActive ? 'block' : 'none';
+            const hasText = initialText && String(initialText).trim();
+            const phClass = hasText ? '' : ' is-placeholder';
+
+            el.innerHTML = `
+                <div class="rotate-wrapper">
+                    <div class="draggable-text-style${phClass}" style="font-size:${font.size};font-family:${font.family};" contenteditable="false">Type here…</div>
+                    <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display:${displayState};" oninput="rotateElement(this)">
+                </div>
+                <div class="delete-btn" onclick="this.parentElement.remove()">✕</div>
+            `;
+            makeElementDraggable(el);
+            itemContainer.appendChild(el);
+            const textDiv = el.querySelector('.draggable-text-style');
+            if (hasText) textDiv.innerText = String(initialText).trim();
+            bindTextBoxEditing(textDiv);
+            setTimeout(() => startTextBoxEdit(textDiv), 30);
+            return textDiv;
+        }
+
+        async function pasteTextFromClipboard() {
+            try {
+                if (navigator.clipboard && navigator.clipboard.readText) {
+                    const txt = await navigator.clipboard.readText();
+                    if (txt && txt.trim()) {
+                        addCustomText(txt.trim());
+                        return;
+                    }
+                }
+                showToast('Text Box created — press Ctrl+V to paste');
+                addCustomText();
+            } catch (e) {
+                addCustomText();
+            }
+        }
+
+        document.getElementById('fontFamilySelect').addEventListener('change', function() {
+            if (activeTextBox && activeTextBox.isConnected) {
+                activeTextBox.style.fontFamily = this.value;
+            }
+        });
+        document.getElementById('fontSizeSelect').addEventListener('change', function() {
+            if (activeTextBox && activeTextBox.isConnected) {
+                activeTextBox.style.fontSize = this.value;
+            }
+        });
+
+        // ================= QR CODE GENERATOR =================
+        function addGoogleMapQRCode() {
+            const linkUrl = document.getElementById('mapLinkInput').value.trim();
+            const labelTxt = document.getElementById('qrCustomLabel').value.trim() || '📍 Scan for Location';
+            if (!linkUrl) {
+                showToast('Please paste a Google Map URL or location text first!');
+                return;
+            }
+            activateSelectTool();
+            const el = document.createElement('div');
+            el.className = 'draggable-item';
+            el.style.left = '50%';
+            el.style.top = '50%';
+            const displayState = rotateTabActive ? 'block' : 'none';
+
+            el.innerHTML = `
+                <div class="rotate-wrapper">
+                    <div class="draggable-qrcode-wrapper">
+                        <div class="qr-target-container"></div>
+                    </div>
+                    <span class="icon-label editable-label" style="color:#c0392b;" ondblclick="editLabel(this)">${labelTxt}</span>
+                    <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display:${displayState};" oninput="rotateElement(this)">
+                </div>
+                <div class="delete-btn" onclick="this.parentElement.remove()">✕</div>
+            `;
+            const qrTarget = el.querySelector('.qr-target-container');
+            new QRCode(qrTarget, {
+                text: linkUrl,
+                width: 90,
+                height: 90,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            makeElementDraggable(el);
+            itemContainer.appendChild(el);
+            document.getElementById('mapLinkInput').value = '';
+            closeModal('qrModal');
+            showToast('Location QR Code added to map!');
+        }
+
+        // ================= BACKGROUND UPLOADER (IMAGE & PDF) =================
+        document.getElementById('bgUploader').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            if (file.type === 'application/pdf') {
+                reader.onload = function(event) {
+                    const typedarray = new Uint8Array(event.target.result);
+                    pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
+                        pdf.getPage(1).then(function(page) {
+                            const viewport = page.getViewport({ scale: 2.0 });
+                            const renderCanvas = document.createElement('canvas');
+                            const rCtx = renderCanvas.getContext('2d');
+                            renderCanvas.width = viewport.width;
+                            renderCanvas.height = viewport.height;
+                            page.render({ canvasContext: rCtx, viewport: viewport }).promise.then(function() {
+                                bgImage = new Image();
+                                bgImage.onload = function() {
+                                    document.getElementById('bgWatermark').style.display = 'none';
+                                    redrawAll();
+                                };
+                                bgImage.src = renderCanvas.toDataURL('image/png');
+                            });
+                        });
+                    });
+                };
+                reader.readAsArrayBuffer(file);
+            } else {
+                reader.onload = function(event) {
+                    bgImage = new Image();
+                    bgImage.onload = function() {
+                        document.getElementById('bgWatermark').style.display = 'none';
+                        redrawAll();
+                    };
+                    bgImage.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function removeUploadedBackground() {
+            bgImage = null;
+            document.getElementById('bgUploader').value = '';
+            document.getElementById('bgWatermark').style.display = 'none';
+            redrawAll();
+        }
+
+        // ================= EXPORT HIGH-RES PDF & PNG =================
+        function drawMultilineTextOnExport(pCtx, text, x, y, lineHeight, align) {
+            if (!text) return;
+            const lines = String(text).split(/\r\n|\r|\n/);
+            const lh = lineHeight || 14;
+            pCtx.textAlign = align || 'center';
+            lines.forEach((line, i) => {
+                pCtx.fillText(line, x, y + i * lh);
+            });
+        }
+
+        async function buildMergedExportCanvas() {
+            const pendingSymbols = Array.from(document.querySelectorAll('.vector-map-symbol')).map(node => {
+                const img = getSymbolImage(node);
+                if (!img || (img.complete && img.naturalWidth)) return Promise.resolve();
+                return new Promise(resolve => { img.onload = resolve; img.onerror = resolve; });
+            });
+            await Promise.all(pendingSymbols);
+
+            const outCanvas = document.createElement('canvas');
+            outCanvas.width = pageTargetWidth;
+            outCanvas.height = pageTargetHeight;
+            const pCtx = outCanvas.getContext('2d');
+            pCtx.fillStyle = '#ffffff';
+            pCtx.fillRect(0, 0, outCanvas.width, outCanvas.height);
+            pCtx.drawImage(canvas, 0, 0);
+
+            const items = document.querySelectorAll('.draggable-item');
+            items.forEach(item => {
+                const posX = (parseFloat(item.style.left) / 100) * (item.style.left.includes('%') ? pageTargetWidth : 100) || parseFloat(item.style.left) || pageTargetWidth / 2;
+                const posY = (parseFloat(item.style.top) / 100) * (item.style.top.includes('%') ? pageTargetHeight : 100) || parseFloat(item.style.top) || pageTargetHeight / 2;
+                const textNode = item.querySelector('.draggable-text-style');
+                const mapSymbolNode = item.querySelector('.vector-map-symbol');
+                const northLabel = item.querySelector('.north-label');
+                const qrCanvas = item.querySelector('.draggable-qrcode-wrapper canvas');
+                const labelNode = item.querySelector('.icon-label');
+                const sliderNode = item.querySelector('.rotation-slider');
+                const angleDeg = sliderNode ? parseInt(sliderNode.value, 10) : 0;
+
+                pCtx.save();
+                pCtx.translate(posX, posY);
+                if (angleDeg !== 0) pCtx.rotate((angleDeg * Math.PI) / 180);
+
+                if (textNode && !textNode.classList.contains('is-placeholder')) {
+                    const comp = window.getComputedStyle(textNode);
+                    const fSize = comp.fontSize || '18px';
+                    const fFamily = comp.fontFamily || 'Arial';
+                    const fWeight = comp.fontWeight || 'bold';
+                    const fStyle = comp.fontStyle || 'normal';
+                    const fColor = comp.color || '#000000';
+                    const text = (textNode.innerText || '').trim();
+                    if (text) {
+                        pCtx.font = `${fStyle} ${fWeight} ${fSize} ${fFamily}`;
+                        pCtx.fillStyle = fColor;
+                        pCtx.textBaseline = 'top';
+                        const lines = text.split(/\r\n|\r|\n/);
+                        const lh = parseFloat(fSize) * (parseFloat(textNode.style.lineHeight) || 1.25);
+                        const totalH = lines.length * lh;
+                        drawMultilineTextOnExport(pCtx, text, 0, -totalH / 2, lh, 'center');
+                    }
+                } else if (mapSymbolNode) {
+                    const symbolSize = parseFloat(mapSymbolNode.getAttribute('width')) || 45;
+                    drawSvgSymbolOnCanvas(pCtx, mapSymbolNode, 0, -5, symbolSize, symbolSize);
+                    if (northLabel) {
+                        pCtx.font = 'bold 13px Arial';
+                        pCtx.fillStyle = '#111';
+                        pCtx.textAlign = 'center';
+                        pCtx.fillText('N', 0, symbolSize / 2 + 10);
+                    }
+                    if (labelNode && labelNode.innerText && labelNode.style.display !== 'none') {
+                        pCtx.font = `bold ${labelNode.style.fontSize || '11px'} Arial`;
+                        pCtx.fillStyle = '#000';
+                        pCtx.textBaseline = 'top';
+                        drawMultilineTextOnExport(pCtx, labelNode.innerText, 0, symbolSize / 2 + 2, 13, 'center');
+                    }
+                } else if (qrCanvas) {
+                    pCtx.fillStyle = 'white';
+                    pCtx.fillRect(-51, -51, 102, 102);
+                    pCtx.strokeStyle = '#2c3e50';
+                    pCtx.lineWidth = 2;
+                    pCtx.strokeRect(-51, -51, 102, 102);
+                    pCtx.drawImage(qrCanvas, -45, -45, 90, 90);
+                    if (labelNode && labelNode.innerText) {
+                        pCtx.font = 'bold 11px Arial';
+                        pCtx.fillStyle = '#c0392b';
+                        pCtx.textBaseline = 'top';
+                        drawMultilineTextOnExport(pCtx, labelNode.innerText, 0, 56, 13, 'center');
+                    }
+                }
+                pCtx.restore();
+            });
+
+            return outCanvas;
+        }
+
+        async function compileAndSavePDF() {
+            const outCanvas = await buildMergedExportCanvas();
+            const imgData = outCanvas.toDataURL('image/jpeg', 1.0);
+            const { jsPDF } = window.jspdf;
+            const currentOrientation = document.getElementById('pageOrientation').value;
+            const doc = new jsPDF({ orientation: currentOrientation, unit: 'mm', format: 'a4' });
+            const pdfW = currentOrientation === 'landscape' ? 297 : 210;
+            const pdfH = currentOrientation === 'landscape' ? 210 : 297;
+            doc.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+            const titleName = (document.getElementById('docTitleInput').value || 'Location_Sketch').replace(/\s+/g, '_');
+            doc.save(titleName + '.pdf');
+            showToast('✅ PDF Downloaded Successfully!');
+        }
+
+        async function exportMapAsPNG() {
+            const outCanvas = await buildMergedExportCanvas();
+            const link = document.createElement('a');
+            const titleName = (document.getElementById('docTitleInput').value || 'Location_Sketch').replace(/\s+/g, '_');
+            link.download = titleName + '.png';
+            link.href = outCanvas.toDataURL('image/png');
+            link.click();
+            showToast('✅ PNG Image Downloaded!');
+        }
+
+        function resetSketchState() {
+            paths = [];
+            activePathIndex = null;
+            globalDrawingTranslateX = 0;
+            globalDrawingTranslateY = 0;
+            document.querySelectorAll('.draggable-item').forEach(item => item.remove());
+            redrawAll();
+            resetZoomAndPan();
+            activateSelectTool();
+            showToast('Canvas cleared');
+        }
+
+        // ================= INDEXED-DB SAVED MAPS =================
+        const LSM_IDB_NAME = 'LocationSketchMakerDB';
+        const LSM_IDB_VERSION = 1;
+        const LSM_STORE = 'maps';
+        let currentLoadedMapId = null;
+
+        function openLSMDB() {
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open(LSM_IDB_NAME, LSM_IDB_VERSION);
+                req.onupgradeneeded = function(e) {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(LSM_STORE)) {
+                        const store = db.createObjectStore(LSM_STORE, { keyPath: 'id', autoIncrement: true });
+                        store.createIndex('name', 'name', { unique: false });
+                        store.createIndex('updatedAt', 'updatedAt', { unique: false });
+                    }
+                };
+                req.onsuccess = e => resolve(e.target.result);
+                req.onerror = e => reject(e.target.error);
+            });
+        }
+
+        function serializeSketchState() {
+            const itemsData = Array.from(document.querySelectorAll('.draggable-item')).map(el => ({
+                html: el.outerHTML,
+                left: el.style.left,
+                top: el.style.top
+            }));
+            return {
+                paths: paths,
+                bgImageSrc: bgImage ? bgImage.src : null,
+                items: itemsData,
+                pageOrientation: document.getElementById('pageOrientation').value,
+                globalDrawingTranslateX,
+                globalDrawingTranslateY,
+                savedAt: Date.now()
+            };
+        }
+
+        function restoreFromSnapshot(data) {
+            paths = data.paths || [];
+            globalDrawingTranslateX = data.globalDrawingTranslateX || 0;
+            globalDrawingTranslateY = data.globalDrawingTranslateY || 0;
+            if (data.pageOrientation) {
+                document.getElementById('pageOrientation').value = data.pageOrientation;
+                changePageOrientation();
+            }
+            document.querySelectorAll('.draggable-item').forEach(item => item.remove());
+            (data.items || []).forEach(saved => {
+                const temp = document.createElement('div');
+                temp.innerHTML = saved.html;
+                const el = temp.firstChild;
+                if (!el) return;
+                el.style.left = saved.left;
+                el.style.top = saved.top;
+                makeElementDraggable(el);
+                el.querySelectorAll('.editable-label').forEach(span => { span.ondblclick = function() { editLabel(this); }; });
+                el.querySelectorAll('.draggable-text-style').forEach(td => { td.dataset.boundEdit = ''; bindTextBoxEditing(td); });
+                itemContainer.appendChild(el);
+            });
+            if (data.bgImageSrc) {
+                bgImage = new Image();
+                bgImage.onload = function() { redrawAll(); };
+                bgImage.src = data.bgImageSrc;
+            } else {
+                redrawAll();
+            }
+        }
+
+        async function saveNamedMapToIDB() {
+            const titleEl = document.getElementById('docTitleInput');
+            const name = (titleEl.value || 'Location Map').trim();
+            try {
+                const db = await openLSMDB();
+                const tx = db.transaction(LSM_STORE, 'readwrite');
+                const store = tx.objectStore(LSM_STORE);
+                const record = {
+                    name: name,
+                    data: serializeSketchState(),
+                    updatedAt: Date.now(),
+                    createdAt: Date.now()
+                };
+                if (currentLoadedMapId) record.id = currentLoadedMapId;
+                const req = store.put(record);
+                req.onsuccess = () => {
+                    currentLoadedMapId = req.result;
+                    showToast('✅ Saved "' + name + '" to Browser Storage');
+                };
+            } catch (err) {
+                showToast('Error saving map');
+            }
+        }
+
+        function openSavedMapsPanel() {
+            openModal('savedMapsOverlay');
+            refreshSavedMapsList();
+        }
+        function closeSavedMapsPanel() {
+            closeModal('savedMapsOverlay');
+        }
+
+        async function refreshSavedMapsList() {
+            const listEl = document.getElementById('savedMapsList');
+            try {
+                const db = await openLSMDB();
+                const tx = db.transaction(LSM_STORE, 'readonly');
+                const req = tx.objectStore(LSM_STORE).getAll();
+                req.onsuccess = () => {
+                    const maps = (req.result || []).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+                    if (!maps.length) {
+                        listEl.innerHTML = '<div style="text-align:center;color:#80868b;padding:24px;">No saved maps yet. Click <b>💾 Save Map</b> to save your work.</div>';
+                        return;
+                    }
+                    listEl.innerHTML = '';
+                    maps.forEach(m => {
+                        const row = document.createElement('div');
+                        row.className = 'saved-map-row';
+                        const dateStr = new Date(m.updatedAt).toLocaleString();
+                        row.innerHTML = `
+                            <div>
+                                <div style="font-weight:700;font-size:14px;">${m.name}</div>
+                                <div style="font-size:11px;color:#5f6368;">${dateStr}</div>
+                            </div>
+                            <div style="display:flex;gap:6px;">
+                                <button class="g-pill-btn primary" data-load="${m.id}">📂 Load</button>
+                                <button class="g-pill-btn danger" data-del="${m.id}">🗑️</button>
+                            </div>
+                        `;
+                        row.querySelector('[data-load]').onclick = () => {
+                            restoreFromSnapshot(m.data);
+                            currentLoadedMapId = m.id;
+                            document.getElementById('docTitleInput').value = m.name;
+                            closeSavedMapsPanel();
+                            showToast('Loaded "' + m.name + '"');
+                        };
+                        row.querySelector('[data-del]').onclick = async () => {
+                            const d2 = await openLSMDB();
+                            const t2 = d2.transaction(LSM_STORE, 'readwrite');
+                            t2.objectStore(LSM_STORE).delete(Number(m.id));
+                            t2.oncomplete = () => refreshSavedMapsList();
+                        };
+                        listEl.appendChild(row);
+                    });
+                };
+            } catch (e) {
+                listEl.innerHTML = 'Unable to load saved maps.';
+            }
+        }
+
+        // ================= INITIALIZE STUDIO =================
+        window.addEventListener('load', () => {
+            buildSymbolsMegaGrid();
+            changePageOrientation();
+            loadKeralaRevenueTemplate();
+        });
+    </script>
+</body>
+</html>
