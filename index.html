@@ -667,10 +667,85 @@
         }
 
         .rotation-slider {
-            width: 70px !important;
-            margin-top: 5px;
+            width: 78px !important;
+            margin-top: 6px;
             cursor: pointer;
             display: none;
+            accent-color: #1a73e8;
+        }
+        .draggable-item.show-rotation .rotation-slider {
+            display: block !important;
+        }
+        .rotation-badge {
+            display: none;
+            font-size: 10px;
+            font-weight: 700;
+            background: #1a73e8;
+            color: #fff;
+            padding: 1px 6px;
+            border-radius: 10px;
+            margin-top: 3px;
+            white-space: nowrap;
+        }
+        .draggable-item.show-rotation .rotation-badge {
+            display: inline-block;
+        }
+
+        /* Item Right-Click Context Menu */
+        .item-context-menu {
+            position: fixed;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.22), 0 0 1px rgba(0,0,0,0.3);
+            padding: 6px 0;
+            z-index: 3500;
+            display: none;
+            min-width: 215px;
+            border: 1px solid var(--g-border);
+        }
+        .item-context-menu.open {
+            display: block;
+        }
+        .ctx-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            padding: 7px 14px;
+            font-size: 12.5px;
+            color: #1f1f1f;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+        .ctx-item:hover {
+            background: #e8f0fe;
+            color: #1a73e8;
+        }
+        .ctx-item.danger:hover {
+            background: #fce8e6;
+            color: #d93025;
+        }
+        .ctx-angle-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 5px 12px;
+        }
+        .ctx-angle-btn {
+            flex: 1;
+            padding: 4px 6px;
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            background: #f8f9fa;
+            cursor: pointer;
+            color: #202124;
+        }
+        .ctx-angle-btn:hover {
+            background: #e8f0fe;
+            border-color: #1a73e8;
+            color: #1a73e8;
         }
 
         .icon-label {
@@ -1057,12 +1132,40 @@
             <div class="tb-sep"></div>
 
             <!-- Rotate & Zoom Loupe Toggles -->
-            <button id="rotateToggleBtn" class="tb-btn" onclick="toggleRotateTab()" title="Show Rotation Sliders on Symbols/Text">
-                🔄 Rotate
+            <button id="rotateToggleBtn" class="tb-btn" onclick="toggleRotateTab()" title="Rotate Selected Item Only (Or Right-Click an Item)">
+                🔄 Rotate Item
             </button>
             <button id="magnifierToggleBtn" class="tb-btn active" onclick="toggleMagnifier()" title="2x Magnifier Zoom Box while Drawing">
                 🔍 Loupe
             </button>
+        </div>
+    </div>
+
+    <!-- ================= RIGHT-CLICK CONTEXT MENU FOR SELECTED ITEM ================= -->
+    <div id="itemContextMenu" class="item-context-menu">
+        <div class="g-dd-header" id="ctxMenuTitle">Selected Item Options</div>
+        <div class="ctx-item" onclick="enableRotationOnSelectedItem();closeItemContextMenu()">
+            <span>🔄 Show / Hide Rotation Slider</span>
+        </div>
+        <div class="ctx-angle-row">
+            <button class="ctx-angle-btn" onclick="rotateSelectedByDelta(-90)" title="Rotate 90° Counter-Clockwise">↺ -90°</button>
+            <button class="ctx-angle-btn" onclick="rotateSelectedByDelta(-45)" title="Rotate 45° Counter-Clockwise">-45°</button>
+            <button class="ctx-angle-btn" onclick="rotateSelectedByDelta(45)" title="Rotate 45° Clockwise">+45°</button>
+            <button class="ctx-angle-btn" onclick="rotateSelectedByDelta(90)" title="Rotate 90° Clockwise">↻ +90°</button>
+        </div>
+        <div class="ctx-item" onclick="setSelectedItemRotation(0);closeItemContextMenu()">
+            <span>🧭 Reset Rotation (0°)</span>
+        </div>
+        <div class="g-dd-sep"></div>
+        <div class="ctx-item" onclick="editSelectedItemText();closeItemContextMenu()">
+            <span>✏️ Edit Label / Text</span>
+        </div>
+        <div class="ctx-item" onclick="bringSelectedToFront();closeItemContextMenu()">
+            <span>⬆️ Bring to Front</span>
+        </div>
+        <div class="g-dd-sep"></div>
+        <div class="ctx-item danger" onclick="deleteSelectedItem();closeItemContextMenu()">
+            <span>🗑️ Delete Item</span>
         </div>
     </div>
 
@@ -1610,7 +1713,29 @@
             if (!e.target.closest('.g-dropdown')) {
                 closeAllDropdowns();
             }
+            if (!e.target.closest('#itemContextMenu')) {
+                closeItemContextMenu();
+            }
         });
+
+        function closeItemContextMenu() {
+            const cm = document.getElementById('itemContextMenu');
+            if (cm) cm.classList.remove('open');
+        }
+
+        function openItemContextMenu(x, y, itemEl) {
+            closeAllDropdowns();
+            selectItemElement(itemEl);
+            const cm = document.getElementById('itemContextMenu');
+            if (!cm) return;
+            cm.classList.add('open');
+            const w = cm.offsetWidth || 220;
+            const h = cm.offsetHeight || 230;
+            const left = Math.min(x, window.innerWidth - w - 10);
+            const top = Math.min(y, window.innerHeight - h - 10);
+            cm.style.left = Math.max(8, left) + 'px';
+            cm.style.top = Math.max(8, top) + 'px';
+        }
 
         // ================= LINE & DOUBLE-LINE ROAD STYLES =================
         const roadStyles = {
@@ -1845,12 +1970,11 @@
             el.className = 'draggable-item';
             el.style.left = '50%';
             el.style.top = '50%';
-            const displayState = rotateTabActive ? 'block' : 'none';
 
             if (code === 'NORTH_ARROW') {
-                el.innerHTML = `<div class="rotate-wrapper">${makeMapSymbolSvg(code, svgSize)}<span class="north-label">N</span><input type="range" class="rotation-slider" min="0" max="360" value="0" style="display:${displayState};" oninput="rotateElement(this)"></div><div class="delete-btn" onclick="this.parentElement.remove();updateThumbnail();">✕</div>`;
+                el.innerHTML = `<div class="rotate-wrapper">${makeMapSymbolSvg(code, svgSize)}<span class="north-label">N</span></div><span class="rotation-badge">0°</span><input type="range" class="rotation-slider" min="0" max="360" value="0" oninput="rotateElement(this)"><div class="delete-btn" onclick="this.parentElement.remove();updateThumbnail();">✕</div>`;
             } else {
-                el.innerHTML = `<div class="rotate-wrapper">${makeMapSymbolSvg(code, svgSize)}<input type="range" class="rotation-slider" min="0" max="360" value="0" style="display:${displayState};" oninput="rotateElement(this)"></div><span class="icon-label editable-label" style="font-size:${labelFs};" ondblclick="editLabel(this)" title="Double-click to edit">${defaultLabel}</span><div class="delete-btn" onclick="this.parentElement.remove();updateThumbnail();">✕</div>`;
+                el.innerHTML = `<div class="rotate-wrapper">${makeMapSymbolSvg(code, svgSize)}</div><span class="icon-label editable-label" style="font-size:${labelFs};" ondblclick="editLabel(this)" title="Double-click to edit · Right-click to rotate">${defaultLabel}</span><span class="rotation-badge">0°</span><input type="range" class="rotation-slider" min="0" max="360" value="0" oninput="rotateElement(this)"><div class="delete-btn" onclick="this.parentElement.remove();updateThumbnail();">✕</div>`;
             }
             makeElementDraggable(el);
             itemContainer.appendChild(el);
@@ -2597,19 +2721,35 @@
         let draggedElement = null;
 
         function selectItemElement(el) {
-            document.querySelectorAll('.draggable-item.selected-item').forEach(n => n.classList.remove('selected-item'));
+            document.querySelectorAll('.draggable-item').forEach(n => {
+                if (n !== el) {
+                    n.classList.remove('selected-item');
+                    n.classList.remove('show-rotation');
+                }
+            });
             selectedDraggableItem = el;
-            if (el) el.classList.add('selected-item');
+            if (el) {
+                el.classList.add('selected-item');
+            }
+            const rotBtn = document.getElementById('rotateToggleBtn');
+            if (rotBtn) {
+                rotBtn.classList.toggle('active', !!(el && el.classList.contains('show-rotation')));
+            }
         }
 
         function makeElementDraggable(el) {
             el.addEventListener('mousedown', startDrag);
             el.addEventListener('touchstart', startDrag, { passive: false });
+            el.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                openItemContextMenu(e.clientX, e.clientY, el);
+            });
         }
 
         function startDrag(e) {
             selectItemElement(this);
-            if (drawModeOn || eraseModeOn || offSubMode !== 'items' || e.target.className === 'delete-btn' || e.target.className === 'rotation-slider' || e.button === 2) return;
+            if (drawModeOn || eraseModeOn || offSubMode !== 'items' || e.target.className === 'delete-btn' || e.target.classList.contains('rotation-slider') || e.button === 2) return;
             if (e.target.isContentEditable || (e.target.classList && e.target.classList.contains('is-editing'))) return;
             if (e.touches && e.touches.length > 1) return;
 
@@ -2625,8 +2765,9 @@
         wrapper.addEventListener('mousedown', (e) => {
             if (e.target === canvas) {
                 selectItemElement(null);
+                closeItemContextMenu();
             }
-            if ((offSubMode === 'page' && !drawModeOn && !eraseModeOn) || e.button === 2) {
+            if ((offSubMode === 'page' && !drawModeOn && !eraseModeOn) || (e.button === 2 && !e.target.closest('.draggable-item'))) {
                 isPanning = true;
                 wrapper.style.cursor = 'grabbing';
                 startX = e.clientX - panX;
@@ -2698,19 +2839,99 @@
             if (selectedDraggableItem) {
                 selectedDraggableItem.remove();
                 selectedDraggableItem = null;
+                document.getElementById('rotateToggleBtn').classList.remove('active');
+                updateThumbnail();
             }
         }
 
+        function ensureItemHasRotationControls(itemEl) {
+            if (!itemEl) return null;
+            let slider = itemEl.querySelector('.rotation-slider');
+            let badge = itemEl.querySelector('.rotation-badge');
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'rotation-badge';
+                badge.textContent = (slider ? slider.value : '0') + '°';
+                if (slider) itemEl.insertBefore(badge, slider);
+                else itemEl.appendChild(badge);
+            }
+            if (slider) {
+                slider.style.display = ''; // Controlled via .show-rotation CSS class on single item
+            }
+            return slider;
+        }
+
         function toggleRotateTab() {
-            rotateTabActive = !rotateTabActive;
-            document.getElementById('rotateToggleBtn').classList.toggle('active', rotateTabActive);
-            document.querySelectorAll('.rotation-slider').forEach(s => {
-                s.style.display = rotateTabActive ? 'block' : 'none';
+            const target = selectedDraggableItem || (activeTextBox && activeTextBox.closest('.draggable-item'));
+            if (!target) {
+                showToast('ആദ്യം ഒരു Symbol അല്ലെങ്കിൽ Text Box മൗസ് കൊണ്ട് സെലക്ട് ചെയ്യുക (അല്ലെങ്കിൽ അതിൽ Right-Click ചെയ്യുക)');
+                return;
+            }
+            selectItemElement(target);
+            enableRotationOnSelectedItem();
+        }
+
+        function enableRotationOnSelectedItem() {
+            const target = selectedDraggableItem || (activeTextBox && activeTextBox.closest('.draggable-item'));
+            if (!target) {
+                showToast('Select an item first to rotate');
+                return;
+            }
+            // Hide rotation from all other items
+            document.querySelectorAll('.draggable-item.show-rotation').forEach(el => {
+                if (el !== target) el.classList.remove('show-rotation');
             });
+            ensureItemHasRotationControls(target);
+            const isShowing = target.classList.toggle('show-rotation');
+            document.getElementById('rotateToggleBtn').classList.toggle('active', isShowing);
+        }
+
+        function setSelectedItemRotation(angleDeg) {
+            const target = selectedDraggableItem || (activeTextBox && activeTextBox.closest('.draggable-item'));
+            if (!target) return;
+            const normalized = ((angleDeg % 360) + 360) % 360;
+            const slider = ensureItemHasRotationControls(target);
+            if (slider) {
+                slider.value = normalized;
+                rotateElement(slider);
+            }
+            target.classList.add('show-rotation');
+            document.getElementById('rotateToggleBtn').classList.add('active');
+        }
+
+        function rotateSelectedByDelta(deltaDeg) {
+            const target = selectedDraggableItem || (activeTextBox && activeTextBox.closest('.draggable-item'));
+            if (!target) return;
+            const slider = ensureItemHasRotationControls(target);
+            const current = slider ? (parseInt(slider.value, 10) || 0) : 0;
+            setSelectedItemRotation(current + deltaDeg);
+        }
+
+        function editSelectedItemText() {
+            if (!selectedDraggableItem) return;
+            const textDiv = selectedDraggableItem.querySelector('.draggable-text-style');
+            if (textDiv) {
+                startTextBoxEdit(textDiv);
+                return;
+            }
+            const labelSpan = selectedDraggableItem.querySelector('.editable-label');
+            if (labelSpan) {
+                labelSpan.style.display = 'block';
+                editLabel(labelSpan);
+            }
         }
 
         function rotateElement(slider) {
-            slider.previousElementSibling.style.transform = `rotate(${slider.value}deg)`;
+            const itemEl = slider.closest('.draggable-item');
+            if (!itemEl) return;
+            const rotWrapper = itemEl.querySelector('.rotate-wrapper');
+            if (rotWrapper) {
+                rotWrapper.style.transform = `rotate(${slider.value}deg)`;
+            }
+            const badge = itemEl.querySelector('.rotation-badge');
+            if (badge) {
+                badge.textContent = `${slider.value}°`;
+            }
         }
 
         function editLabel(span) {
@@ -2871,15 +3092,15 @@
             el.className = 'draggable-item';
             el.style.left = '50%';
             el.style.top = '50%';
-            const displayState = rotateTabActive ? 'block' : 'none';
             const hasText = initialText && String(initialText).trim();
             const phClass = hasText ? '' : ' is-placeholder';
 
             el.innerHTML = `
                 <div class="rotate-wrapper">
                     <div class="draggable-text-style${phClass}" style="font-size:${font.size};font-family:${font.family};" contenteditable="false">Type here…</div>
-                    <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display:${displayState};" oninput="rotateElement(this)">
                 </div>
+                <span class="rotation-badge">0°</span>
+                <input type="range" class="rotation-slider" min="0" max="360" value="0" oninput="rotateElement(this)">
                 <div class="delete-btn" onclick="this.parentElement.remove()">✕</div>
             `;
             makeElementDraggable(el);
@@ -2931,7 +3152,6 @@
             el.className = 'draggable-item';
             el.style.left = '50%';
             el.style.top = '50%';
-            const displayState = rotateTabActive ? 'block' : 'none';
 
             el.innerHTML = `
                 <div class="rotate-wrapper">
@@ -2939,8 +3159,9 @@
                         <div class="qr-target-container"></div>
                     </div>
                     <span class="icon-label editable-label" style="color:#c0392b;" ondblclick="editLabel(this)">${labelTxt}</span>
-                    <input type="range" class="rotation-slider" min="0" max="360" value="0" style="display:${displayState};" oninput="rotateElement(this)">
                 </div>
+                <span class="rotation-badge">0°</span>
+                <input type="range" class="rotation-slider" min="0" max="360" value="0" oninput="rotateElement(this)">
                 <div class="delete-btn" onclick="this.parentElement.remove()">✕</div>
             `;
             const qrTarget = el.querySelector('.qr-target-container');
@@ -2954,6 +3175,7 @@
             });
             makeElementDraggable(el);
             itemContainer.appendChild(el);
+            selectItemElement(el);
             document.getElementById('mapLinkInput').value = '';
             closeModal('qrModal');
             showToast('Location QR Code added to map!');
@@ -3192,6 +3414,8 @@
                 if (!el) return;
                 el.style.left = saved.left;
                 el.style.top = saved.top;
+                el.classList.remove('selected-item', 'show-rotation');
+                ensureItemHasRotationControls(el);
                 makeElementDraggable(el);
                 el.querySelectorAll('.editable-label').forEach(span => { span.ondblclick = function() { editLabel(this); }; });
                 el.querySelectorAll('.draggable-text-style').forEach(td => { td.dataset.boundEdit = ''; bindTextBoxEditing(td); });
