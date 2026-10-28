@@ -935,6 +935,17 @@
             box-sizing: border-box;
         }
 
+        /* Multi-select marquee rectangle */
+        #marqueeSelectRect {
+            position: absolute;
+            border: 1.5px dashed #1a73e8;
+            background: rgba(26, 115, 232, 0.12);
+            pointer-events: none;
+            z-index: 75;
+            display: none;
+            box-sizing: border-box;
+        }
+
         @media (max-width: 768px) {
             .slide-sidebar { display: none; }
             .g-doc-title { width: 130px; }
@@ -1474,10 +1485,10 @@
 
     <!-- Path right-click context menu (Group / Ungroup / Move / Nodes) -->
     <div id="pathContextMenu">
-        <div class="g-dd-item" id="ctxGroupBtn" onclick="groupSelectedPaths()">🔗 Group as single line</div>
+        <div class="g-dd-item" id="ctxGroupBtn" onclick="groupSelectedPaths()">🔗 Group (move together)</div>
         <div class="g-dd-item" id="ctxUngroupBtn" onclick="ungroupSelectedPaths()">🔓 Ungroup</div>
         <div class="g-dd-sep"></div>
-        <div class="g-dd-item" onclick="startMoveSelectedPaths()">✥ Move selected</div>
+        <div class="g-dd-item" onclick="startMoveSelectedPaths()">✥ Move all selected</div>
         <div class="g-dd-item" onclick="enableNodeEditMode()">◉ Edit nodes (drag vertices)</div>
         <div class="g-dd-item" onclick="applyFillToSelectedPaths()">🎨 Apply fill colour</div>
         <div class="g-dd-item" onclick="clearFillOnSelectedPaths()">⬜ Remove fill</div>
@@ -1503,6 +1514,8 @@
 
     <!-- Text drag size preview -->
     <div id="textDragPreview"></div>
+    <!-- Multi-select marquee -->
+    <div id="marqueeSelectRect"></div>
 
     <!-- ================= MODAL 1: QR CODE GENERATOR ================= -->
     <div id="qrModal" class="modal-overlay" onclick="if(event.target===this)closeModal('qrModal')">
@@ -1630,6 +1643,10 @@
         let isDraggingTextBox = false;
         let textDragStart = null;
         let textDragPreviewEl = null;
+
+        // Marquee multi-select
+        let isMarqueeSelecting = false;
+        let marqueeStart = null;
 
         // Toast Helper (replaces native alert)
         let toastTimer = null;
@@ -2296,29 +2313,81 @@
             document.getElementById('pathContextMenu').classList.remove('open');
         }
 
+        function pathIntersectsRect(path, rx0, ry0, rx1, ry1) {
+            if (!path || !path.points || path.points.length < 2) return false;
+            const minX = Math.min(rx0, rx1), maxX = Math.max(rx0, rx1);
+            const minY = Math.min(ry0, ry1), maxY = Math.max(ry0, ry1);
+            for (let i = 0; i < path.points.length; i++) {
+                const pt = path.points[i];
+                if (pt.x >= minX && pt.x <= maxX && pt.y >= minY && pt.y <= maxY) return true;
+            }
+            for (let i = 0; i < path.points.length - 1; i++) {
+                const a = path.points[i], b = path.points[i + 1];
+                // sample midpoint
+                const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+                if (mx >= minX && mx <= maxX && my >= minY && my <= maxY) return true;
+                if (distPointToSeg((minX + maxX) / 2, (minY + maxY) / 2, a.x, a.y, b.x, b.y) < 8) {
+                    // segment crosses center region roughly
+                }
+                // any endpoint already checked; also check if segment crosses rect edges simply via bbox overlap
+                const segMinX = Math.min(a.x, b.x), segMaxX = Math.max(a.x, b.x);
+                const segMinY = Math.min(a.y, b.y), segMaxY = Math.max(a.y, b.y);
+                if (segMaxX >= minX && segMinX <= maxX && segMaxY >= minY && segMinY <= maxY) return true;
+            }
+            return false;
+        }
+
+        function selectPathsInMarquee(x0, y0, x1, y1, additive) {
+            const hits = [];
+            paths.forEach((p, i) => {
+                if (pathIntersectsRect(p, x0, y0, x1, y1)) hits.push(i);
+            });
+            // expand to full groups
+            const expanded = new Set();
+            hits.forEach(i => getGroupMembers(i).forEach(m => expanded.add(m)));
+            if (additive) {
+                expanded.forEach(i => {
+                    if (!selectedPathIndices.includes(i)) selectedPathIndices.push(i);
+                });
+            } else {
+                selectedPathIndices = Array.from(expanded);
+            }
+            redrawAll();
+            if (selectedPathIndices.length) {
+                showToast(selectedPathIndices.length + ' drawing(s) selected — right-click to Group / Move');
+            }
+        }
+
         function groupSelectedPaths() {
             if (selectedPathIndices.length < 2) {
-                showToast('Select 2 or more lines first (Ctrl+Click)');
+                showToast('Select 2+ drawings first (drag-select or Ctrl+Click)');
                 return;
             }
             const gid = nextGroupId++;
+            // expand selection to include any existing group members
+            const all = new Set();
+            selectedPathIndices.forEach(i => getGroupMembers(i).forEach(m => all.add(m)));
+            selectedPathIndices = Array.from(all);
             selectedPathIndices.forEach(i => {
                 if (paths[i]) paths[i].groupId = gid;
             });
-            showToast('Grouped as single unit. Right-click → Move to move together.');
+            showToast('Grouped (' + selectedPathIndices.length + '). Drag any one to move all together.');
             hidePathContextMenu();
             redrawAll();
         }
 
         function ungroupSelectedPaths() {
             let changed = false;
-            selectedPathIndices.forEach(i => {
+            const all = new Set();
+            selectedPathIndices.forEach(i => getGroupMembers(i).forEach(m => all.add(m)));
+            all.forEach(i => {
                 if (paths[i] && paths[i].groupId) {
                     delete paths[i].groupId;
                     changed = true;
                 }
             });
-            if (changed) showToast('Ungrouped');
+            selectedPathIndices = Array.from(all);
+            if (changed) showToast('Ungrouped — each drawing is separate again');
             else showToast('No group on selection');
             hidePathContextMenu();
             redrawAll();
@@ -2326,14 +2395,19 @@
 
         function startMoveSelectedPaths() {
             if (!selectedPathIndices.length) {
-                showToast('Select a road / railway line first');
+                showToast('Select drawings first (drag box or Ctrl+Click)');
                 return;
             }
+            // expand to full group
+            const all = new Set();
+            selectedPathIndices.forEach(i => getGroupMembers(i).forEach(m => all.add(m)));
+            selectedPathIndices = Array.from(all);
             isMovingSelectedPaths = true;
             pathMoveSnapshot = deepClonePaths(paths);
             hidePathContextMenu();
-            showToast('Drag on the map to move the selected line(s)');
+            showToast('Drag on the map to move all ' + selectedPathIndices.length + ' together');
             canvas.style.cursor = 'move';
+            redrawAll();
         }
 
         function deleteSelectedPaths() {
@@ -3156,23 +3230,25 @@
                 return;
             }
 
-            // Google the Slides-style text: click-drag to create sized text box
-            if (textToolActive && e.target === canvas && e.button === 0) {
-                e.preventDefault();
-                const coord = getCoordinates(e);
-                isDraggingTextBox = true;
-                textDragStart = { x: coord.x, y: coord.y };
-                const prev = document.getElementById('textDragPreview');
-                prev.style.display = 'block';
-                prev.style.left = coord.x + 'px';
-                prev.style.top = coord.y + 'px';
-                prev.style.width = '0px';
-                prev.style.height = '0px';
-                // Attach preview inside page so it follows zoom
-                if (prev.parentElement !== itemContainer) {
-                    itemContainer.appendChild(prev);
+            // Google Slides-style text: click or drag on page to create sized text box
+            if (textToolActive && e.button === 0) {
+                const onPage = e.target === canvas || e.target === itemContainer || e.target === a4Page ||
+                    (e.target.closest && e.target.closest('#a4Page'));
+                if (onPage && !e.target.closest('.draggable-item')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const coord = getCoordinates(e);
+                    isDraggingTextBox = true;
+                    textDragStart = { x: coord.x, y: coord.y };
+                    const prev = document.getElementById('textDragPreview');
+                    if (prev.parentElement !== itemContainer) itemContainer.appendChild(prev);
+                    prev.style.display = 'block';
+                    prev.style.left = coord.x + 'px';
+                    prev.style.top = coord.y + 'px';
+                    prev.style.width = '0px';
+                    prev.style.height = '0px';
+                    return;
                 }
-                return;
             }
 
             // Select / node-edit / move paths when Select tool is active
@@ -3210,19 +3286,29 @@
                 if (hit >= 0) {
                     const additive = e.ctrlKey || e.metaKey;
                     selectPathAt(mx, my, additive);
+                    // Expand to full group so all move together
+                    const all = new Set();
+                    selectedPathIndices.forEach(i => getGroupMembers(i).forEach(m => all.add(m)));
+                    selectedPathIndices = Array.from(all);
                     isMovingSelectedPaths = true;
                     pathMoveStartModel = { x: mx, y: my };
                     pathMoveSnapshot = deepClonePaths(paths);
                     canvas.style.cursor = 'move';
+                    redrawAll();
                     return;
                 }
 
-                clearPathSelection();
-                isMovingDrawingBlock = true;
-                canvas.style.cursor = 'move';
-                const rect = itemContainer.getBoundingClientRect();
-                blockOffsetX = (e.clientX - rect.left) / zoomScale - globalDrawingTranslateX;
-                blockOffsetY = (e.clientY - rect.top) / zoomScale - globalDrawingTranslateY;
+                // Empty area → marquee multi-select (or Shift keeps previous)
+                if (!e.ctrlKey && !e.metaKey && !e.shiftKey) clearPathSelection();
+                isMarqueeSelecting = true;
+                marqueeStart = { x: mx, y: my };
+                const mq = document.getElementById('marqueeSelectRect');
+                if (mq.parentElement !== itemContainer) itemContainer.appendChild(mq);
+                mq.style.display = 'block';
+                mq.style.left = mx + 'px';
+                mq.style.top = my + 'px';
+                mq.style.width = '0px';
+                mq.style.height = '0px';
             }
         });
 
@@ -3231,6 +3317,19 @@
                 panX = e.clientX - startX;
                 panY = e.clientY - startY;
                 updateTransform();
+            } else if (isMarqueeSelecting && marqueeStart) {
+                const coord = getCoordinates(e);
+                const mx = coord.x - globalDrawingTranslateX;
+                const my = coord.y - globalDrawingTranslateY;
+                const x0 = Math.min(marqueeStart.x, mx);
+                const y0 = Math.min(marqueeStart.y, my);
+                const w = Math.abs(mx - marqueeStart.x);
+                const h = Math.abs(my - marqueeStart.y);
+                const mq = document.getElementById('marqueeSelectRect');
+                mq.style.left = x0 + 'px';
+                mq.style.top = y0 + 'px';
+                mq.style.width = w + 'px';
+                mq.style.height = h + 'px';
             } else if (isDraggingNode && activeNode && nodeDragSnapshot) {
                 const coord = getCoordinates(e);
                 let mx = coord.x - globalDrawingTranslateX;
@@ -3285,6 +3384,21 @@
         });
 
         window.addEventListener('mouseup', (e) => {
+            if (isMarqueeSelecting && marqueeStart) {
+                const coord = getCoordinates(e);
+                const mx = coord.x - globalDrawingTranslateX;
+                const my = coord.y - globalDrawingTranslateY;
+                const additive = e.ctrlKey || e.metaKey || e.shiftKey;
+                const w = Math.abs(mx - marqueeStart.x);
+                const h = Math.abs(my - marqueeStart.y);
+                document.getElementById('marqueeSelectRect').style.display = 'none';
+                isMarqueeSelecting = false;
+                if (w > 6 || h > 6) {
+                    selectPathsInMarquee(marqueeStart.x, marqueeStart.y, mx, my, additive);
+                }
+                marqueeStart = null;
+                return;
+            }
             if (isDraggingNode) {
                 isDraggingNode = false;
                 nodeDragSnapshot = null;
@@ -3294,13 +3408,20 @@
             }
             if (isDraggingTextBox && textDragStart) {
                 const coord = getCoordinates(e);
-                const x0 = Math.min(textDragStart.x, coord.x);
-                const y0 = Math.min(textDragStart.y, coord.y);
-                const w = Math.abs(coord.x - textDragStart.x);
-                const h = Math.abs(coord.y - textDragStart.y);
+                let x0 = Math.min(textDragStart.x, coord.x);
+                let y0 = Math.min(textDragStart.y, coord.y);
+                let w = Math.abs(coord.x - textDragStart.x);
+                let h = Math.abs(coord.y - textDragStart.y);
                 document.getElementById('textDragPreview').style.display = 'none';
                 isDraggingTextBox = false;
-                const finalW = Math.max(w, 80);
+                // Google Slides: tiny click → default size at click point; drag → exact size
+                if (w < 12 && h < 12) {
+                    w = 180;
+                    h = 40;
+                    x0 = textDragStart.x;
+                    y0 = textDragStart.y;
+                }
+                const finalW = Math.max(w, 60);
                 const finalH = Math.max(h, 28);
                 const cx = x0 + finalW / 2;
                 const cy = y0 + finalH / 2;
@@ -3601,7 +3722,8 @@
             const btn = document.getElementById('textToolBtn');
             if (btn) btn.classList.add('active');
             canvas.style.cursor = 'crosshair';
-            showToast('Click & drag on the map to create a text box (Google Slides style)');
+            wrapper.style.cursor = 'crosshair';
+            showToast('Text tool ON — click or drag on the map where you need the box (Google Slides style)');
         }
 
         function deactivateTextTool() {
@@ -3612,6 +3734,7 @@
             if (prev) prev.style.display = 'none';
             const btn = document.getElementById('textToolBtn');
             if (btn) btn.classList.remove('active');
+            wrapper.style.cursor = '';
         }
 
         function addCustomText(initialText, initialFont, posX, posY, boxW, boxH) {
