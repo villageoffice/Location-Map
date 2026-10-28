@@ -1474,10 +1474,11 @@
         <canvas id="magnifierCanvas" width="140" height="140"></canvas>
     </div>
 
-    <!-- Online Users Counter -->
-    <div id="onlineUsersBadge" title="Users currently using this tool">
+    <!-- Online / Visit Counter (works when hosted online e.g. GitHub Pages) -->
+    <div id="onlineUsersBadge" title="Live visits when hosted online">
         <span class="pulse-dot"></span>
-        <span id="onlineUsersCount">12</span> Online
+        <span id="onlineUsersCount">—</span>
+        <span id="onlineUsersLabel"> Online</span>
     </div>
 
     <!-- Toast Notification -->
@@ -4167,11 +4168,54 @@
             }
         }
 
+        // ================= ONLINE / VISIT COUNTER (GitHub Pages friendly) =================
+        // Change COUNTER_NAMESPACE if you host your own copy (unique key per site)
+        const COUNTER_NAMESPACE = 'location-sketch-studio-v4';
+        const COUNTER_KEY = 'visits';
+
+        async function updateOnlineVisitBadge() {
+            const countEl = document.getElementById('onlineUsersCount');
+            const labelEl = document.getElementById('onlineUsersLabel');
+            if (!countEl) return;
+
+            // Session presence (this browser tab counts as 1 "online" locally)
+            try {
+                const sessionKey = 'lsm_session_' + COUNTER_NAMESPACE;
+                if (!sessionStorage.getItem(sessionKey)) {
+                    sessionStorage.setItem(sessionKey, String(Date.now()));
+                }
+            } catch (e) {}
+
+            // Total visits via free CounterAPI (no backend needed — works on GitHub Pages)
+            try {
+                const url = 'https://api.counterapi.dev/v1/' + encodeURIComponent(COUNTER_NAMESPACE) + '/' + encodeURIComponent(COUNTER_KEY) + '/up';
+                const res = await fetch(url, { method: 'GET', mode: 'cors' });
+                if (res.ok) {
+                    const data = await res.json();
+                    const total = (data && (data.count != null ? data.count : data.value));
+                    if (total != null) {
+                        countEl.textContent = total;
+                        if (labelEl) labelEl.textContent = ' Visits';
+                        document.getElementById('onlineUsersBadge').title = 'Total visits (online host). Local file shows only after hosting.';
+                        return;
+                    }
+                }
+            } catch (err) {
+                // offline / blocked / local file
+            }
+
+            // Fallback when not hosted / API blocked
+            countEl.textContent = '1';
+            if (labelEl) labelEl.textContent = ' (local)';
+            document.getElementById('onlineUsersBadge').title = 'Local mode — host on GitHub Pages for live visit count';
+        }
+
         // ================= INITIALIZE STUDIO =================
         window.addEventListener('load', () => {
             buildSymbolsMegaGrid();
             changePageOrientation();
             loadKeralaRevenueTemplate();
+            updateOnlineVisitBadge();
         });
     </script>
 </body>
