@@ -6,11 +6,23 @@
     <title>Location Map - Master Location Sketch Studio V4.3</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&display=swap">
-    
-    <!-- PDF.js, jsPDF, QRCode.js -->
+
+    <!--
+      ========== LIBRARY LOAD OPTIONS ==========
+      A) LOCAL (default) — offline + faster after cache on GitHub Pages
+      B) CDN — smaller repo; needs internet every cold load
+      Use only ONE set. Comment the other.
+    -->
+    <!-- A) LOCAL -->
+    <script src="lib/pdf.min.js"></script>
+    <script src="lib/jspdf.umd.min.js"></script>
+    <script src="lib/qrcode.min.js"></script>
+
+    <!-- B) CDN (uncomment these 3 and comment LOCAL block above)
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    -->
 
     <link rel="stylesheet" href="style.css">
 </head>
