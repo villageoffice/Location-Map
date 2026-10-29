@@ -55,6 +55,12 @@
 
         // Path selection, grouping & move (road / railway as single unit)
         let selectedPathIndices = [];
+        // Google Slides-style selection resize
+        let isResizingSelection = false;
+        let resizeHandleId = null; // nw,n,ne,e,se,s,sw,w
+        let resizeStartBounds = null;
+        let resizePathSnapshot = null;
+        const RESIZE_HANDLE_SIZE = 8;
         let nextGroupId = 1;
         let isMovingSelectedPaths = false;
         let pathMoveStartModel = null;
@@ -866,6 +872,161 @@
             });
         }
 
+        function getSelectionBounds() {
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            let any = false;
+            selectedPathIndices.forEach(i => {
+                const p = paths[i];
+                if (!p || !p.points) return;
+                p.points.forEach(pt => {
+                    any = true;
+                    if (pt.x < minX) minX = pt.x;
+                    if (pt.y < minY) minY = pt.y;
+                    if (pt.x > maxX) maxX = pt.x;
+                    if (pt.y > maxY) maxY = pt.y;
+                });
+            });
+            if (!any) return null;
+            const pad = 6;
+            return { x: minX - pad, y: minY - pad, w: (maxX - minX) + pad * 2, h: (maxY - minY) + pad * 2 };
+        }
+
+        function getResizeHandles(b) {
+            if (!b) return [];
+            const x = b.x, y = b.y, w = b.w, h = b.h, mx = x + w / 2, my = y + h / 2;
+            return [
+                { id: 'nw', x: x, y: y },
+                { id: 'n', x: mx, y: y },
+                { id: 'ne', x: x + w, y: y },
+                { id: 'e', x: x + w, y: my },
+                { id: 'se', x: x + w, y: y + h },
+                { id: 's', x: mx, y: y + h },
+                { id: 'sw', x: x, y: y + h },
+                { id: 'w', x: x, y: my }
+            ];
+        }
+
+        function hitTestResizeHandle(mx, my) {
+            const b = getSelectionBounds();
+            if (!b) return null;
+            const hs = RESIZE_HANDLE_SIZE + 4;
+            const handles = getResizeHandles(b);
+            for (let i = 0; i < handles.length; i++) {
+                const h = handles[i];
+                if (Math.abs(mx - h.x) <= hs && Math.abs(my - h.y) <= hs) return h.id;
+            }
+            return null;
+        }
+
+        function drawSelectionBoxAndHandles(pCtx) {
+            const b = getSelectionBounds();
+            if (!b) return;
+            pCtx.save();
+            pCtx.strokeStyle = '#1a73e8';
+            pCtx.lineWidth = 1.5;
+            pCtx.setLineDash([5, 4]);
+            pCtx.strokeRect(b.x, b.y, b.w, b.h);
+            pCtx.setLineDash([]);
+            const handles = getResizeHandles(b);
+            handles.forEach(h => {
+                pCtx.fillStyle = '#ffffff';
+                pCtx.strokeStyle = '#1a73e8';
+                pCtx.lineWidth = 1.5;
+                pCtx.beginPath();
+                pCtx.rect(h.x - RESIZE_HANDLE_SIZE / 2, h.y - RESIZE_HANDLE_SIZE / 2, RESIZE_HANDLE_SIZE, RESIZE_HANDLE_SIZE);
+                pCtx.fill();
+                pCtx.stroke();
+            });
+            pCtx.restore();
+        }
+
+        function applySelectionScaleFromHandle(mx, my) {
+            if (!resizeStartBounds || !resizePathSnapshot || !resizeHandleId) return;
+            const b0 = resizeStartBounds;
+            let newX = b0.x, newY = b0.y, newW = b0.w, newH = b0.h;
+            const id = resizeHandleId;
+            // Fixed opposite edge / corner
+            if (id.indexOf('w') >= 0) { newX = mx; newW = (b0.x + b0.w) - mx; }
+            if (id.indexOf('e') >= 0) { newW = mx - b0.x; }
+            if (id.indexOf('n') >= 0) { newY = my; newH = (b0.y + b0.h) - my; }
+            if (id.indexOf('s') >= 0) { newH = my - b0.y; }
+            // Corner: uniform scale (Google Slides-like) using average factor
+            const isCorner = (id === 'nw' || id === 'ne' || id === 'sw' || id === 'se');
+            if (isCorner && b0.w > 1 && b0.h > 1) {
+                let sx = newW / b0.w, sy = newH / b0.h;
+                // Keep sign for flip
+                const s = (Math.abs(sx) + Math.abs(sy)) / 2;
+                sx = Math.sign(sx) * s;
+                sy = Math.sign(sy) * s;
+                if (id === 'se') { newW = b0.w * sx; newH = b0.h * sy; }
+                if (id === 'sw') { newW = b0.w * sx; newH = b0.h * sy; newX = (b0.x + b0.w) - newW; }
+                if (id === 'ne') { newW = b0.w * sx; newH = b0.h * sy; newY = (b0.y + b0.h) - newH; }
+                if (id === 'nw') { newW = b0.w * sx; newH = b0.h * sy; newX = (b0.x + b0.w) - newW; newY = (b0.y + b0.h) - newH; }
+            }
+            if (Math.abs(newW) < 8) newW = Math.sign(newW) * 8 || 8;
+            if (Math.abs(newH) < 8) newH = Math.sign(newH) * 8 || 8;
+            const sx = newW / b0.w;
+            const sy = newH / b0.h;
+            // Map snapshot points into new box
+            selectedPathIndices.forEach(i => {
+                const src = resizePathSnapshot[i];
+                if (!src || !src.points || !paths[i]) return;
+                paths[i].points = src.points.map(pt => ({
+                    x: newX + (pt.x - b0.x) * sx,
+                    y: newY + (pt.y - b0.y) * sy
+                }));
+            });
+        }
+
+        function selectAllPaths() {
+            finishActiveMultiVertexPath();
+            drawModeOn = false;
+            eraseModeOn = false;
+            textToolActive = false;
+            offSubMode = 'items';
+            selectedPathIndices = paths.map((_, i) => i);
+            updateToolButtonsUI();
+            redrawAll();
+            if (selectedPathIndices.length) {
+                showToast(selectedPathIndices.length + ' drawings selected — drag blue handles to resize');
+            } else {
+                showToast('No drawings on the page');
+            }
+        }
+
+        function fitSelectionToPage() {
+            if (!selectedPathIndices.length) {
+                showToast('Select drawings first');
+                return;
+            }
+            const b = getSelectionBounds();
+            if (!b || b.w < 1) return;
+            const margin = 40;
+            const targetW = pageTargetWidth - margin * 2;
+            const scale = targetW / b.w;
+            const newW = b.w * scale;
+            const newH = b.h * scale;
+            const newX = (pageTargetWidth - newW) / 2;
+            const newY = Math.max(margin, (pageTargetHeight - newH) / 2);
+            const snapshot = deepClonePaths(paths);
+            selectedPathIndices.forEach(i => {
+                const src = snapshot[i];
+                if (!src || !src.points || !paths[i]) return;
+                paths[i].points = src.points.map(pt => ({
+                    x: newX + (pt.x - b.x) * scale,
+                    y: newY + (pt.y - b.y) * scale
+                }));
+            });
+            lastActionType = 'draw';
+            hidePathContextMenu();
+            redrawAll();
+            showToast('Fitted selection to page width');
+        }
+
+        function openHelpModal() {
+            openModal('helpModal');
+        }
+
         // Canvas right-click → select + context menu
         canvas.addEventListener('contextmenu', (e) => {
             e.preventDefault();
@@ -937,7 +1098,8 @@
                     type: activeType,
                     points: pts,
                     fillColor: fill,
-                    closed: closed
+                    closed: closed,
+                    centerLine: isRoadCenterLineEnabled()
                 });
                 lastActionType = 'draw';
             }
@@ -1075,6 +1237,9 @@
                     if (style && style.isBox) {
                         entry.fillColor = getActivePolygonFill();
                     }
+                    if (style && style.isRoad && isRoadCenterLineEnabled()) {
+                        entry.centerLine = true;
+                    }
                     paths.push(entry);
                 }
                 lastActionType = 'draw';
@@ -1112,6 +1277,16 @@
                 if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
                 e.preventDefault();
                 redoLast();
+            } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+                const t = e.target;
+                if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+                e.preventDefault();
+                selectAllPaths();
+            } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedPathIndices.length) {
+                const t = e.target;
+                if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+                e.preventDefault();
+                deleteSelectedPaths();
             }
         });
 
@@ -1226,7 +1401,32 @@
             }
         }
 
-        function drawPassOnCtx(pCtx, points, type, layer, fillColor) {
+
+        function isRoadCenterLineEnabled() {
+            const el = document.getElementById('roadCenterLine');
+            return !!(el && el.checked);
+        }
+
+        function applyCenterLineToSelected(on) {
+            if (!selectedPathIndices.length) {
+                showToast('Select a road first');
+                return;
+            }
+            let n = 0;
+            selectedPathIndices.forEach(i => {
+                if (!paths[i]) return;
+                const st = roadStyles[paths[i].type];
+                if (st && st.isRoad) {
+                    paths[i].centerLine = !!on;
+                    n++;
+                }
+            });
+            hidePathContextMenu();
+            redrawAll();
+            showToast(n ? (on ? 'Center dashed line added' : 'Center line removed') : 'Select a double-line road (NH/SH/PWD…)');
+        }
+
+        function drawPassOnCtx(pCtx, points, type, layer, fillColor, centerLine) {
             if (!points || points.length < 2) return;
             const style = roadStyles[type];
             if (!style) return;
@@ -1285,6 +1485,17 @@
                 pCtx.setLineDash(style.dash || []);
                 pCtx.stroke();
             }
+
+            // Road center dashed line (− − − −) between the two edges
+            if (layer === 'inner' && style.isRoad && centerLine) {
+                drawPathGeometryOnCtx(pCtx, points, style);
+                pCtx.lineWidth = 1.25;
+                pCtx.strokeStyle = '#000000';
+                pCtx.setLineDash([10, 8]);
+                pCtx.lineCap = 'butt';
+                pCtx.lineJoin = 'miter';
+                pCtx.stroke();
+            }
             pCtx.restore();
         }
 
@@ -1310,7 +1521,7 @@
             if (activePathIndex === null && isDrawing && currentPath.length > 0) {
                 const liveType = document.getElementById('roadType').value;
                 const liveStyle = roadStyles[liveType];
-                const liveEntry = { type: liveType, points: currentPath };
+                const liveEntry = { type: liveType, points: currentPath, centerLine: isRoadCenterLineEnabled() };
                 if (liveStyle && (liveStyle.isBox || liveStyle.isPolygon || liveStyle.isMultiVertex)) {
                     liveEntry.fillColor = getActivePolygonFill();
                 }
@@ -1327,8 +1538,8 @@
             ctx.translate(globalDrawingTranslateX, globalDrawingTranslateY);
             const allPaths = getCombinedPaths();
 
-            allPaths.forEach(p => drawPassOnCtx(ctx, p.points, p.type, 'outer', p.fillColor));
-            allPaths.forEach(p => drawPassOnCtx(ctx, p.points, p.type, 'inner', p.fillColor));
+            allPaths.forEach(p => drawPassOnCtx(ctx, p.points, p.type, 'outer', p.fillColor, p.centerLine));
+            allPaths.forEach(p => drawPassOnCtx(ctx, p.points, p.type, 'inner', p.fillColor, p.centerLine));
 
             // Selection highlight for selected / grouped roads & lines
             if (selectedPathIndices.length > 0 && !drawModeOn && !eraseModeOn) {
@@ -1350,6 +1561,8 @@
                     ctx.stroke();
                     ctx.restore();
                 });
+                // Google Slides-style bounding box + resize handles
+                drawSelectionBoxAndHandles(ctx);
             }
 
             // Node handles (vertices) when path selected or node-edit mode
@@ -1687,6 +1900,19 @@
                 const mx = coord.x - globalDrawingTranslateX;
                 const my = coord.y - globalDrawingTranslateY;
 
+                // Resize handles (Google Slides style) — highest priority when selection exists
+                if (selectedPathIndices.length) {
+                    const hid = hitTestResizeHandle(mx, my);
+                    if (hid) {
+                        isResizingSelection = true;
+                        resizeHandleId = hid;
+                        resizeStartBounds = getSelectionBounds();
+                        resizePathSnapshot = deepClonePaths(paths);
+                        canvas.style.cursor = hid + '-resize';
+                        return;
+                    }
+                }
+
                 // Node edit: grab a vertex (other nodes stay fixed)
                 if (nodeEditMode || selectedPathIndices.length) {
                     const nodeHit = nodeHitTest(mx, my);
@@ -1747,6 +1973,12 @@
                 panX = e.clientX - startX;
                 panY = e.clientY - startY;
                 updateTransform();
+            } else if (isResizingSelection && resizeStartBounds) {
+                const coord = getCoordinates(e);
+                const mx = coord.x - globalDrawingTranslateX;
+                const my = coord.y - globalDrawingTranslateY;
+                applySelectionScaleFromHandle(mx, my);
+                redrawAll();
             } else if (isMarqueeSelecting && marqueeStart) {
                 const coord = getCoordinates(e);
                 const mx = coord.x - globalDrawingTranslateX;
@@ -1814,6 +2046,15 @@
         });
 
         window.addEventListener('mouseup', (e) => {
+            if (isResizingSelection) {
+                isResizingSelection = false;
+                resizeHandleId = null;
+                resizeStartBounds = null;
+                resizePathSnapshot = null;
+                lastActionType = 'draw';
+                redrawAll();
+                return;
+            }
             if (isMarqueeSelecting && marqueeStart) {
                 const coord = getCoordinates(e);
                 const mx = coord.x - globalDrawingTranslateX;

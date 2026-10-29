@@ -164,6 +164,9 @@
             <label class="tb-btn" style="font-size:11.5px;" title="Magnetic snap 12px — endpoints & vertices lock when close">
                 <input type="checkbox" id="straightMode" checked> Snap 12px
             </label>
+            <label class="tb-btn" style="font-size:11.5px;" title="Road middle dashed line (− − − −) between the two road edges">
+                <input type="checkbox" id="roadCenterLine"> Center − − −
+            </label>
 
             <div class="tb-sep"></div>
 
@@ -220,6 +223,9 @@
             <button id="magnifierToggleBtn" class="tb-btn active" onclick="toggleMagnifier()" title="2x Magnifier Zoom Box while Drawing">
                 🔍 Loupe
             </button>
+            <div class="tb-sep"></div>
+            <button class="tb-btn" onclick="selectAllPaths()" title="Select all drawings">⬚ All</button>
+            <button class="tb-btn" onclick="openHelpModal()" title="How to use this tool" style="font-weight:600;color:#1a73e8;">❓ Help</button>
         </div>
     </div>
 
@@ -564,12 +570,16 @@
         <div class="g-dd-item" id="ctxUngroupBtn" onclick="ungroupSelectedPaths()">🔓 Ungroup</div>
         <div class="g-dd-sep"></div>
         <div class="g-dd-item" onclick="startMoveSelectedPaths()">✥ Move all selected</div>
+        <div class="g-dd-item" onclick="fitSelectionToPage()">📐 Fit to page width</div>
         <div class="g-dd-item" onclick="enableNodeEditMode()">◉ Edit nodes (drag vertices)</div>
         <div class="g-dd-item" onclick="applyFillToSelectedPaths()">🎨 Apply fill colour</div>
         <div class="g-dd-item" onclick="clearFillOnSelectedPaths()">⬜ Remove fill</div>
+        <div class="g-dd-item" onclick="applyCenterLineToSelected(true)">− − − Add road center line</div>
+        <div class="g-dd-item" onclick="applyCenterLineToSelected(false)">✕ Remove center line</div>
         <div class="g-dd-item" onclick="deleteSelectedPaths()">🗑️ Delete selected</div>
         <div class="g-dd-sep"></div>
         <div class="g-dd-item" onclick="clearPathSelection()">✕ Deselect</div>
+        <div class="g-dd-item" style="font-size:11px;color:#5f6368;cursor:default;">Tip: drag blue box corners to resize</div>
     </div>
 
     <!-- Item (symbol / text) right-click context menu — Google Slides style -->
@@ -637,6 +647,60 @@
             <div class="modal-footer">
                 <button class="g-pill-btn" onclick="closeModal('clearConfirmModal')">Cancel</button>
                 <button class="g-pill-btn danger" onclick="resetSketchState();closeModal('clearConfirmModal')">Yes, Clear All</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= HELP / USER GUIDE ================= -->
+    <div id="helpModal" class="modal-overlay" onclick="if(event.target===this)closeModal('helpModal')">
+        <div class="modal-card" style="max-width:560px;max-height:85vh;display:flex;flex-direction:column;">
+            <div class="modal-header">
+                <h3>❓ Help — How to use Location Sketch Studio</h3>
+                <button class="tb-btn" onclick="closeModal('helpModal')">✕</button>
+            </div>
+            <div class="modal-body" style="overflow-y:auto;font-size:13.5px;line-height:1.55;color:#3c4043;">
+                <h4 style="margin:0 0 6px;color:#1a73e8;">1. Drawing (roads / lines / polygon)</h4>
+                <ul style="margin:0 0 14px;padding-left:18px;">
+                    <li><b>Line tools</b> menu → NH / SH / PWD / Railway / Basic line / Polygon തിരഞ്ഞെടുക്കുക</li>
+                    <li>Map-ൽ click-drag അല്ലെങ്കിൽ multi-point: ഓരോ ക്ലിക്കും ഒരു vertex; double-click / Enter to finish</li>
+                    <li><b>Snap</b> checkbox ON → 12px-നുള്ളിൽ endpoints ഒട്ടും</li>
+                    <li><b>Fill</b> + colour → polygon അടച്ചാൽ നിറം നിറയും</li>
+                </ul>
+                <h4 style="margin:0 0 6px;color:#1a73e8;">2. Select, Group, Move, Resize (Google Slides style)</h4>
+                <ul style="margin:0 0 14px;padding-left:18px;">
+                    <li><b>Select</b> tool → drawing-ൽ click (Ctrl+click = multi) അല്ലെങ്കിൽ empty area-യിൽ drag = marquee box</li>
+                    <li><b>⬚ All</b> → എല്ലാ drawings-ഉം select</li>
+                    <li>Right-click → <b>Group</b> / <b>Ungroup</b> / <b>Move</b> / Delete</li>
+                    <li>Select ആയാൽ <b>നീല box + corner handles</b> കാണും — corner drag = വലുത്/ചെറുത് (scale); side drag = ഒരു direction</li>
+                    <li>Group ചെയ്താൽ ഒരു unit ആയി move + resize</li>
+                </ul>
+                <h4 style="margin:0 0 6px;color:#1a73e8;">3. Nodes (vertex edit)</h4>
+                <ul style="margin:0 0 14px;padding-left:18px;">
+                    <li>Right-click → <b>Edit nodes</b> → നീല dots drag ചെയ്യുക; മറ്റ് nodes steady</li>
+                </ul>
+                <h4 style="margin:0 0 6px;color:#1a73e8;">4. Symbols & Text</h4>
+                <ul style="margin:0 0 14px;padding-left:18px;">
+                    <li>Shapes menu → survey symbols drag to map</li>
+                    <li><b>Text (T)</b> → map-ൽ click അല്ലെങ്കിൽ drag = sized text box (Google Slides style)</li>
+                    <li>Symbol/text-ൽ right-click → rotate 90° / 180° / delete</li>
+                </ul>
+                <h4 style="margin:0 0 6px;color:#1a73e8;">5. Save & Export</h4>
+                <ul style="margin:0 0 14px;padding-left:18px;">
+                    <li>Save → browser IndexedDB; Open → saved list</li>
+                    <li>PDF / PNG export — A4 page as drawn</li>
+                    <li>QR → Google Maps link insert</li>
+                </ul>
+                <h4 style="margin:0 0 6px;color:#1a73e8;">6. Shortcuts</h4>
+                <ul style="margin:0 0 6px;padding-left:18px;">
+                    <li><b>Ctrl+A</b> — select all drawings</li>
+                    <li><b>Delete</b> — delete selection</li>
+                    <li><b>Ctrl+Z</b> — undo (where supported)</li>
+                    <li>Empty drag — multi-select box</li>
+                </ul>
+                <p style="margin:12px 0 0;font-size:12px;color:#80868b;">Muraleedharan P | Location Sketch Map Studio V4.3</p>
+            </div>
+            <div class="modal-footer">
+                <button class="g-pill-btn primary" onclick="closeModal('helpModal')">Got it</button>
             </div>
         </div>
     </div>
