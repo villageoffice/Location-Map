@@ -26,3 +26,14 @@ index.html  style.css  script.js  lib/  README.md
 2. Optional: right-click → Group
 3. Drag **blue corner handles** to enlarge/shrink (like Google Slides)
 4. Help button for full guide
+
+## Video tutorial
+
+English narrated walkthrough:
+
+`docs/Location-Map-Studio-Tutorial-EN.mp4`
+
+Also linked from **Help → Video tutorial (English)** and inside the Help guide modal.
+
+GitHub Pages path example:
+`https://<user>.github.io/<repo>/docs/Location-Map-Studio-Tutorial-EN.mp4`

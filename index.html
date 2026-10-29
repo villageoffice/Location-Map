@@ -467,11 +467,15 @@
         <div class="g-dd-item" onclick="toggleDeviceMode();closeAllDropdowns()"><span>📱 Switch PC / Mobile Touch Mode</span></div>
     </div>
 
-    <div id="helpMenu" class="g-dropdown" style="width:280px;">
+    <div id="helpMenu" class="g-dropdown" style="width:300px;">
         <div class="g-dd-header">Location Map — Help</div>
         <div class="g-dd-item" onclick="openHelpModal();closeAllDropdowns()">
             <span class="dd-icon">📖</span>
             <span>Full user guide</span>
+        </div>
+        <div class="g-dd-item" onclick="openTutorialVideo();closeAllDropdowns()">
+            <span class="dd-icon">🎬</span>
+            <span>Video tutorial (English)</span>
         </div>
         <div class="g-dd-sep"></div>
         <div class="g-dd-item" onclick="openHelpModal();closeAllDropdowns()">
@@ -696,6 +700,13 @@
                 <p style="margin:0 0 12px;padding:10px 12px;background:#e8f0fe;border-radius:8px;font-size:13px;">
                     <b>Location Sketch Map Studio</b> — village office / survey-style location map വരയ്ക്കാനുള്ള tool.
                     Menu: <b>File → … → Arrange → Tools → Help</b>
+                </p>
+                <p style="margin:0 0 14px;padding:10px 12px;background:#fef7e0;border-radius:8px;font-size:13px;">
+                    🎬 <b>Video tutorial (English narration)</b><br>
+                    <a href="docs/Location-Map-Studio-Tutorial-EN.mp4" target="_blank" rel="noopener" style="color:#1a73e8;font-weight:600;">
+                      Watch / download tutorial video
+                    </a>
+                    <span style="color:#5f6368;"> — how to draw roads, symbols, text, lock &amp; export</span>
                 </p>
 
                 <h4 style="margin:0 0 6px;color:#1a73e8;">1. Roads / lines / polygon വരയ്ക്കുക</h4>

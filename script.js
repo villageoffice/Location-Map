@@ -1068,6 +1068,11 @@
             openModal('helpModal');
         }
 
+        function openTutorialVideo() {
+            const url = 'docs/Location-Map-Studio-Tutorial-EN.mp4';
+            window.open(url, '_blank', 'noopener');
+        }
+
         // Canvas right-click → select + context menu
         canvas.addEventListener('contextmenu', (e) => {
             e.preventDefault();
