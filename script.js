@@ -2649,8 +2649,14 @@
             const lines = String(text).split(/\r\n|\r|\n/);
             const lh = lineHeight || 14;
             pCtx.textAlign = align || 'center';
+            pCtx.lineJoin = 'round';
+            // ~0.3mm white stroke buffer around glyphs (matches on-screen text-shadow)
             lines.forEach((line, i) => {
-                pCtx.fillText(line, x, y + i * lh);
+                const yy = y + i * lh;
+                pCtx.strokeStyle = '#ffffff';
+                pCtx.lineWidth = 2.3; // ~2 × 1.15px for full halo
+                pCtx.strokeText(line, x, yy);
+                pCtx.fillText(line, x, yy);
             });
         }
 
