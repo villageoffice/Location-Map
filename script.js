@@ -33,6 +33,7 @@
         let globalDrawingTranslateY = 0;
 
         let drawModeOn = false;
+        let drawingLockOn = false; // Lock: only select / group / move / resize / delete
         let eraseModeOn = false;
         let isErasing = false;
         let eraserRadius = 20;
@@ -220,6 +221,11 @@
         };
 
         function selectDrawingLine(typeKey, labelText) {
+            if (drawingLockOn) {
+                showToast('Drawing locked — unlock to draw new lines');
+                closeAllDropdowns();
+                return;
+            }
             finishActiveMultiVertexPath();
             clearPathSelection();
             deactivateTextTool();
@@ -237,6 +243,26 @@
 
             const st = roadStyles[typeKey];
             document.getElementById('polyHintBanner').style.display = (st && st.isMultiVertex) ? 'block' : 'none';
+        }
+
+        function toggleDrawingLock() {
+            drawingLockOn = !drawingLockOn;
+            if (drawingLockOn) {
+                finishActiveMultiVertexPath();
+                deactivateTextTool();
+                drawModeOn = false;
+                if (eraseModeOn) toggleEraserMode();
+                nodeEditMode = false;
+                isDraggingNode = false;
+                activeNode = null;
+                offSubMode = 'items';
+                document.getElementById('polyHintBanner').style.display = 'none';
+                showToast('🔒 Drawing locked — Select / Group / Move / Resize / Delete only');
+            } else {
+                showToast('🔓 Drawing unlocked — you can draw again');
+            }
+            updateToolButtonsUI();
+            redrawAll();
         }
 
         function activateSelectTool() {
@@ -266,14 +292,24 @@
             const lineBtn = document.getElementById('lineDropdownBtn');
             const eraserBtn = document.getElementById('eraserToggleBtn');
             const textBtn = document.getElementById('textToolBtn');
+            const lockBtn = document.getElementById('drawingLockBtn');
 
             selectBtn.classList.toggle('active', !drawModeOn && !eraseModeOn && !textToolActive && offSubMode === 'items');
             panBtn.classList.toggle('active', !drawModeOn && !eraseModeOn && !textToolActive && offSubMode === 'page');
-            lineBtn.classList.toggle('active', drawModeOn);
-            eraserBtn.classList.toggle('active', eraseModeOn);
-            if (textBtn) textBtn.classList.toggle('active', textToolActive);
+            lineBtn.classList.toggle('active', drawModeOn && !drawingLockOn);
+            eraserBtn.classList.toggle('active', eraseModeOn && !drawingLockOn);
+            if (textBtn) textBtn.classList.toggle('active', textToolActive && !drawingLockOn);
+            if (lockBtn) {
+                lockBtn.classList.toggle('active', drawingLockOn);
+                lockBtn.innerHTML = drawingLockOn ? '🔒 Locked' : '🔓 Lock';
+                lockBtn.title = drawingLockOn
+                    ? 'Unlock — allow drawing again'
+                    : 'Lock drawings — only Select, Group, Move, Resize, Delete';
+            }
 
-            if (drawModeOn || eraseModeOn || textToolActive) {
+            if (drawingLockOn) {
+                canvas.style.cursor = 'default';
+            } else if (drawModeOn || eraseModeOn || textToolActive) {
                 canvas.style.cursor = 'crosshair';
             } else if (offSubMode === 'page') {
                 canvas.style.cursor = 'grab';
@@ -632,6 +668,11 @@
         }
 
         function enableNodeEditMode() {
+            if (drawingLockOn) {
+                showToast('Drawing locked — unlock to edit nodes');
+                hidePathContextMenu();
+                return;
+            }
             if (!selectedPathIndices.length) {
                 showToast('Select a line / polygon first');
                 hidePathContextMenu();
@@ -1112,6 +1153,13 @@
         }
 
         function startDrawing(e) {
+            if (drawingLockOn) {
+                if (eraseModeOn) return;
+                if (drawModeOn) {
+                    showToast('Drawing locked — unlock to draw');
+                    return;
+                }
+            }
             if (eraseModeOn) {
                 if (e.target === canvas) startErasing(e);
                 return;
@@ -1684,6 +1732,10 @@
         }
 
         function toggleEraserMode() {
+            if (drawingLockOn && !eraseModeOn) {
+                showToast('Drawing locked — unlock to use eraser');
+                return;
+            }
             finishActiveMultiVertexPath();
             eraseModeOn = !eraseModeOn;
             if (eraseModeOn) {
@@ -1913,8 +1965,8 @@
                     }
                 }
 
-                // Node edit: grab a vertex (other nodes stay fixed)
-                if (nodeEditMode || selectedPathIndices.length) {
+                // Node edit: grab a vertex (other nodes stay fixed) — blocked when drawing locked
+                if (!drawingLockOn && (nodeEditMode || selectedPathIndices.length)) {
                     const nodeHit = nodeHitTest(mx, my);
                     if (nodeHit) {
                         if (!selectedPathIndices.includes(nodeHit.pathIndex)) {
@@ -2383,6 +2435,10 @@
         }
 
         function activateTextTool() {
+            if (drawingLockOn) {
+                showToast('Drawing locked — unlock to add text');
+                return;
+            }
             finishActiveMultiVertexPath();
             clearPathSelection();
             if (eraseModeOn) toggleEraserMode();

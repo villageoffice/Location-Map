@@ -55,6 +55,7 @@
                         <div class="g-menu-item" onclick="openMenuDropdown(event, 'slideMenu')">Slide</div>
                         <div class="g-menu-item" onclick="openMenuDropdown(event, 'arrangeMenu')">Arrange</div>
                         <div class="g-menu-item" onclick="openMenuDropdown(event, 'toolsMenu')">Tools</div>
+                        <div class="g-menu-item" onclick="openMenuDropdown(event, 'helpMenu')" style="font-weight:600;">Help</div>
                     </nav>
                 </div>
             </div>
@@ -224,6 +225,9 @@
                 🔍 Loupe
             </button>
             <div class="tb-sep"></div>
+            <button id="drawingLockBtn" class="tb-btn" onclick="toggleDrawingLock()" title="Lock drawings — only Select, Group, Move, Resize, Delete allowed">
+                🔓 Lock
+            </button>
             <button class="tb-btn" onclick="selectAllPaths()" title="Select all drawings">⬚ All</button>
             <button class="tb-btn" onclick="openHelpModal()" title="How to use this tool" style="font-weight:600;color:#1a73e8;">❓ Help</button>
         </div>
@@ -463,6 +467,36 @@
         <div class="g-dd-item" onclick="toggleDeviceMode();closeAllDropdowns()"><span>📱 Switch PC / Mobile Touch Mode</span></div>
     </div>
 
+    <div id="helpMenu" class="g-dropdown" style="width:280px;">
+        <div class="g-dd-header">Location Map — Help</div>
+        <div class="g-dd-item" onclick="openHelpModal();closeAllDropdowns()">
+            <span class="dd-icon">📖</span>
+            <span>Full user guide</span>
+        </div>
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-item" onclick="openHelpModal();closeAllDropdowns()">
+            <span class="dd-icon">🛣️</span>
+            <span>Roads, lines & center dash</span>
+        </div>
+        <div class="g-dd-item" onclick="openHelpModal();closeAllDropdowns()">
+            <span class="dd-icon">🔲</span>
+            <span>Select, group, move, resize</span>
+        </div>
+        <div class="g-dd-item" onclick="openHelpModal();closeAllDropdowns()">
+            <span class="dd-icon">🔒</span>
+            <span>Drawing lock</span>
+        </div>
+        <div class="g-dd-item" onclick="openHelpModal();closeAllDropdowns()">
+            <span class="dd-icon">📝</span>
+            <span>Text, symbols & export</span>
+        </div>
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-item" onclick="openHelpModal();closeAllDropdowns()">
+            <span class="dd-icon">❓</span>
+            <span>About this application</span>
+        </div>
+    </div>
+
     <!-- Hidden File Input for Background Image / PDF -->
     <input type="file" id="bgUploader" accept="image/*,application/pdf" style="display:none;">
     <!-- Hidden Road Type Select for compatibility -->
@@ -659,43 +693,61 @@
                 <button class="tb-btn" onclick="closeModal('helpModal')">✕</button>
             </div>
             <div class="modal-body" style="overflow-y:auto;font-size:13.5px;line-height:1.55;color:#3c4043;">
-                <h4 style="margin:0 0 6px;color:#1a73e8;">1. Drawing (roads / lines / polygon)</h4>
+                <p style="margin:0 0 12px;padding:10px 12px;background:#e8f0fe;border-radius:8px;font-size:13px;">
+                    <b>Location Sketch Map Studio</b> — village office / survey-style location map വരയ്ക്കാനുള്ള tool.
+                    Menu: <b>File → … → Arrange → Tools → Help</b>
+                </p>
+
+                <h4 style="margin:0 0 6px;color:#1a73e8;">1. Roads / lines / polygon വരയ്ക്കുക</h4>
                 <ul style="margin:0 0 14px;padding-left:18px;">
-                    <li><b>Line tools</b> menu → NH / SH / PWD / Railway / Basic line / Polygon തിരഞ്ഞെടുക്കുക</li>
-                    <li>Map-ൽ click-drag അല്ലെങ്കിൽ multi-point: ഓരോ ക്ലിക്കും ഒരു vertex; double-click / Enter to finish</li>
-                    <li><b>Snap</b> checkbox ON → 12px-നുള്ളിൽ endpoints ഒട്ടും</li>
-                    <li><b>Fill</b> + colour → polygon അടച്ചാൽ നിറം നിറയും</li>
+                    <li>Toolbar <b>Line</b> menu → NH, SH, PWD, Panchayat, Mud, Railway, Basic line, Polygon</li>
+                    <li>Map-ൽ click–drag; multi-point: ഓരോ click-ഉം vertex; <b>double-click</b> അല്ലെങ്കിൽ <b>Enter</b> = finish</li>
+                    <li><b>Snap 12px</b> ON → endpoints / vertices അടുത്ത് വന്നാൽ ഒട്ടും</li>
+                    <li><b>Center − − −</b> ON → road-ന്റെ രണ്ട് line-ന് നടുവിൽ dashed center line</li>
+                    <li><b>Fill</b> + colour → polygon അടച്ചാൽ അകം നിറയും</li>
                 </ul>
-                <h4 style="margin:0 0 6px;color:#1a73e8;">2. Select, Group, Move, Resize (Google Slides style)</h4>
+
+                <h4 style="margin:0 0 6px;color:#1a73e8;">2. Select, Group, Move, Resize</h4>
                 <ul style="margin:0 0 14px;padding-left:18px;">
-                    <li><b>Select</b> tool → drawing-ൽ click (Ctrl+click = multi) അല്ലെങ്കിൽ empty area-യിൽ drag = marquee box</li>
-                    <li><b>⬚ All</b> → എല്ലാ drawings-ഉം select</li>
-                    <li>Right-click → <b>Group</b> / <b>Ungroup</b> / <b>Move</b> / Delete</li>
-                    <li>Select ആയാൽ <b>നീല box + corner handles</b> കാണും — corner drag = വലുത്/ചെറുത് (scale); side drag = ഒരു direction</li>
-                    <li>Group ചെയ്താൽ ഒരു unit ആയി move + resize</li>
+                    <li><b>Select</b> tool → drawing click (Ctrl+click = multi) അല്ലെങ്കിൽ ശൂന്യ ഇടത്ത് drag = marquee</li>
+                    <li><b>⬚ All</b> അല്ലെങ്കിൽ <b>Ctrl+A</b> → എല്ലാം select</li>
+                    <li>Right-click → Group / Ungroup / Move / Delete / Fit to page</li>
+                    <li>Select ആയാൽ <b>നീല box + 8 handles</b> — corner = വലുത്/ചെറുത്; side = ഒരു ദിശ</li>
                 </ul>
-                <h4 style="margin:0 0 6px;color:#1a73e8;">3. Nodes (vertex edit)</h4>
+
+                <h4 style="margin:0 0 6px;color:#1a73e8;">3. 🔒 Drawing Lock</h4>
                 <ul style="margin:0 0 14px;padding-left:18px;">
-                    <li>Right-click → <b>Edit nodes</b> → നീല dots drag ചെയ്യുക; മറ്റ് nodes steady</li>
+                    <li>Drawing കഴിഞ്ഞാൽ toolbar <b>Lock</b> അമർത്തുക</li>
+                    <li>Lock ON: <b>Select / Group / Move / Resize / Delete</b> മാത്രം</li>
+                    <li>പുതിയ draw, eraser, text, node-edit ബ്ലോക്ക്</li>
+                    <li>വീണ്ടും draw വേണമെങ്കിൽ <b>Locked</b> അമർത്തി unlock</li>
                 </ul>
-                <h4 style="margin:0 0 6px;color:#1a73e8;">4. Symbols & Text</h4>
+
+                <h4 style="margin:0 0 6px;color:#1a73e8;">4. Nodes (vertex edit)</h4>
                 <ul style="margin:0 0 14px;padding-left:18px;">
-                    <li>Shapes menu → survey symbols drag to map</li>
-                    <li><b>Text (T)</b> → map-ൽ click അല്ലെങ്കിൽ drag = sized text box (Google Slides style)</li>
-                    <li>Symbol/text-ൽ right-click → rotate 90° / 180° / delete</li>
+                    <li>Right-click → <b>Edit nodes</b> → നീല dot drag; മറ്റ് nodes steady (Lock OFF ആയിരിക്കണം)</li>
                 </ul>
-                <h4 style="margin:0 0 6px;color:#1a73e8;">5. Save & Export</h4>
+
+                <h4 style="margin:0 0 6px;color:#1a73e8;">5. Symbols & Text</h4>
                 <ul style="margin:0 0 14px;padding-left:18px;">
-                    <li>Save → browser IndexedDB; Open → saved list</li>
-                    <li>PDF / PNG export — A4 page as drawn</li>
-                    <li>QR → Google Maps link insert</li>
+                    <li>Shapes menu → survey symbols map-ൽ ഇടുക</li>
+                    <li><b>Text (T)</b> → click അല്ലെങ്കിൽ drag = sized text box (Google slides style)</li>
+                    <li>Symbol/text right-click → rotate 90° / 180° / delete</li>
                 </ul>
-                <h4 style="margin:0 0 6px;color:#1a73e8;">6. Shortcuts</h4>
+
+                <h4 style="margin:0 0 6px;color:#1a73e8;">6. Save & Export</h4>
+                <ul style="margin:0 0 14px;padding-left:18px;">
+                    <li><b>Save</b> → browser-ൽ IndexedDB; Open → saved list</li>
+                    <li>PDF / PNG — A4 page export</li>
+                    <li>QR — Google Maps link sketch-ൽ ഇടാം</li>
+                    <li>Slide menu → Village Office form template</li>
+                </ul>
+
+                <h4 style="margin:0 0 6px;color:#1a73e8;">7. Shortcuts</h4>
                 <ul style="margin:0 0 6px;padding-left:18px;">
-                    <li><b>Ctrl+A</b> — select all drawings</li>
-                    <li><b>Delete</b> — delete selection</li>
-                    <li><b>Ctrl+Z</b> — undo (where supported)</li>
-                    <li>Empty drag — multi-select box</li>
+                    <li><b>Ctrl+A</b> — select all · <b>Delete</b> — delete selection</li>
+                    <li><b>Ctrl+Z</b> / <b>Ctrl+Y</b> — undo / redo</li>
+                    <li><b>Enter</b> — finish multi-point line · <b>Esc</b> — cancel</li>
                 </ul>
                 <p style="margin:12px 0 0;font-size:12px;color:#80868b;">Muraleedharan P | Location Sketch Map Studio V4.3</p>
             </div>
