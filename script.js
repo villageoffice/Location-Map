@@ -104,49 +104,58 @@
 
         // ================= OFFICIAL KERALA LOCATION SKETCH FORM GENERATOR =================
         function createOfficialTemplateDataURL() {
+            // Matches the standard A4 Location Sketch form (red double border)
+            const W = 794, H = 1123;
             const tCanvas = document.createElement('canvas');
-            tCanvas.width = 794;
-            tCanvas.height = 1123;
+            tCanvas.width = W;
+            tCanvas.height = H;
             const tCtx = tCanvas.getContext('2d');
 
             tCtx.fillStyle = '#ffffff';
-            tCtx.fillRect(0, 0, 794, 1123);
+            tCtx.fillRect(0, 0, W, H);
 
-            // Outer Double Border (mirrors screenshot template)
-            tCtx.strokeStyle = '#333333';
-            tCtx.lineWidth = 2;
-            tCtx.strokeRect(28, 28, 738, 1067);
+            // Outer red double border (official form)
+            tCtx.strokeStyle = '#c62828';
+            tCtx.lineWidth = 2.5;
+            tCtx.strokeRect(36, 36, W - 72, H - 72);
             tCtx.lineWidth = 1;
-            tCtx.strokeRect(33, 33, 728, 1057);
+            tCtx.strokeRect(42, 42, W - 84, H - 84);
 
-            // Header Title
+            // Header title
             tCtx.fillStyle = '#111111';
-            tCtx.font = 'bold 20px Arial';
+            tCtx.font = 'bold 18px Times New Roman, Times, serif';
             tCtx.textAlign = 'center';
-            tCtx.fillText('LOCATION SKETCH / ലൊക്കേഷൻ സ്കെച്ച്', 397, 68);
+            tCtx.fillText('LOCATION SKETCH', W / 2, 70);
 
-            tCtx.font = '12px Arial';
+            tCtx.font = '11px Arial';
             tCtx.textAlign = 'left';
-            tCtx.fillText('District / ജില്ല : ..............................................', 52, 100);
-            tCtx.fillText('Taluk / താലൂക്ക് : ..........................................', 310, 100);
-            tCtx.fillText('Village / വില്ലേജ് : ........................................', 545, 100);
+            const dots = ' ..............................';
+            tCtx.fillText('District/ജില്ല' + dots, 55, 100);
+            tCtx.fillText('Taluk/താലൂക്ക്' + dots, 290, 100);
+            tCtx.fillText('Village/വില്ലേജ്' + dots, 525, 100);
 
-            tCtx.fillText('Re-Survey / Block No : ..................................', 52, 126);
-            tCtx.fillText('Thandaper / തണ്ടപ്പേർ : .................................', 310, 126);
-            tCtx.fillText('Extent / വിസ്തീർണ്ണം : ...............................', 545, 126);
+            tCtx.fillText('Re-Survey/Block No' + dots, 55, 124);
+            tCtx.fillText('Thanaper/തണ്ടപ്പേർ' + dots, 290, 124);
+            tCtx.fillText('Extent/വിസ്തീർണം' + dots, 525, 124);
 
-            // Main Sketch Drawing Frame
-            tCtx.lineWidth = 1.5;
-            tCtx.strokeRect(48, 145, 698, 795);
+            // Main sketch frame
+            tCtx.strokeStyle = '#c62828';
+            tCtx.lineWidth = 1.25;
+            tCtx.strokeRect(55, 145, W - 110, 780);
 
-            // Footer Certificate & Signature Boxes
-            tCtx.font = '12px Arial';
-            tCtx.fillText('Name & Address of Applicant : ..........................................................................................................', 52, 968);
-            tCtx.fillText('Purpose of Location Sketch : ............................................................................................................', 52, 994);
+            // Footer separator
+            tCtx.beginPath();
+            tCtx.moveTo(55, 940);
+            tCtx.lineTo(W - 55, 940);
+            tCtx.stroke();
 
-            tCtx.fillText('Prepared by:', 52, 1045);
-            tCtx.fillText(' Countersigned by:', 330, 1045);
-            tCtx.fillText('Village Officer (Seal & Sign):', 565, 1045);
+            tCtx.fillStyle = '#111';
+            tCtx.font = '11px Arial';
+            tCtx.fillText('Name & Address of Applicant ........................................................', 55, 970);
+            tCtx.fillText('Purpose of Location Sketch ..........................................................', 55, 998);
+
+            tCtx.fillText('Prepared by ........................', 55, 1055);
+            tCtx.fillText('Village Officer (Seal & Sign) ........................', 420, 1055);
 
             return tCanvas.toDataURL('image/png');
         }
@@ -1234,6 +1243,33 @@
             triggerMagnifierRender(clientX, clientY, coord.x, coord.y);
         }
 
+
+        function constrainAnglePoint(base, tip, stepDeg) {
+            // Snap line angle to nearest stepDeg (default 15°) for smooth Google-Slides-like drawing
+            const step = (stepDeg || 15) * Math.PI / 180;
+            const dx = tip.x - base.x;
+            const dy = tip.y - base.y;
+            const len = Math.hypot(dx, dy);
+            if (len < 0.5) return tip;
+            let ang = Math.atan2(dy, dx);
+            ang = Math.round(ang / step) * step;
+            return { x: base.x + Math.cos(ang) * len, y: base.y + Math.sin(ang) * len };
+        }
+
+        function getItemPagePos(item) {
+            // Robust page-pixel centre position (matches CSS left/top + translate(-50%,-50%))
+            let left = item.style.left || '';
+            let top = item.style.top || '';
+            let x, y;
+            if (left.includes('%')) x = (parseFloat(left) / 100) * pageTargetWidth;
+            else x = parseFloat(left);
+            if (top.includes('%')) y = (parseFloat(top) / 100) * pageTargetHeight;
+            else y = parseFloat(top);
+            if (!isFinite(x)) x = item.offsetLeft + item.offsetWidth / 2;
+            if (!isFinite(y)) y = item.offsetTop + item.offsetHeight / 2;
+            return { x, y };
+        }
+
         function draw(e) {
             if (eraseModeOn) { eraseMove(e); return; }
             if (!isDrawing || !drawModeOn) return;
@@ -1251,6 +1287,14 @@
 
             const activeType = document.getElementById('roadType').value;
             const style = roadStyles[activeType];
+
+            // Shift = constrain angle to 15° steps (smooth Google Slides-like straight lines)
+            if (e.shiftKey && currentPath.length >= 1) {
+                const base = multiPointPolyActive
+                    ? currentPath[Math.max(0, currentPath.length - 2)]
+                    : currentPath[0];
+                if (base) targetModelCoord = constrainAnglePoint(base, targetModelCoord, 15);
+            }
 
             if (multiPointPolyActive && style && style.isMultiVertex) {
                 // Only the moving tip updates; earlier vertices stay steady
@@ -1592,7 +1636,20 @@
 
         function performRedraw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if (bgImage) ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
+            if (bgImage) {
+                // Contain fit — preserve PDF form aspect (no stretch distortion)
+                const cw = canvas.width, ch = canvas.height;
+                const iw = bgImage.naturalWidth || bgImage.width;
+                const ih = bgImage.naturalHeight || bgImage.height;
+                if (iw > 0 && ih > 0) {
+                    const scale = Math.min(cw / iw, ch / ih);
+                    const dw = iw * scale, dh = ih * scale;
+                    const dx = (cw - dw) / 2, dy = (ch - dh) / 2;
+                    ctx.drawImage(bgImage, dx, dy, dw, dh);
+                } else {
+                    ctx.drawImage(bgImage, 0, 0, cw, ch);
+                }
+            }
 
             ctx.save();
             ctx.translate(globalDrawingTranslateX, globalDrawingTranslateY);
@@ -1912,6 +1969,11 @@
 
         // ================= DRAGGABLE ITEMS & PAGE ALIGNMENT =================
         let draggedElement = null;
+        // Drag state: keeps the grab point fixed and ignores tiny mouse jitter (click / double-click must not move the item)
+        let dragOffsetX = 0, dragOffsetY = 0;
+        let dragStartClientX = 0, dragStartClientY = 0;
+        let dragMoved = false;
+        const DRAG_THRESHOLD_PX = 5;
 
         function selectItemElement(el) {
             document.querySelectorAll('.draggable-item.selected-item').forEach(n => n.classList.remove('selected-item'));
@@ -1936,6 +1998,17 @@
 
             let clientX = e.touches ? e.touches[0].clientX : e.clientX;
             let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            // Remember where inside the item the mouse grabbed it, so the item never jumps to the cursor
+            const cRect = itemContainer.getBoundingClientRect();
+            const px = (clientX - cRect.left) / zoomScale;
+            const py = (clientY - cRect.top) / zoomScale;
+            dragOffsetX = (parseFloat(this.style.left) || 0) - px;
+            dragOffsetY = (parseFloat(this.style.top) || 0) - py;
+            dragStartClientX = clientX;
+            dragStartClientY = clientY;
+            dragMoved = false;
+
             const modelCoord = getCoordinates(e);
             triggerMagnifierRender(clientX, clientY, modelCoord.x, modelCoord.y);
         }
@@ -2113,9 +2186,15 @@
                 redrawAll();
             } else if (draggedElement) {
                 e.preventDefault();
+                // Only start moving after the mouse really travels (click / double-click to edit must not shift the box)
+                if (!dragMoved) {
+                    const travelled = Math.hypot(e.clientX - dragStartClientX, e.clientY - dragStartClientY);
+                    if (travelled < DRAG_THRESHOLD_PX) return;
+                    dragMoved = true;
+                }
                 const containerRect = itemContainer.getBoundingClientRect();
-                let x = (e.clientX - containerRect.left) / zoomScale;
-                let y = (e.clientY - containerRect.top) / zoomScale;
+                let x = (e.clientX - containerRect.left) / zoomScale + dragOffsetX;
+                let y = (e.clientY - containerRect.top) / zoomScale + dragOffsetY;
                 draggedElement.style.left = x + 'px';
                 draggedElement.style.top = y + 'px';
 
@@ -2448,7 +2527,17 @@
             const parentItem = textDiv.closest('.draggable-item');
             if (parentItem) parentItem.classList.add('text-editing-active');
             textDiv.contentEditable = 'true';
-            textDiv.focus();
+            textDiv.focus({ preventScroll: true });
+            // Browser may scroll the page container to the caret — keep the map exactly where it was
+            if (wrapper) { wrapper.scrollLeft = 0; wrapper.scrollTop = 0; }
+
+            function onTabKey(ev) {
+                if (ev.key !== 'Tab') return;
+                ev.preventDefault();
+                // Google Slides-style indent: insert 4 spaces at caret
+                document.execCommand('insertText', false, '    ');
+            }
+            textDiv.addEventListener('keydown', onTabKey);
 
             function finish() {
                 textDiv.contentEditable = 'false';
@@ -2456,6 +2545,7 @@
                 textDiv.classList.remove('is-selected');
                 if (parentItem) parentItem.classList.remove('text-editing-active');
                 textDiv.removeEventListener('blur', finish);
+                textDiv.removeEventListener('keydown', onTabKey);
                 let val = (textDiv.innerText || '').trim();
                 if (!val) {
                     textDiv.textContent = 'Type here…';
@@ -2678,8 +2768,10 @@
 
             const items = document.querySelectorAll('.draggable-item');
             items.forEach(item => {
-                const posX = (parseFloat(item.style.left) / 100) * (item.style.left.includes('%') ? pageTargetWidth : 100) || parseFloat(item.style.left) || pageTargetWidth / 2;
-                const posY = (parseFloat(item.style.top) / 100) * (item.style.top.includes('%') ? pageTargetHeight : 100) || parseFloat(item.style.top) || pageTargetHeight / 2;
+                // Same page coordinates as on screen (1:1 with canvas)
+                const pos = getItemPagePos(item);
+                const posX = pos.x;
+                const posY = pos.y;
                 const textNode = item.querySelector('.draggable-text-style');
                 const mapSymbolNode = item.querySelector('.vector-map-symbol');
                 const northLabel = item.querySelector('.north-label');
@@ -2699,15 +2791,22 @@
                     const fWeight = comp.fontWeight || 'bold';
                     const fStyle = comp.fontStyle || 'normal';
                     const fColor = comp.color || '#000000';
-                    const text = (textNode.innerText || '').trim();
-                    if (text) {
+                    const tAlign = (comp.textAlign === 'start' ? 'left' : (comp.textAlign || 'center'));
+                    const text = (textNode.innerText || '').replace(/\u00a0/g, ' ').replace(/\s+$/,'');
+                    if (text.trim()) {
                         pCtx.font = `${fStyle} ${fWeight} ${fSize} ${fFamily}`;
                         pCtx.fillStyle = fColor;
-                        pCtx.textBaseline = 'top';
+                        pCtx.textBaseline = 'middle';
+                        pCtx.textAlign = tAlign === 'left' || tAlign === 'right' ? tAlign : 'center';
                         const lines = text.split(/\r\n|\r|\n/);
-                        const lh = parseFloat(fSize) * (parseFloat(textNode.style.lineHeight) || 1.25);
+                        const fsNum = parseFloat(fSize) || 18;
+                        const lhMul = parseFloat(comp.lineHeight) && comp.lineHeight !== 'normal'
+                            ? (parseFloat(comp.lineHeight) / fsNum)
+                            : 1.3;
+                        const lh = fsNum * (isFinite(lhMul) && lhMul > 0.5 ? lhMul : 1.3);
                         const totalH = lines.length * lh;
-                        drawMultilineTextOnExport(pCtx, text, 0, -totalH / 2, lh, 'center');
+                        // Match on-screen box: text is centered in the draggable item
+                        drawMultilineTextOnExport(pCtx, text, 0, -totalH / 2 + lh / 2, lh, pCtx.textAlign);
                     }
                 } else if (mapSymbolNode) {
                     const symbolSize = parseFloat(mapSymbolNode.getAttribute('width')) || 45;
@@ -2746,16 +2845,18 @@
 
         async function compileAndSavePDF() {
             const outCanvas = await buildMergedExportCanvas();
-            const imgData = outCanvas.toDataURL('image/jpeg', 1.0);
+            // PNG keeps text/lines sharp so PDF matches on-screen layout
+            const imgData = outCanvas.toDataURL('image/png');
             const { jsPDF } = window.jspdf;
             const currentOrientation = document.getElementById('pageOrientation').value;
-            const doc = new jsPDF({ orientation: currentOrientation, unit: 'mm', format: 'a4' });
+            const doc = new jsPDF({ orientation: currentOrientation, unit: 'mm', format: 'a4', compress: true });
             const pdfW = currentOrientation === 'landscape' ? 297 : 210;
             const pdfH = currentOrientation === 'landscape' ? 210 : 297;
-            doc.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+            // Fill entire A4 — same aspect as canvas (794×1123 ≈ A4)
+            doc.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH, undefined, 'FAST');
             const titleName = (document.getElementById('docTitleInput').value || 'Location_Sketch').replace(/\s+/g, '_');
             doc.save(titleName + '.pdf');
-            showToast('✅ PDF Downloaded Successfully!');
+            showToast('✅ PDF Downloaded — matches screen layout');
         }
 
         async function exportMapAsPNG() {
