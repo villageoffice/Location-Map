@@ -1561,7 +1561,14 @@
             let allPaths = [];
             paths.forEach((p, idx) => {
                 if (idx === activePathIndex && isDrawing && currentPath.length > 0) {
-                    allPaths.push({ type: p.type, points: [...p.points, currentPath[1]], fillColor: p.fillColor });
+                    allPaths.push({
+                        type: p.type,
+                        points: [...p.points, currentPath[1]],
+                        fillColor: p.fillColor,
+                        centerLine: p.centerLine,
+                        groupId: p.groupId,
+                        closed: p.closed
+                    });
                 } else {
                     allPaths.push(p);
                 }
@@ -1660,12 +1667,17 @@
         function ptDist(a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
 
         function deepClonePaths(arr) {
-            return arr.map(p => ({
-                type: p.type,
-                points: p.points.map(pt => ({ x: pt.x, y: pt.y })),
-                fillColor: p.fillColor || null,
-                groupId: p.groupId || null
-            }));
+            return arr.map(p => {
+                const out = {
+                    type: p.type,
+                    points: (p.points || []).map(pt => ({ x: pt.x, y: pt.y })),
+                    fillColor: p.fillColor || null
+                };
+                if (p.groupId != null) out.groupId = p.groupId;
+                if (p.centerLine) out.centerLine = true;
+                if (p.closed) out.closed = true;
+                return out;
+            });
         }
 
         function densifyPoints(points, maxLen) {
@@ -1719,13 +1731,23 @@
                 dense.forEach(pt => {
                     if (ptDist(pt, { x: mx, y: my }) <= radius) {
                         changed = true;
-                        if (chain.length >= 2) newPaths.push({ type: path.type, points: chain, fillColor: path.fillColor || null });
+                        if (chain.length >= 2) {
+                            const seg = { type: path.type, points: chain, fillColor: path.fillColor || null };
+                            if (path.centerLine) seg.centerLine = true;
+                            if (path.groupId != null) seg.groupId = path.groupId;
+                            newPaths.push(seg);
+                        }
                         chain = [];
                     } else {
                         chain.push(pt);
                     }
                 });
-                if (chain.length >= 2) newPaths.push({ type: path.type, points: chain, fillColor: path.fillColor || null });
+                if (chain.length >= 2) {
+                    const seg = { type: path.type, points: chain, fillColor: path.fillColor || null };
+                    if (path.centerLine) seg.centerLine = true;
+                    if (path.groupId != null) seg.groupId = path.groupId;
+                    newPaths.push(seg);
+                }
             });
             if (changed) paths = newPaths;
             return changed;
