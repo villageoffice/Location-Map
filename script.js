@@ -2444,6 +2444,9 @@
                 textDiv.classList.remove('is-placeholder');
             }
             textDiv.classList.add('is-editing');
+            // Hide parent dashed outline while typing so only solid edit border shows
+            const parentItem = textDiv.closest('.draggable-item');
+            if (parentItem) parentItem.classList.add('text-editing-active');
             textDiv.contentEditable = 'true';
             textDiv.focus();
 
@@ -2451,6 +2454,7 @@
                 textDiv.contentEditable = 'false';
                 textDiv.classList.remove('is-editing');
                 textDiv.classList.remove('is-selected');
+                if (parentItem) parentItem.classList.remove('text-editing-active');
                 textDiv.removeEventListener('blur', finish);
                 let val = (textDiv.innerText || '').trim();
                 if (!val) {
