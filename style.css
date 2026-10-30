@@ -605,14 +605,37 @@
         }
         .draggable-item:active { cursor: grabbing; }
         .draggable-item.selected-item {
-            outline: 1.5px dashed #1a73e8;
-            outline-offset: 4px;
+            outline: 1.5px solid #1a73e8;
+            outline-offset: 2px;
         }
-        /* While typing inside a text box: hide outer dashed outline */
+        /* While typing inside a text box: hide outer outline */
         .draggable-item.text-editing-active,
         .draggable-item.text-editing-active.selected-item {
             outline: none;
         }
+        /* Google Slides-style 8 resize handles */
+        .item-resize-handle {
+            position: absolute;
+            width: 9px;
+            height: 9px;
+            background: #fff;
+            border: 1.5px solid #1a73e8;
+            border-radius: 1px;
+            z-index: 80;
+            box-sizing: border-box;
+            pointer-events: auto;
+        }
+        .item-resize-handle.nw { top: -6px; left: -6px; cursor: nwse-resize; }
+        .item-resize-handle.n  { top: -6px; left: 50%; margin-left: -4.5px; cursor: ns-resize; }
+        .item-resize-handle.ne { top: -6px; right: -6px; cursor: nesw-resize; }
+        .item-resize-handle.e  { top: 50%; right: -6px; margin-top: -4.5px; cursor: ew-resize; }
+        .item-resize-handle.se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+        .item-resize-handle.s  { bottom: -6px; left: 50%; margin-left: -4.5px; cursor: ns-resize; }
+        .item-resize-handle.sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+        .item-resize-handle.w  { top: 50%; left: -6px; margin-top: -4.5px; cursor: ew-resize; }
+        .draggable-item:not(.selected-item) .item-resize-handle { display: none; }
+        .draggable-item.text-editing-active .item-resize-handle { display: none; }
+
 
         .rotate-wrapper {
             display: flex;
@@ -634,7 +657,7 @@
             min-height: 30px;
             box-sizing: border-box;
             overflow: auto;
-            resize: both;
+            resize: none; /* use Google Slides handles instead */
             text-align: center;
             color: #000000;
             /* ~0.3mm ≈ 1.15px white halo around glyphs */
@@ -649,8 +672,8 @@
         }
         /* Selected (not typing): dashed selection box — visible before/after edit */
         .draggable-text-style.is-selected {
-            border: 1px dashed #1a73e8;
-            box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.12);
+            border: 1px solid #1a73e8;
+            box-shadow: none;
             background-color: transparent;
         }
         /* While typing: solid border only — light white fill for caret clarity */

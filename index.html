@@ -66,6 +66,7 @@
                 <button class="g-pill-btn" onclick="openModal('qrModal')">📍 Map QR</button>
                 <button class="g-pill-btn purple" onclick="saveNamedMapToIDB()">💾 Save Map</button>
                 <button class="g-pill-btn" onclick="openSavedMapsPanel()">📂 My Maps</button>
+                <button class="g-pill-btn" onclick="restoreLastWork()" title="Restore work before accidental file load">↩ Restore</button>
                 <button class="g-pill-btn success" onclick="compileAndSavePDF()">📥 Save PDF</button>
                 <button class="g-pill-btn danger" onclick="openModal('clearConfirmModal')">🗑️ Clear</button>
             </div>
@@ -374,11 +375,12 @@
     <!-- ================= TOP MENU BAR DROPDOWNS (File, Edit, View, Insert, Format, Slide, Arrange, Tools) ================= -->
     <div id="fileMenu" class="g-dropdown">
         <div class="g-dd-item" onclick="openModal('clearConfirmModal');closeAllDropdowns()"><span>📄 New Blank Sketch</span></div>
-        <div class="g-dd-item" onclick="loadKeralaRevenueTemplate();closeAllDropdowns()"><span>📋 Load Official Location Sketch Template</span></div>
+        <div class="g-dd-item" onclick="loadKeralaRevenueTemplate();closeAllDropdowns()"><span>📋 Load ലൊക്കേഷൻ മാപ്പ് Template</span></div>
         <div class="g-dd-item" onclick="document.getElementById('bgUploader').click();closeAllDropdowns()"><span>🖼️ Upload Background (Image / PDF)</span></div>
         <div class="g-dd-sep"></div>
         <div class="g-dd-item" onclick="saveNamedMapToIDB();closeAllDropdowns()"><span>💾 Save Map to Browser (IndexedDB)</span></div>
         <div class="g-dd-item" onclick="openSavedMapsPanel();closeAllDropdowns()"><span>📂 Open Saved Maps</span></div>
+        <div class="g-dd-item" onclick="restoreLastWork();closeAllDropdowns()"><span>↩ Restore last work (after accidental load)</span></div>
         <div class="g-dd-sep"></div>
         <div class="g-dd-item" onclick="compileAndSavePDF();closeAllDropdowns()"><span>📥 Download as PDF (A4)</span></div>
         <div class="g-dd-item" onclick="exportMapAsPNG();closeAllDropdowns()"><span>🖼️ Download as PNG Image</span></div>
@@ -450,7 +452,7 @@
         <div class="g-dd-item" onclick="setOrientationValue('portrait');closeAllDropdowns()"><span>▯ Portrait Page (A4)</span></div>
         <div class="g-dd-item" onclick="setOrientationValue('landscape');closeAllDropdowns()"><span>▭ Landscape Page (A4)</span></div>
         <div class="g-dd-sep"></div>
-        <div class="g-dd-item" onclick="loadKeralaRevenueTemplate();closeAllDropdowns()"><span>📄 Apply Village Office Sketch Form</span></div>
+        <div class="g-dd-item" onclick="loadKeralaRevenueTemplate();closeAllDropdowns()"><span>📄 Apply ലൊക്കേഷൻ മാപ്പ് Form</span></div>
         <div class="g-dd-item" onclick="removeUploadedBackground();closeAllDropdowns()"><span>❌ Clear Background Template</span></div>
     </div>
 
@@ -548,7 +550,7 @@
             <div class="sidebar-section">
                 <span class="sidebar-label">Background Form</span>
                 <button class="g-pill-btn" style="width:100%;justify-content:center;" onclick="document.getElementById('bgUploader').click()">🖼️ Upload Image/PDF</button>
-                <button class="g-pill-btn" style="width:100%;justify-content:center;" onclick="loadKeralaRevenueTemplate()">📋 Official Form</button>
+                <button class="g-pill-btn" style="width:100%;justify-content:center;" onclick="loadKeralaRevenueTemplate()">📋 ലൊക്കേഷൻ മാപ്പ് Form</button>
                 <button class="g-pill-btn" style="width:100%;justify-content:center;color:#d93025;" onclick="removeUploadedBackground()">❌ Remove BG</button>
             </div>
 
@@ -570,9 +572,7 @@
                         <div class="a4-page" id="a4Page">
                             <div class="canvas-container" id="canvasContainer">
                                 <canvas id="mapCanvas" width="794" height="1123"></canvas>
-                                <div class="bg-watermark" id="bgWatermark">
-                                    <span>ഇത് ഒരു മാതൃക (ടെംപ്ലേറ്റ്) മാത്രമാണ്<br>ഇത് മാറ്റാൻ / നീക്കം ചെയ്യാൻ മുകളിൽ Insert → Background എന്നതിൽ<br>പുതിയ ഫയൽ അപ്‌ലോഡ് ചെയ്യുക അല്ലെങ്കിൽ ❌ Remove BG ക്ലിക്ക് ചെയ്യുക</span>
-                                </div>
+                                <div class="bg-watermark" id="bgWatermark" style="display:none;"></div>
                             </div>
                         </div>
                         <div class="screen-metadata">👤 Muraleedharan P | 📞 9400849115</div>
@@ -751,7 +751,7 @@
                     <li><b>Save</b> → browser-ൽ IndexedDB; Open → saved list</li>
                     <li>PDF / PNG — A4 page export</li>
                     <li>QR — Google Maps link sketch-ൽ ഇടാം</li>
-                    <li>Slide menu → Village Office form template</li>
+                    <li>Slide / Official Form → ലൊക്കേഷൻ മാപ്പ് template (വലിയ map area)</li>
                 </ul>
 
                 <h4 style="margin:0 0 6px;color:#1a73e8;">7. Shortcuts</h4>

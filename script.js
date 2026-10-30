@@ -104,7 +104,7 @@
 
         // ================= OFFICIAL KERALA LOCATION SKETCH FORM GENERATOR =================
         function createOfficialTemplateDataURL() {
-            // Matches the standard A4 Location Sketch form (red double border)
+            // Fallback form matching official "ലൊക്കേഷൻ മാപ്പ്" PDF (no watermark text)
             const W = 794, H = 1123;
             const tCanvas = document.createElement('canvas');
             tCanvas.width = W;
@@ -114,59 +114,88 @@
             tCtx.fillStyle = '#ffffff';
             tCtx.fillRect(0, 0, W, H);
 
-            // Outer red double border (official form)
-            tCtx.strokeStyle = '#c62828';
-            tCtx.lineWidth = 2.5;
+            tCtx.strokeStyle = '#111111';
+            tCtx.lineWidth = 2;
             tCtx.strokeRect(36, 36, W - 72, H - 72);
-            tCtx.lineWidth = 1;
-            tCtx.strokeRect(42, 42, W - 84, H - 84);
 
-            // Header title
-            tCtx.fillStyle = '#111111';
-            tCtx.font = 'bold 18px Times New Roman, Times, serif';
+            // Title underlined
+            tCtx.fillStyle = '#111';
+            tCtx.font = 'bold 20px "Noto Sans Malayalam", Arial, sans-serif';
             tCtx.textAlign = 'center';
-            tCtx.fillText('LOCATION SKETCH', W / 2, 70);
-
-            tCtx.font = '11px Arial';
-            tCtx.textAlign = 'left';
-            const dots = ' ..............................';
-            tCtx.fillText('District/ജില്ല' + dots, 55, 100);
-            tCtx.fillText('Taluk/താലൂക്ക്' + dots, 290, 100);
-            tCtx.fillText('Village/വില്ലേജ്' + dots, 525, 100);
-
-            tCtx.fillText('Re-Survey/Block No' + dots, 55, 124);
-            tCtx.fillText('Thanaper/തണ്ടപ്പേർ' + dots, 290, 124);
-            tCtx.fillText('Extent/വിസ്തീർണം' + dots, 525, 124);
-
-            // Main sketch frame
-            tCtx.strokeStyle = '#c62828';
-            tCtx.lineWidth = 1.25;
-            tCtx.strokeRect(55, 145, W - 110, 780);
-
-            // Footer separator
+            tCtx.fillText('ലൊക്കേഷൻ മാപ്പ്', W / 2, 62);
+            const tw = tCtx.measureText('ലൊക്കേഷൻ മാപ്പ്').width;
             tCtx.beginPath();
-            tCtx.moveTo(55, 940);
-            tCtx.lineTo(W - 55, 940);
+            tCtx.moveTo(W / 2 - tw / 2, 66);
+            tCtx.lineTo(W / 2 + tw / 2, 66);
             tCtx.stroke();
 
-            tCtx.fillStyle = '#111';
-            tCtx.font = '11px Arial';
-            tCtx.fillText('Name & Address of Applicant ........................................................', 55, 970);
-            tCtx.fillText('Purpose of Location Sketch ..........................................................', 55, 998);
+            tCtx.font = '13px "Noto Sans Malayalam", Arial, sans-serif';
+            tCtx.textAlign = 'left';
+            tCtx.fillText('ജില്ല :', 52, 95);
+            tCtx.fillText('താലൂക്ക് :', 52, 118);
+            tCtx.fillText('വില്ലേജ് :', 52, 141);
+            tCtx.fillText('കൈവശം:', 52, 164);
+            tCtx.fillText('Doc No & SRO .', 52, 187);
 
-            tCtx.fillText('Prepared by ........................', 55, 1055);
-            tCtx.fillText('Village Officer (Seal & Sign) ........................', 420, 1055);
+            tCtx.fillText('തണ്ടപ്പേർ :', 420, 95);
+            tCtx.fillText('റി. സ. :', 420, 118);
+            tCtx.fillText('വിസ്തീർണ്ണം :', 420, 141);
+
+            // Map box (നാലതിരുകൾ inside bottom)
+            const mapTop = 205, mapBot = 880;
+            tCtx.strokeRect(52, mapTop, W - 104, mapBot - mapTop);
+
+            tCtx.font = 'bold 13px "Noto Sans Malayalam", Arial, sans-serif';
+            let fy = mapBot - 110;
+            tCtx.fillText('നാലതിരുകൾ', 68, fy);
+            tCtx.font = '12px "Noto Sans Malayalam", Arial, sans-serif';
+            fy += 22;
+            ['കിഴക്ക് :', 'വടക്ക് :', 'പടിഞ്ഞാറ് :', 'തെക്ക് :'].forEach(lab => {
+                tCtx.fillText(lab + ' ....................................................', 68, fy);
+                fy += 20;
+            });
+
+            tCtx.font = '12px "Noto Sans Malayalam", Arial, sans-serif';
+            tCtx.fillText('സർട്ടിഫിക്കറ്റ് നൽകുന്ന തീയതി : ........................', 52, mapBot + 28);
+            tCtx.fillText('സർട്ടിഫിക്കറ്റ് നൽകുന്ന ഉദ്യോഗസ്ഥന്റെ സ്ഥാനപ്പേര് : ........................', 52, mapBot + 52);
+            tCtx.fillText('സർട്ടിഫിക്കറ്റ് എന്താവശ്യത്തിനാണോ ആവശ്യപ്പെട്ടിട്ടുള്ളത്, ആ ആവശ്യത്തിന് മാത്രം', 52, mapBot + 80);
+            tCtx.fillText('അനുവദിച്ചിട്ടുള്ളതാണ്.', 52, mapBot + 98);
+
+            tCtx.textAlign = 'right';
+            tCtx.fillText('വില്ലേജ് ഓഫീസറുടെ ഒപ്പ്', W - 52, H - 55);
 
             return tCanvas.toDataURL('image/png');
         }
 
-        function loadKeralaRevenueTemplate() {
+        function applyKeralaRevenueTemplate() {
             bgImage = new Image();
             bgImage.onload = function() {
-                document.getElementById('bgWatermark').style.display = 'flex';
+                const wm = document.getElementById('bgWatermark');
+                if (wm) wm.style.display = 'none';
                 redrawAll();
+                showToast('ലൊക്കേഷൻ മാപ്പ് template loaded');
             };
-            bgImage.src = createOfficialTemplateDataURL();
+            bgImage.onerror = function() {
+                bgImage = new Image();
+                bgImage.onload = function() {
+                    const wm = document.getElementById('bgWatermark');
+                    if (wm) wm.style.display = 'none';
+                    redrawAll();
+                };
+                bgImage.src = createOfficialTemplateDataURL();
+            };
+            bgImage.src = 'template_form.png';
+        }
+
+        function loadKeralaRevenueTemplate() {
+            // On first app load, hasUserWork is false → no confirm
+            if (!hasUserWork()) {
+                applyKeralaRevenueTemplate();
+                return;
+            }
+            confirmBeforeReplaceWork('Load official template', function() {
+                applyKeralaRevenueTemplate();
+            });
         }
 
         // ================= DROPDOWN MENUS LOGIC =================
@@ -1969,16 +1998,20 @@
 
         // ================= DRAGGABLE ITEMS & PAGE ALIGNMENT =================
         let draggedElement = null;
-        // Drag state: keeps the grab point fixed and ignores tiny mouse jitter (click / double-click must not move the item)
-        let dragOffsetX = 0, dragOffsetY = 0;
-        let dragStartClientX = 0, dragStartClientY = 0;
-        let dragMoved = false;
+        let dragPendingEl = null;
+        let dragStartClient = null;
         const DRAG_THRESHOLD_PX = 5;
+        let isResizingItem = false;
+        let itemResizeHandle = null; // nw,n,ne,e,se,s,sw,w
+        let itemResizeStart = null; // {cx,cy,w,h, clientX, clientY, textEl}
 
         function selectItemElement(el) {
             document.querySelectorAll('.draggable-item.selected-item').forEach(n => n.classList.remove('selected-item'));
             selectedDraggableItem = el;
-            if (el) el.classList.add('selected-item');
+            if (el) {
+                el.classList.add('selected-item');
+                ensureItemResizeHandles(el);
+            }
         }
 
         function makeElementDraggable(el) {
@@ -1987,30 +2020,92 @@
             bindItemContextMenu(el);
         }
 
+        function ensureItemResizeHandles(el) {
+            if (!el || el.querySelector('.item-resize-handle')) return;
+            // Google Slides-style: 4 corner blue handles (resize width + height)
+            ['nw', 'ne', 'se', 'sw'].forEach(id => {
+                const h = document.createElement('div');
+                h.className = 'item-resize-handle ' + id;
+                h.dataset.handle = id;
+                h.addEventListener('mousedown', onItemResizeHandleDown);
+                el.appendChild(h);
+            });
+        }
+
+        function onItemResizeHandleDown(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            const el = e.currentTarget.parentElement;
+            if (!el || !el.classList.contains('draggable-item')) return;
+            selectItemElement(el);
+            const textEl = el.querySelector('.draggable-text-style');
+            const symbol = el.querySelector('.vector-map-symbol');
+            const pos = getItemPagePos(el);
+            let w = 80, h = 40;
+            if (textEl) {
+                w = textEl.offsetWidth || parseFloat(textEl.style.width) || 170;
+                h = textEl.offsetHeight || parseFloat(textEl.style.minHeight) || 36;
+            } else if (symbol) {
+                w = parseFloat(symbol.getAttribute('width')) || 45;
+                h = parseFloat(symbol.getAttribute('height')) || 45;
+            } else {
+                w = el.offsetWidth || 80;
+                h = el.offsetHeight || 40;
+            }
+            isResizingItem = true;
+            itemResizeHandle = e.currentTarget.dataset.handle;
+            itemResizeStart = {
+                cx: pos.x, cy: pos.y, w: w, h: h,
+                clientX: e.clientX, clientY: e.clientY,
+                textEl: textEl, symbol: symbol, el: el
+            };
+            dragPendingEl = null;
+            draggedElement = null;
+        }
+
+        function applyItemResize(e) {
+            if (!isResizingItem || !itemResizeStart || !itemResizeHandle) return;
+            const st = itemResizeStart;
+            const dx = (e.clientX - st.clientX) / zoomScale;
+            const dy = (e.clientY - st.clientY) / zoomScale;
+            const id = itemResizeHandle;
+            let w = st.w, h = st.h, cx = st.cx, cy = st.cy;
+            // Google Slides: opposite edge stays fixed
+            if (id.includes('e')) { w = Math.max(40, st.w + dx); cx = st.cx - st.w / 2 + w / 2; }
+            if (id.includes('w')) { w = Math.max(40, st.w - dx); cx = st.cx + st.w / 2 - w / 2; }
+            if (id.includes('s')) { h = Math.max(24, st.h + dy); cy = st.cy - st.h / 2 + h / 2; }
+            if (id.includes('n')) { h = Math.max(24, st.h - dy); cy = st.cy + st.h / 2 - h / 2; }
+            // corners that only have one letter already handled via includes
+            st.el.style.left = cx + 'px';
+            st.el.style.top = cy + 'px';
+            if (st.textEl) {
+                st.textEl.style.width = Math.round(w) + 'px';
+                st.textEl.style.minHeight = Math.round(h) + 'px';
+                st.textEl.style.height = Math.round(h) + 'px';
+            } else if (st.symbol) {
+                st.symbol.setAttribute('width', Math.round(w));
+                st.symbol.setAttribute('height', Math.round(h));
+                st.symbol.style.width = Math.round(w) + 'px';
+                st.symbol.style.height = Math.round(h) + 'px';
+            }
+        }
+
         function startDrag(e) {
+            // Resize handle takes priority
+            if (e.target.classList && e.target.classList.contains('item-resize-handle')) return;
             selectItemElement(this);
             if (drawModeOn || eraseModeOn || offSubMode !== 'items' || e.target.className === 'delete-btn' || e.target.className === 'rotation-slider' || e.button === 2) return;
             if (e.target.isContentEditable || (e.target.classList && e.target.classList.contains('is-editing'))) return;
+            // Clicking text / label / symbol → select or edit, do not move until drag threshold
             if (e.touches && e.touches.length > 1) return;
 
-            e.preventDefault();
-            draggedElement = this;
-
-            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-            // Remember where inside the item the mouse grabbed it, so the item never jumps to the cursor
-            const cRect = itemContainer.getBoundingClientRect();
-            const px = (clientX - cRect.left) / zoomScale;
-            const py = (clientY - cRect.top) / zoomScale;
-            dragOffsetX = (parseFloat(this.style.left) || 0) - px;
-            dragOffsetY = (parseFloat(this.style.top) || 0) - py;
-            dragStartClientX = clientX;
-            dragStartClientY = clientY;
-            dragMoved = false;
-
-            const modelCoord = getCoordinates(e);
-            triggerMagnifierRender(clientX, clientY, modelCoord.x, modelCoord.y);
+            // Pending drag — only move after 5px so click/edit does not shift box
+            dragPendingEl = this;
+            dragStartClient = {
+                x: e.touches ? e.touches[0].clientX : e.clientX,
+                y: e.touches ? e.touches[0].clientY : e.clientY
+            };
+            draggedElement = null;
         }
 
         wrapper.addEventListener('mousedown', (e) => {
@@ -2184,17 +2279,24 @@
                 globalDrawingTranslateX = (e.clientX - rect.left) / zoomScale - blockOffsetX;
                 globalDrawingTranslateY = (e.clientY - rect.top) / zoomScale - blockOffsetY;
                 redrawAll();
-            } else if (draggedElement) {
+            } else if (isResizingItem) {
                 e.preventDefault();
-                // Only start moving after the mouse really travels (click / double-click to edit must not shift the box)
-                if (!dragMoved) {
-                    const travelled = Math.hypot(e.clientX - dragStartClientX, e.clientY - dragStartClientY);
-                    if (travelled < DRAG_THRESHOLD_PX) return;
-                    dragMoved = true;
+                applyItemResize(e);
+            } else if (dragPendingEl && dragStartClient && !draggedElement) {
+                const cx = e.clientX, cy = e.clientY;
+                const dist = Math.hypot(cx - dragStartClient.x, cy - dragStartClient.y);
+                if (dist >= DRAG_THRESHOLD_PX) {
+                    // If click was on pure text without drag intent, allow edit path; else move
+                    draggedElement = dragPendingEl;
+                    dragPendingEl = null;
                 }
+            }
+            if (draggedElement) {
+                e.preventDefault();
                 const containerRect = itemContainer.getBoundingClientRect();
-                let x = (e.clientX - containerRect.left) / zoomScale + dragOffsetX;
-                let y = (e.clientY - containerRect.top) / zoomScale + dragOffsetY;
+                // Account for translate(-50%,-50%): left/top are the visual centre
+                let x = (e.clientX - containerRect.left) / zoomScale;
+                let y = (e.clientY - containerRect.top) / zoomScale;
                 draggedElement.style.left = x + 'px';
                 draggedElement.style.top = y + 'px';
 
@@ -2267,6 +2369,11 @@
             pathMoveStartModel = null;
             pathMoveSnapshot = null;
             draggedElement = null;
+            dragPendingEl = null;
+            dragStartClient = null;
+            isResizingItem = false;
+            itemResizeHandle = null;
+            itemResizeStart = null;
             magnifier.style.display = 'none';
             updateToolButtonsUI();
         });
@@ -2517,19 +2624,29 @@
 
         function startTextBoxEdit(textDiv) {
             if (textDiv.isContentEditable) return;
+            // Cancel any pending drag so edit never shifts the box
+            dragPendingEl = null;
+            dragStartClient = null;
+            draggedElement = null;
             selectTextBox(textDiv);
+            const parentItem = textDiv.closest('.draggable-item');
+            // Freeze page position (centre) before layout changes from editing styles
+            if (parentItem) {
+                const pos = getItemPagePos(parentItem);
+                parentItem.style.left = pos.x + 'px';
+                parentItem.style.top = pos.y + 'px';
+                // Keep box width stable so translate(-50%,-50%) does not jump left
+                const tw = textDiv.offsetWidth || parseFloat(textDiv.style.width) || 170;
+                textDiv.style.width = Math.max(tw, 60) + 'px';
+                parentItem.classList.add('text-editing-active');
+            }
             if (textDiv.classList.contains('is-placeholder')) {
                 textDiv.textContent = '';
                 textDiv.classList.remove('is-placeholder');
             }
             textDiv.classList.add('is-editing');
-            // Hide parent dashed outline while typing so only solid edit border shows
-            const parentItem = textDiv.closest('.draggable-item');
-            if (parentItem) parentItem.classList.add('text-editing-active');
             textDiv.contentEditable = 'true';
-            textDiv.focus({ preventScroll: true });
-            // Browser may scroll the page container to the caret — keep the map exactly where it was
-            if (wrapper) { wrapper.scrollLeft = 0; wrapper.scrollTop = 0; }
+            textDiv.focus();
 
             function onTabKey(ev) {
                 if (ev.key !== 'Tab') return;
@@ -2687,8 +2804,7 @@
         }
 
         // ================= BACKGROUND UPLOADER (IMAGE & PDF) =================
-        document.getElementById('bgUploader').addEventListener('change', function(e) {
-            const file = e.target.files[0];
+        function applyBackgroundFile(file) {
             if (!file) return;
             const reader = new FileReader();
             if (file.type === 'application/pdf') {
@@ -2704,8 +2820,10 @@
                             page.render({ canvasContext: rCtx, viewport: viewport }).promise.then(function() {
                                 bgImage = new Image();
                                 bgImage.onload = function() {
-                                    document.getElementById('bgWatermark').style.display = 'none';
+                                    const wm = document.getElementById('bgWatermark');
+                                    if (wm) wm.style.display = 'none';
                                     redrawAll();
+                                    showToast('Background loaded — use ↩ Restore if this was accidental');
                                 };
                                 bgImage.src = renderCanvas.toDataURL('image/png');
                             });
@@ -2717,20 +2835,36 @@
                 reader.onload = function(event) {
                     bgImage = new Image();
                     bgImage.onload = function() {
-                        document.getElementById('bgWatermark').style.display = 'none';
+                        const wm = document.getElementById('bgWatermark');
+                        if (wm) wm.style.display = 'none';
                         redrawAll();
+                        showToast('Background loaded — use ↩ Restore if this was accidental');
                     };
                     bgImage.src = event.target.result;
                 };
                 reader.readAsDataURL(file);
             }
+        }
+
+        document.getElementById('bgUploader').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            // Snapshot current work, then load only after confirm
+            confirmBeforeReplaceWork('Load background: ' + file.name, function() {
+                applyBackgroundFile(file);
+            });
+            // Allow re-selecting same file later
+            e.target.value = '';
         });
 
         function removeUploadedBackground() {
-            bgImage = null;
-            document.getElementById('bgUploader').value = '';
-            document.getElementById('bgWatermark').style.display = 'none';
-            redrawAll();
+            confirmBeforeReplaceWork('Remove background', function() {
+                bgImage = null;
+                document.getElementById('bgUploader').value = '';
+                const wm = document.getElementById('bgWatermark');
+                if (wm) wm.style.display = 'none';
+                redrawAll();
+            });
         }
 
         // ================= EXPORT HIGH-RES PDF & PNG =================
@@ -2870,6 +3004,10 @@
         }
 
         function resetSketchState() {
+            // Keep recovery snapshot so Clear is reversible via ↩ Restore
+            if (typeof captureRecoverySnapshot === 'function' && hasUserWork()) {
+                captureRecoverySnapshot('before:clear');
+            }
             paths = [];
             activePathIndex = null;
             selectedPathIndices = [];
@@ -2880,10 +3018,118 @@
             redrawAll();
             resetZoomAndPan();
             activateSelectTool();
-            showToast('Canvas cleared');
+            showToast('Canvas cleared — ↩ Restore to undo');
+        }
+
+        // ================= AUTO-SAVE / RECOVERY (accidental file load safe) =================
+        const LSM_RECOVERY_NAME = '__AUTOSAVE_RECOVERY__';
+        let lastRecoverySnapshot = null; // in-memory last good state
+        let autosaveTimer = null;
+
+        function hasUserWork() {
+            if (paths && paths.length > 0) return true;
+            if (document.querySelectorAll('.draggable-item').length > 0) return true;
+            return false;
+        }
+
+        function captureRecoverySnapshot(reason) {
+            try {
+                lastRecoverySnapshot = serializeSketchState();
+                lastRecoverySnapshot._reason = reason || 'autosave';
+                lastRecoverySnapshot._savedAt = Date.now();
+                // Persist to IndexedDB (best-effort)
+                openLSMDB().then(db => {
+                    const tx = db.transaction(LSM_STORE, 'readwrite');
+                    const store = tx.objectStore(LSM_STORE);
+                    const reqAll = store.getAll();
+                    reqAll.onsuccess = () => {
+                        const existing = (reqAll.result || []).find(m => m.name === LSM_RECOVERY_NAME);
+                        const record = {
+                            name: LSM_RECOVERY_NAME,
+                            data: lastRecoverySnapshot,
+                            updatedAt: Date.now(),
+                            createdAt: existing ? existing.createdAt : Date.now()
+                        };
+                        if (existing) record.id = existing.id;
+                        store.put(record);
+                    };
+                }).catch(() => {});
+            } catch (e) {}
+        }
+
+        async function loadRecoveryFromIDB() {
+            try {
+                const db = await openLSMDB();
+                const tx = db.transaction(LSM_STORE, 'readonly');
+                const req = tx.objectStore(LSM_STORE).getAll();
+                return await new Promise(resolve => {
+                    req.onsuccess = () => {
+                        const rec = (req.result || []).find(m => m.name === LSM_RECOVERY_NAME);
+                        resolve(rec ? rec.data : null);
+                    };
+                    req.onerror = () => resolve(null);
+                });
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function restoreLastWork(silent) {
+            const snap = lastRecoverySnapshot;
+            if (!snap) {
+                loadRecoveryFromIDB().then(data => {
+                    if (data) {
+                        lastRecoverySnapshot = data;
+                        restoreFromSnapshot(data);
+                        if (!silent) showToast('↩ Previous work restored');
+                    } else if (!silent) {
+                        showToast('No previous work to restore');
+                    }
+                });
+                return;
+            }
+            restoreFromSnapshot(snap);
+            if (!silent) showToast('↩ Previous work restored');
+        }
+
+        function confirmBeforeReplaceWork(actionLabel, onConfirm) {
+            // Always keep a recovery snapshot first
+            if (hasUserWork()) captureRecoverySnapshot('before:' + actionLabel);
+            if (!hasUserWork()) {
+                onConfirm();
+                return;
+            }
+            const ok = window.confirm(
+                '⚠️ You have drawings / text on the map.\n\n' +
+                'Action: ' + actionLabel + '\n\n' +
+                'Your current work will be auto-saved.\n' +
+                'You can restore it anytime with "↩ Restore last work".\n\n' +
+                'Continue?'
+            );
+            if (ok) onConfirm();
+            else showToast('Cancelled — work kept');
+        }
+
+        function startAutosaveLoop() {
+            if (autosaveTimer) clearInterval(autosaveTimer);
+            autosaveTimer = setInterval(() => {
+                if (hasUserWork()) captureRecoverySnapshot('interval');
+            }, 30000); // every 30s
+            // Also save when tab loses focus
+            window.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden' && hasUserWork()) {
+                    captureRecoverySnapshot('blur');
+                }
+            });
+            window.addEventListener('beforeunload', (e) => {
+                if (hasUserWork()) {
+                    captureRecoverySnapshot('unload');
+                }
+            });
         }
 
         // ================= INDEXED-DB SAVED MAPS =================
+
         const LSM_IDB_NAME = 'LocationSketchMakerDB';
         const LSM_IDB_VERSION = 1;
         const LSM_STORE = 'maps';
@@ -3001,9 +3247,11 @@
                         const row = document.createElement('div');
                         row.className = 'saved-map-row';
                         const dateStr = new Date(m.updatedAt).toLocaleString();
+                        const isRec = m.name === LSM_RECOVERY_NAME;
+                        const title = isRec ? '↩ Auto-saved recovery' : m.name;
                         row.innerHTML = `
                             <div>
-                                <div style="font-weight:700;font-size:14px;">${m.name}</div>
+                                <div style="font-weight:700;font-size:14px;">${title}</div>
                                 <div style="font-size:11px;color:#5f6368;">${dateStr}</div>
                             </div>
                             <div style="display:flex;gap:6px;">
@@ -3012,11 +3260,18 @@
                             </div>
                         `;
                         row.querySelector('[data-load]').onclick = () => {
-                            restoreFromSnapshot(m.data);
-                            currentLoadedMapId = m.id;
-                            document.getElementById('docTitleInput').value = m.name;
-                            closeSavedMapsPanel();
-                            showToast('Loaded "' + m.name + '"');
+                            const doLoad = () => {
+                                restoreFromSnapshot(m.data);
+                                currentLoadedMapId = m.id;
+                                document.getElementById('docTitleInput').value = m.name;
+                                closeSavedMapsPanel();
+                                showToast('Loaded "' + m.name + '"');
+                            };
+                            if (m.name === LSM_RECOVERY_NAME) {
+                                doLoad();
+                                return;
+                            }
+                            confirmBeforeReplaceWork('Load saved map: ' + m.name, doLoad);
                         };
                         row.querySelector('[data-del]').onclick = async () => {
                             const d2 = await openLSMDB();
@@ -3075,9 +3330,22 @@
         }
 
         // ================= INITIALIZE STUDIO =================
-        window.addEventListener('load', () => {
+        window.addEventListener('load', async () => {
             buildSymbolsMegaGrid();
             changePageOrientation();
             loadKeralaRevenueTemplate();
             updateOnlineVisitBadge();
+            startAutosaveLoop();
+            try {
+                const recovered = await loadRecoveryFromIDB();
+                if (recovered && ((recovered.paths && recovered.paths.length) || (recovered.items && recovered.items.length))) {
+                    lastRecoverySnapshot = recovered;
+                    const ageMin = Math.round((Date.now() - (recovered._savedAt || recovered.savedAt || 0)) / 60000);
+                    const ageTxt = ageMin > 0 ? (ageMin + ' min ago') : 'just now';
+                    if (window.confirm('↩ Found auto-saved work from ' + ageTxt + '.\n\nRestore it now?')) {
+                        restoreFromSnapshot(recovered);
+                        showToast('↩ Previous work restored');
+                    }
+                }
+            } catch (e) {}
         });
