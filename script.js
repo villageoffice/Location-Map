@@ -3198,15 +3198,27 @@
             }
         }
 
+        function promptMapFileName(defaultName) {
+            const titleEl = document.getElementById('docTitleInput');
+            const base = (defaultName || (titleEl && titleEl.value) || 'Location_Map').trim() || 'Location_Map';
+            const name = window.prompt('Save map as (file name):', base);
+            if (name === null) return null; // cancelled
+            return name.trim().replace(/[\\/:*?"<>|]/g, '_') || base;
+        }
+
         async function saveNamedMapToIDB() {
             const titleEl = document.getElementById('docTitleInput');
-            const name = (titleEl.value || 'Location Map').trim();
+            const suggested = (titleEl.value || 'Location Map').trim();
+            const name = window.prompt('Browser save name (this PC only):', suggested);
+            if (name === null) return;
+            const finalName = name.trim() || suggested || 'Location Map';
+            if (titleEl) titleEl.value = finalName;
             try {
                 const db = await openLSMDB();
                 const tx = db.transaction(LSM_STORE, 'readwrite');
                 const store = tx.objectStore(LSM_STORE);
                 const record = {
-                    name: name,
+                    name: finalName,
                     data: serializeSketchState(),
                     updatedAt: Date.now(),
                     createdAt: Date.now()
@@ -3215,11 +3227,75 @@
                 const req = store.put(record);
                 req.onsuccess = () => {
                     currentLoadedMapId = req.result;
-                    showToast('✅ Saved "' + name + '" to Browser Storage');
+                    showToast('✅ Saved "' + finalName + '" in this browser');
                 };
             } catch (err) {
                 showToast('Error saving map');
             }
+        }
+
+        /**
+         * Download editable project file (.lsm.json) — share & open on another computer.
+         * Format: JSON { format, version, name, paths, items, bgImageSrc, ... }
+         */
+        function downloadMapProjectFile() {
+            const fileBase = promptMapFileName();
+            if (!fileBase) return;
+            const titleEl = document.getElementById('docTitleInput');
+            if (titleEl) titleEl.value = fileBase;
+
+            const project = {
+                format: 'LocationSketchStudio',
+                version: 1,
+                name: fileBase,
+                exportedAt: new Date().toISOString(),
+                ...serializeSketchState()
+            };
+            const json = JSON.stringify(project);
+            const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileBase.replace(/\.lsm\.json$/i, '').replace(/\.json$/i, '') + '.lsm.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            captureRecoverySnapshot('export-file');
+            showToast('✅ Downloaded "' + a.download + '" — share this file to open on another PC');
+        }
+
+        function openMapProjectFilePicker() {
+            const input = document.getElementById('mapProjectUploader');
+            if (input) input.click();
+        }
+
+        function handleMapProjectFile(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    if (!data || (data.format && data.format !== 'LocationSketchStudio')) {
+                        // Still try if it looks like our snapshot
+                        if (!data.paths && !data.items) {
+                            showToast('Not a Location Map project file (.lsm.json)');
+                            return;
+                        }
+                    }
+                    const doLoad = () => {
+                        restoreFromSnapshot(data);
+                        const titleEl = document.getElementById('docTitleInput');
+                        if (titleEl && data.name) titleEl.value = data.name;
+                        currentLoadedMapId = null;
+                        showToast('📂 Opened "' + (data.name || file.name) + '"');
+                    };
+                    confirmBeforeReplaceWork('Open project: ' + (data.name || file.name), doLoad);
+                } catch (err) {
+                    showToast('Invalid project file');
+                }
+            };
+            reader.readAsText(file);
         }
 
         function openSavedMapsPanel() {
@@ -3328,6 +3404,19 @@
             if (labelEl) labelEl.textContent = ' (local)';
             document.getElementById('onlineUsersBadge').title = 'Local mode — host on GitHub Pages for live visit count';
         }
+
+
+        // Project file open input
+        (function wireMapProjectUploader() {
+            const inp = document.getElementById('mapProjectUploader');
+            if (!inp || inp.dataset.bound === '1') return;
+            inp.dataset.bound = '1';
+            inp.addEventListener('change', function(e) {
+                const file = e.target.files && e.target.files[0];
+                if (file) handleMapProjectFile(file);
+                e.target.value = '';
+            });
+        })();
 
         // ================= INITIALIZE STUDIO =================
         window.addEventListener('load', async () => {
