@@ -3201,17 +3201,27 @@
         function promptMapFileName(defaultName) {
             const titleEl = document.getElementById('docTitleInput');
             const base = (defaultName || (titleEl && titleEl.value) || 'Location_Map').trim() || 'Location_Map';
-            const name = window.prompt('Save map as (file name):', base);
-            if (name === null) return null; // cancelled
-            return name.trim().replace(/[\\/:*?"<>|]/g, '_') || base;
+            let name;
+            try {
+                name = window.prompt('Save map as (file name):', base);
+            } catch (e) {
+                name = base;
+            }
+            if (name === null) return null;
+            return String(name).trim().replace(/[\\/:*?"<>|]/g, '_') || base;
         }
 
         async function saveNamedMapToIDB() {
             const titleEl = document.getElementById('docTitleInput');
             const suggested = (titleEl.value || 'Location Map').trim();
-            const name = window.prompt('Browser save name (this PC only):', suggested);
+            let name;
+            try {
+                name = window.prompt('Browser save name (this PC only):', suggested);
+            } catch (e) {
+                name = suggested;
+            }
             if (name === null) return;
-            const finalName = name.trim() || suggested || 'Location Map';
+            const finalName = String(name).trim() || suggested || 'Location Map';
             if (titleEl) titleEl.value = finalName;
             try {
                 const db = await openLSMDB();
@@ -3234,69 +3244,122 @@
             }
         }
 
-        /**
-         * Download editable project file (.lsm.json) — share & open on another computer.
-         * Format: JSON { format, version, name, paths, items, bgImageSrc, ... }
-         */
         function downloadMapProjectFile() {
-            const fileBase = promptMapFileName();
-            if (!fileBase) return;
-            const titleEl = document.getElementById('docTitleInput');
-            if (titleEl) titleEl.value = fileBase;
+            try {
+                const fileBase = promptMapFileName();
+                if (!fileBase) return;
+                const titleEl = document.getElementById('docTitleInput');
+                if (titleEl) titleEl.value = fileBase;
 
-            const project = {
-                format: 'LocationSketchStudio',
-                version: 1,
-                name: fileBase,
-                exportedAt: new Date().toISOString(),
-                ...serializeSketchState()
-            };
-            const json = JSON.stringify(project);
-            const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = fileBase.replace(/\.lsm\.json$/i, '').replace(/\.json$/i, '') + '.lsm.json';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-            captureRecoverySnapshot('export-file');
-            showToast('✅ Downloaded "' + a.download + '" — share this file to open on another PC');
+                const state = serializeSketchState();
+                const project = {
+                    format: 'LocationSketchStudio',
+                    version: 1,
+                    name: fileBase,
+                    exportedAt: new Date().toISOString(),
+                    paths: state.paths,
+                    items: state.items,
+                    bgImageSrc: state.bgImageSrc,
+                    pageOrientation: state.pageOrientation,
+                    globalDrawingTranslateX: state.globalDrawingTranslateX,
+                    globalDrawingTranslateY: state.globalDrawingTranslateY,
+                    savedAt: state.savedAt
+                };
+                let json;
+                try {
+                    json = JSON.stringify(project);
+                } catch (serErr) {
+                    project.bgImageSrc = null;
+                    project._bgOmitted = true;
+                    json = JSON.stringify(project);
+                    showToast('Note: background omitted (file too large)');
+                }
+                const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                const fname = fileBase.replace(/\.lsm\.json$/i, '').replace(/\.json$/i, '') + '.lsm.json';
+                a.href = url;
+                a.download = fname;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                setTimeout(function() {
+                    try { document.body.removeChild(a); } catch (e) {}
+                    URL.revokeObjectURL(url);
+                }, 250);
+                try { captureRecoverySnapshot('export-file'); } catch (e) {}
+                showToast('✅ Saved file: ' + fname);
+            } catch (err) {
+                console.error(err);
+                showToast('Save File failed: ' + (err && err.message ? err.message : 'error'));
+            }
         }
 
         function openMapProjectFilePicker() {
-            const input = document.getElementById('mapProjectUploader');
-            if (input) input.click();
+            try {
+                let input = document.getElementById('mapProjectUploader');
+                if (!input) {
+                    input = document.createElement('input');
+                    input.type = 'file';
+                    input.id = 'mapProjectUploader';
+                    input.accept = '.lsm.json,.json,application/json,text/json';
+                    input.style.display = 'none';
+                    document.body.appendChild(input);
+                    input.addEventListener('change', function(e) {
+                        const file = e.target.files && e.target.files[0];
+                        if (file) handleMapProjectFile(file);
+                        e.target.value = '';
+                    });
+                }
+                input.value = '';
+                input.click();
+            } catch (err) {
+                console.error(err);
+                showToast('Open File failed');
+            }
         }
 
         function handleMapProjectFile(file) {
             if (!file) return;
             const reader = new FileReader();
+            reader.onerror = function() { showToast('Could not read file'); };
             reader.onload = function(ev) {
                 try {
                     const data = JSON.parse(ev.target.result);
-                    if (!data || (data.format && data.format !== 'LocationSketchStudio')) {
-                        // Still try if it looks like our snapshot
+                    if (!data || (typeof data !== 'object')) {
+                        showToast('Invalid project file');
+                        return;
+                    }
+                    if (data.format && data.format !== 'LocationSketchStudio') {
                         if (!data.paths && !data.items) {
                             showToast('Not a Location Map project file (.lsm.json)');
                             return;
                         }
                     }
-                    const doLoad = () => {
+                    const doLoad = function() {
                         restoreFromSnapshot(data);
                         const titleEl = document.getElementById('docTitleInput');
                         if (titleEl && data.name) titleEl.value = data.name;
                         currentLoadedMapId = null;
                         showToast('📂 Opened "' + (data.name || file.name) + '"');
                     };
-                    confirmBeforeReplaceWork('Open project: ' + (data.name || file.name), doLoad);
+                    if (typeof confirmBeforeReplaceWork === 'function') {
+                        confirmBeforeReplaceWork('Open project: ' + (data.name || file.name), doLoad);
+                    } else {
+                        doLoad();
+                    }
                 } catch (err) {
-                    showToast('Invalid project file');
+                    console.error(err);
+                    showToast('Invalid project file (need .lsm.json)');
                 }
             };
-            reader.readAsText(file);
+            reader.readAsText(file, 'utf-8');
         }
+
+        window.downloadMapProjectFile = downloadMapProjectFile;
+        window.openMapProjectFilePicker = openMapProjectFilePicker;
+        window.handleMapProjectFile = handleMapProjectFile;
+        window.saveNamedMapToIDB = saveNamedMapToIDB;
 
         function openSavedMapsPanel() {
             openModal('savedMapsOverlay');

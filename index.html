@@ -64,8 +64,8 @@
             <div class="g-header-right">
                 <button class="g-pill-btn" id="deviceModeBtn" onclick="toggleDeviceMode()">🖥️ PC Mode</button>
                 <button class="g-pill-btn" onclick="openModal('qrModal')">📍 Map QR</button>
-                <button class="g-pill-btn purple" onclick="downloadMapProjectFile()" title="Download .lsm.json — share & open on another PC">💾 Save File</button>
-                <button class="g-pill-btn" onclick="openMapProjectFilePicker()" title="Open .lsm.json from another computer">📂 Open File</button>
+                <button class="g-pill-btn purple" onclick="window.downloadMapProjectFile()" title="Download .lsm.json — share & open on another PC">💾 Save File</button>
+                <button class="g-pill-btn" onclick="window.openMapProjectFilePicker()" title="Open .lsm.json from another computer">📂 Open File</button>
                 <button class="g-pill-btn" onclick="openSavedMapsPanel()">📁 My Maps</button>
                 <button class="g-pill-btn" onclick="restoreLastWork()" title="Restore work before accidental file load">↩ Restore</button>
                 <button class="g-pill-btn success" onclick="compileAndSavePDF()">📥 PDF</button>
@@ -379,8 +379,8 @@
         <div class="g-dd-item" onclick="loadKeralaRevenueTemplate();closeAllDropdowns()"><span>📋 Load ലൊക്കേഷൻ മാപ്പ് Template</span></div>
         <div class="g-dd-item" onclick="document.getElementById('bgUploader').click();closeAllDropdowns()"><span>🖼️ Upload Background (Image / PDF)</span></div>
         <div class="g-dd-sep"></div>
-        <div class="g-dd-item" onclick="downloadMapProjectFile();closeAllDropdowns()"><span>💾 Save as File (.lsm.json) — share to another PC</span></div>
-        <div class="g-dd-item" onclick="openMapProjectFilePicker();closeAllDropdowns()"><span>📂 Open File (.lsm.json)</span></div>
+        <div class="g-dd-item" onclick="window.downloadMapProjectFile();closeAllDropdowns()"><span>💾 Save as File (.lsm.json) — share to another PC</span></div>
+        <div class="g-dd-item" onclick="window.openMapProjectFilePicker();closeAllDropdowns()"><span>📂 Open File (.lsm.json)</span></div>
         <div class="g-dd-item" onclick="saveNamedMapToIDB();closeAllDropdowns()"><span>💾 Save to this Browser only</span></div>
         <div class="g-dd-item" onclick="openSavedMapsPanel();closeAllDropdowns()"><span>📁 My Maps (this browser)</span></div>
         <div class="g-dd-item" onclick="restoreLastWork();closeAllDropdowns()"><span>↩ Restore last work</span></div>
@@ -507,7 +507,7 @@
     </div>
 
     <!-- Hidden File Input for Background Image / PDF -->
-    <input type="file" id="mapProjectUploader" accept=".lsm.json,.json,application/json" style="display:none;">
+    <input type="file" id="mapProjectUploader" accept=".lsm.json,.json,application/json,text/json" style="display:none;">
     <input type="file" id="bgUploader" accept="image/*,application/pdf" style="display:none;">
     <!-- Hidden Road Type Select for compatibility -->
     <select id="roadType" style="display:none;">
