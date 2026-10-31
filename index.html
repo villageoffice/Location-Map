@@ -626,10 +626,10 @@
         <div class="g-dd-item" onclick="deleteSelectedPaths()">🗑️ Delete selected</div>
         <div class="g-dd-sep"></div>
         <div class="g-dd-header" style="font-size:11px;color:#5f6368;padding:4px 12px;">Layer order (above / below road)</div>
-        <div class="g-dd-item" onclick="bringSelectedPathsToFront()">⬆️ Bring to front (above roads)</div>
-        <div class="g-dd-item" onclick="bringSelectedPathsForward()">🔼 Bring forward</div>
-        <div class="g-dd-item" onclick="sendSelectedPathsBackward()">🔽 Send backward</div>
-        <div class="g-dd-item" onclick="sendSelectedPathsToBack()">⬇️ Send to back (under roads)</div>
+        <div class="g-dd-item" onclick="event.stopPropagation();window.bringSelectedPathsToFront()">⬆️ Bring to front (above roads)</div>
+        <div class="g-dd-item" onclick="event.stopPropagation();window.bringSelectedPathsForward()">🔼 Bring forward</div>
+        <div class="g-dd-item" onclick="event.stopPropagation();window.sendSelectedPathsBackward()">🔽 Send backward</div>
+        <div class="g-dd-item" onclick="event.stopPropagation();window.sendSelectedPathsToBack()">⬇️ Send to back (under roads)</div>
         <div class="g-dd-sep"></div>
         <div class="g-dd-item" onclick="clearPathSelection()">✕ Deselect</div>
         <div class="g-dd-item" style="font-size:11px;color:#5f6368;cursor:default;">Tip: drag blue box corners to resize</div>

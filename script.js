@@ -809,17 +809,34 @@
 
         function showPathContextMenu(clientX, clientY) {
             const menu = document.getElementById('pathContextMenu');
+            if (!menu) return;
             const groupBtn = document.getElementById('ctxGroupBtn');
             const ungroupBtn = document.getElementById('ctxUngroupBtn');
             const canGroup = selectedPathIndices.length >= 2;
             const canUngroup = selectedPathIndices.some(i => paths[i] && paths[i].groupId);
-            groupBtn.classList.toggle('disabled', !canGroup);
-            ungroupBtn.classList.toggle('disabled', !canUngroup);
+            if (groupBtn) groupBtn.classList.toggle('disabled', !canGroup);
+            if (ungroupBtn) ungroupBtn.classList.toggle('disabled', !canUngroup);
             menu.classList.add('open');
+            // Position after open so we can measure real size; keep fully on screen
+            menu.style.left = '0px';
+            menu.style.top = '0px';
+            menu.style.maxHeight = '';
+            menu.style.overflowY = '';
+            const pad = 8;
+            const mw = menu.offsetWidth || 240;
+            const mh = menu.offsetHeight || 320;
+            const maxH = Math.max(160, window.innerHeight - pad * 2);
             let left = clientX;
             let top = clientY;
-            if (left + 210 > window.innerWidth) left = window.innerWidth - 220;
-            if (top + 220 > window.innerHeight) top = window.innerHeight - 230;
+            if (left + mw > window.innerWidth - pad) left = window.innerWidth - mw - pad;
+            if (left < pad) left = pad;
+            if (mh > maxH) {
+                menu.style.maxHeight = maxH + 'px';
+                menu.style.overflowY = 'auto';
+            }
+            const useH = Math.min(mh, maxH);
+            if (top + useH > window.innerHeight - pad) top = window.innerHeight - useH - pad;
+            if (top < pad) top = pad;
             menu.style.left = left + 'px';
             menu.style.top = top + 'px';
         }
@@ -1880,8 +1897,12 @@
             ctx.translate(globalDrawingTranslateX, globalDrawingTranslateY);
             const allPaths = getCombinedPaths();
 
-            allPaths.forEach(p => drawPassOnCtx(ctx, p.points, p.type, 'outer', p.fillColor, p.centerLine));
-            allPaths.forEach(p => drawPassOnCtx(ctx, p.points, p.type, 'inner', p.fillColor, p.centerLine));
+            // Draw each path fully (outer then inner) in array order.
+            // Later paths sit on top — required for "bring to front" over roads.
+            allPaths.forEach(p => {
+                drawPassOnCtx(ctx, p.points, p.type, 'outer', p.fillColor, p.centerLine);
+                drawPassOnCtx(ctx, p.points, p.type, 'inner', p.fillColor, p.centerLine);
+            });
 
             // Selection highlight for selected / grouped roads & lines
             if (selectedPathIndices.length > 0 && !drawModeOn && !eraseModeOn) {
@@ -2689,11 +2710,27 @@
         function showItemContextMenu(clientX, clientY) {
             hidePathContextMenu();
             const menu = document.getElementById('itemContextMenu');
+            if (!menu) return;
             menu.classList.add('open');
+            menu.style.left = '0px';
+            menu.style.top = '0px';
+            menu.style.maxHeight = '';
+            menu.style.overflowY = '';
+            const pad = 8;
+            const mw = menu.offsetWidth || 240;
+            const mh = menu.offsetHeight || 320;
+            const maxH = Math.max(160, window.innerHeight - pad * 2);
             let left = clientX;
             let top = clientY;
-            if (left + 220 > window.innerWidth) left = window.innerWidth - 230;
-            if (top + 280 > window.innerHeight) top = window.innerHeight - 290;
+            if (left + mw > window.innerWidth - pad) left = window.innerWidth - mw - pad;
+            if (left < pad) left = pad;
+            if (mh > maxH) {
+                menu.style.maxHeight = maxH + 'px';
+                menu.style.overflowY = 'auto';
+            }
+            const useH = Math.min(mh, maxH);
+            if (top + useH > window.innerHeight - pad) top = window.innerHeight - useH - pad;
+            if (top < pad) top = pad;
             menu.style.left = left + 'px';
             menu.style.top = top + 'px';
         }
