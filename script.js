@@ -796,14 +796,16 @@
         const symbolImageCache = new Map();
         function getSymbolImage(svgNode) {
             if (!svgNode) return null;
-            // Online icons placed as <img class="vector-map-symbol">
+            // Online icons: use the <img> bitmap (unrotated; canvas applies angle on export)
             if (svgNode.tagName === 'IMG' || svgNode.tagName === 'img') {
                 return svgNode;
             }
             const code = (svgNode.dataset && svgNode.dataset.symbolCode) || svgNode.getAttribute('data-custom-key') || '';
-            const cacheKey = code || ('svg:' + (svgNode.outerHTML || '').slice(0, 120));
+            const cacheKey = 'norot:' + (code || (svgNode.outerHTML || '').slice(0, 80));
             if (symbolImageCache.has(cacheKey)) return symbolImageCache.get(cacheKey);
+            // Clone without CSS rotate so export can apply angle via canvas transform
             let svg = svgNode.outerHTML || '';
+            svg = svg.replace(/\sstyle=(["'])[^"']*\1/gi, '');
             svg = svg.replace(/currentColor/g, '#111111');
             if (svg && !/xmlns=/.test(svg)) {
                 svg = svg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
@@ -3053,21 +3055,100 @@
             });
         }
 
+        /** Read rotation degrees for a draggable item (slider, style, or computed matrix) */
+        function getItemRotationDeg(item) {
+            if (!item) return 0;
+            const slider = item.querySelector('.rotation-slider');
+            if (slider && slider.value !== '' && slider.value != null) {
+                const v = parseFloat(slider.value);
+                if (isFinite(v)) {
+                    // Prefer non-zero from slider; still allow 0 if nothing else
+                    if (Math.abs(v) > 0.01) return ((v % 360) + 360) % 360;
+                }
+            }
+            function angleFromTransform(el) {
+                if (!el) return null;
+                const t = el.style && el.style.transform ? el.style.transform : '';
+                let m = t.match(/rotate\(([\-\d.]+)deg\)/i);
+                if (m) return parseFloat(m[1]);
+                try {
+                    const cs = window.getComputedStyle(el).transform;
+                    if (cs && cs !== 'none') {
+                        const mm = cs.match(/matrix\(([^)]+)\)/);
+                        if (mm) {
+                            const parts = mm[1].split(',').map(parseFloat);
+                            if (parts.length >= 4 && isFinite(parts[0]) && isFinite(parts[1])) {
+                                return Math.atan2(parts[1], parts[0]) * 180 / Math.PI;
+                            }
+                        }
+                        const m3 = cs.match(/matrix3d\(([^)]+)\)/);
+                        if (m3) {
+                            const parts = m3[1].split(',').map(parseFloat);
+                            // matrix3d: a1=parts[0], b1=parts[1]
+                            if (parts.length >= 2) return Math.atan2(parts[1], parts[0]) * 180 / Math.PI;
+                        }
+                    }
+                } catch (e) {}
+                return null;
+            }
+            const candidates = [
+                item.querySelector('.vector-map-symbol'),
+                item.querySelector('.draggable-text-style'),
+                item.querySelector('.rotate-wrapper'),
+                item
+            ];
+            for (let i = 0; i < candidates.length; i++) {
+                const a = angleFromTransform(candidates[i]);
+                if (a != null && isFinite(a) && Math.abs(a) > 0.05) {
+                    return ((a % 360) + 360) % 360;
+                }
+            }
+            if (slider) {
+                const v = parseFloat(slider.value);
+                if (isFinite(v)) return ((v % 360) + 360) % 360;
+            }
+            return 0;
+        }
+
+        /** Apply rotation consistently: slider value + transform on glyph/text */
+        function applyItemRotation(item, deg) {
+            if (!item) return;
+            deg = ((parseFloat(deg) || 0) % 360 + 360) % 360;
+            const slider = item.querySelector('.rotation-slider');
+            if (slider) slider.value = String(Math.round(deg));
+            const wrap = item.querySelector('.rotate-wrapper');
+            if (wrap) {
+                // Keep wrapper unrotated; rotate visual children (glyph / text)
+                wrap.style.transform = '';
+                Array.from(wrap.children).forEach(function(ch) {
+                    if (ch.classList.contains('rotation-slider')) return;
+                    ch.style.transform = deg ? ('rotate(' + deg + 'deg)') : '';
+                });
+            }
+            const text = item.querySelector('.draggable-text-style');
+            if (text && (!wrap || !wrap.contains(text))) {
+                text.style.transform = deg ? ('rotate(' + deg + 'deg)') : '';
+            }
+        }
+
         function rotateElement(slider) {
             if (!slider) return;
-            const deg = parseInt(slider.value, 10) || 0;
-            const wrap = slider.closest('.rotate-wrapper');
-            if (wrap) {
-                // Rotate every visual child except the slider itself (matches map pin + glyph)
-                Array.from(wrap.children).forEach(function(ch) {
-                    if (ch === slider || ch.classList.contains('rotation-slider')) return;
-                    ch.style.transform = 'rotate(' + deg + 'deg)';
-                });
-                return;
+            const deg = parseFloat(slider.value) || 0;
+            const item = slider.closest('.draggable-item');
+            if (item) applyItemRotation(item, deg);
+            else {
+                const wrap = slider.closest('.rotate-wrapper');
+                if (wrap) {
+                    Array.from(wrap.children).forEach(function(ch) {
+                        if (ch === slider || ch.classList.contains('rotation-slider')) return;
+                        ch.style.transform = 'rotate(' + deg + 'deg)';
+                    });
+                }
             }
-            const target = slider.previousElementSibling;
-            if (target) target.style.transform = 'rotate(' + deg + 'deg)';
         }
+        window.getItemRotationDeg = getItemRotationDeg;
+        window.applyItemRotation = applyItemRotation;
+
 
         function hideItemContextMenu() {
             document.getElementById('itemContextMenu').classList.remove('open');
@@ -3123,23 +3204,16 @@
         }
 
         function itemRotateBy(deg) {
-            const wrap = getSelectedItemRotateWrapper();
-            const slider = getSelectedItemSlider();
-            if (!wrap) {
+            const item = selectedDraggableItem || (activeTextBox && activeTextBox.closest('.draggable-item'));
+            if (!item) {
                 showToast('Select a symbol or text first');
                 hideItemContextMenu();
                 return;
             }
-            let current = 0;
-            if (slider) current = parseInt(slider.value, 10) || 0;
-            else {
-                const m = (wrap.style.transform || '').match(/rotate\((-?\d+)deg\)/);
-                if (m) current = parseInt(m[1], 10);
-            }
+            const current = getItemRotationDeg(item);
             let next = (current + deg) % 360;
             if (next < 0) next += 360;
-            wrap.style.transform = `rotate(${next}deg)`;
-            if (slider) slider.value = next;
+            applyItemRotation(item, next);
             hideItemContextMenu();
             showToast('Rotated ' + deg + '°');
         }
@@ -3609,8 +3683,7 @@
                 const northLabel = item.querySelector('.north-label');
                 const qrCanvas = item.querySelector('.draggable-qrcode-wrapper canvas');
                 const labelNode = item.querySelector('.icon-label');
-                const sliderNode = item.querySelector('.rotation-slider');
-                const angleDeg = sliderNode ? (parseInt(sliderNode.value, 10) || 0) : 0;
+                const angleDeg = getItemRotationDeg(item);
                 // Item centre from style.left/top (not affected by CSS rotate on children)
                 const itemPos = getItemPagePos(item);
 
