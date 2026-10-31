@@ -552,18 +552,10 @@
         function makeMapSymbolSvg(code, size) {
             const content = MAP_SYMBOLS[code] || MAP_SYMBOLS.PLOT_MARKER;
             const color = MAP_SYMBOL_COLORS[code] || '#37474F';
-            const plate = MAP_SYMBOL_PLATE[code] || '#F7F9FC';
-            // Icon scaled into plate so strokes stay crisp and not clipped
-            const scale = 0.66;
-            const sw = (size >= 50 ? 1.55 : size >= 36 ? 1.65 : 1.75) / scale;
-            const fid = 's' + String(code).replace(/[^a-z0-9]/gi, '') + String(size);
-            // Google Maps / modern survey style: soft pin plate + scaled glyph + light shadow
+            // No circle plate — clean vector glyph only (survey-map style)
+            const sw = size >= 50 ? 1.45 : size >= 36 ? 1.55 : 1.65;
             return `<svg class="vector-map-symbol soi-conventional-symbol" data-symbol-code="${code}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">` +
-                `<defs><filter id="${fid}" x="-25%" y="-25%" width="150%" height="150%">` +
-                `<feDropShadow dx="0" dy="0.85" stdDeviation="0.85" flood-color="#000" flood-opacity="0.18"/>` +
-                `</filter></defs>` +
-                `<circle class="sym-plate" cx="12" cy="12" r="10.6" fill="${plate}" stroke="${color}" stroke-width="1.15" filter="url(#${fid})"/>` +
-                `<g class="sym-icon" transform="translate(12 12) scale(${scale}) translate(-12 -12)" fill="none" stroke="${color}" stroke-width="${sw.toFixed(2)}" stroke-linecap="round" stroke-linejoin="round">${content}</g>` +
+                `<g class="sym-icon" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${content}</g>` +
                 `</svg>`;
         }
 
@@ -634,7 +626,7 @@
                     img.alt = name;
                     img.loading = 'lazy';
                     img.referrerPolicy = 'no-referrer';
-                    img.src = 'https://api.iconify.design/' + prefix + '/' + name + '.svg?height=32&color=%23111111';
+                    img.src = 'https://api.iconify.design/' + prefix + '/' + name + '.svg?height=28&width=28&color=%2337474F';
                     img.onerror = function() { this.style.opacity = '0.3'; };
                     const span = document.createElement('span');
                     span.textContent = name.replace(/-/g, ' ');
@@ -676,16 +668,14 @@
                 const innerMatch = svgText.match(/<svg[^>]*>([\s\S]*)<\/svg>/i);
                 let inner = innerMatch ? innerMatch[1] : svgText;
                 inner = inner.replace(/currentColor/g, '#37474F');
-                const fid = 'o' + safeId.replace(/[^a-z0-9]/gi, '') + String(svgSize);
+                // Strip nested width/height so all online icons share the same pixel size
+                inner = inner.replace(/\s(width|height)=["'][^"']*["']/g, '');
+                // Uniform size from toolbar (small/medium/large) — same as built-in symbols
                 const wrapped =
                     '<svg class="vector-map-symbol" data-symbol-code="' + safeId + '" data-custom-key="' + safeId +
-                    '" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="' + svgSize + '" height="' + svgSize + '">' +
-                    '<defs><filter id="' + fid + '" x="-25%" y="-25%" width="150%" height="150%">' +
-                    '<feDropShadow dx="0" dy="0.85" stdDeviation="0.85" flood-color="#000" flood-opacity="0.18"/>' +
-                    '</filter></defs>' +
-                    '<circle cx="12" cy="12" r="10.6" fill="#F7F9FC" stroke="#455A64" stroke-width="1.15" filter="url(#' + fid + ')"/>' +
-                    '<g transform="translate(12 12) scale(0.58) translate(-12 -12)" fill="#37474F" stroke="#37474F" stroke-width="0.6">' +
-                    inner + '</g></svg>';
+                    '" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="' + svgSize + '" height="' + svgSize +
+                    '" preserveAspectRatio="xMidYMid meet">' +
+                    '<g fill="#37474F" stroke="#37474F" stroke-width="0.5">' + inner + '</g></svg>';
                 addCustomSvgSymbol(wrapped, name.replace(/-/g, ' '));
                 closeAllDropdowns();
                 showToast('Symbol placed — drag to position');

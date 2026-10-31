@@ -763,7 +763,7 @@
             display: block;
             flex-shrink: 0;
             overflow: visible;
-            filter: drop-shadow(0 1px 1.5px rgba(0,0,0,0.08));
+            /* size controlled by width/height attributes (toolbar Small/Medium/Large) */
         }
         .north-label {
             display: block;
@@ -1025,6 +1025,10 @@
     width: 28px;
     height: 28px;
     object-fit: contain;
+    display: block;
+}
+.online-symbol-card {
+    min-height: 72px;
 }
 .symbols-mega-panel {
     max-height: min(70vh, 560px);
