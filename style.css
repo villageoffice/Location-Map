@@ -1078,3 +1078,73 @@ img.vector-map-symbol.online-icon-img {
     user-select: none;
     -webkit-user-drag: none;
 }
+
+
+/* ===== Print / Save as PDF — exact A4 page ===== */
+@media print {
+    @page {
+        size: A4;
+        margin: 0;
+    }
+    html, body {
+        background: #fff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 210mm !important;
+        height: 297mm !important;
+        overflow: hidden !important;
+    }
+    body.printing-map .g-menubar,
+    body.printing-map .g-toolbar,
+    body.printing-map .g-dropdown,
+    body.printing-map .studio-sidebar,
+    body.printing-map .ruler-h,
+    body.printing-map .ruler-v,
+    body.printing-map #onlineUsersBadge,
+    body.printing-map #polyHintBanner,
+    body.printing-map #magnifier,
+    body.printing-map .modal-overlay,
+    body.printing-map #pathContextMenu,
+    body.printing-map #itemContextMenu,
+    body.printing-map .screen-metadata,
+    body.printing-map .delete-btn,
+    body.printing-map .item-resize-handle,
+    body.printing-map .rotation-slider,
+    body.printing-map .g-pill-btn {
+        display: none !important;
+    }
+    body.printing-map .workspace-wrapper,
+    body.printing-map .studio-body,
+    body.printing-map .workspace-container {
+        position: static !important;
+        transform: none !important;
+        width: 210mm !important;
+        height: 297mm !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        background: #fff !important;
+        box-shadow: none !important;
+    }
+    body.printing-map #a4Page {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 210mm !important;
+        height: 297mm !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+        overflow: hidden !important;
+        background: #fff !important;
+    }
+    body.printing-map #canvasContainer,
+    body.printing-map #mapCanvas {
+        width: 100% !important;
+        height: 100% !important;
+    }
+    body.printing-map .draggable-item {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+}

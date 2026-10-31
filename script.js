@@ -3054,8 +3054,19 @@
         }
 
         function rotateElement(slider) {
+            if (!slider) return;
+            const deg = parseInt(slider.value, 10) || 0;
+            const wrap = slider.closest('.rotate-wrapper');
+            if (wrap) {
+                // Rotate every visual child except the slider itself (matches map pin + glyph)
+                Array.from(wrap.children).forEach(function(ch) {
+                    if (ch === slider || ch.classList.contains('rotation-slider')) return;
+                    ch.style.transform = 'rotate(' + deg + 'deg)';
+                });
+                return;
+            }
             const target = slider.previousElementSibling;
-            if (target) target.style.transform = `rotate(${slider.value}deg)`;
+            if (target) target.style.transform = 'rotate(' + deg + 'deg)';
         }
 
         function hideItemContextMenu() {
@@ -3605,9 +3616,10 @@
 
                 pCtx.save();
                 pCtx.translate(itemPos.x, itemPos.y);
-                if (angleDeg) pCtx.rotate((angleDeg * Math.PI) / 180);
+                // Text rotates as a whole; symbols rotate glyph only (see branch below)
 
                 if (textNode && !textNode.classList.contains('is-placeholder')) {
+                    if (angleDeg) pCtx.rotate((angleDeg * Math.PI) / 180);
                     const comp = window.getComputedStyle(textNode);
                     const fSize = comp.fontSize || '18px';
                     const fFamily = comp.fontFamily || 'Arial';
@@ -3645,7 +3657,10 @@
                     }
                 } else if (mapSymbolNode) {
                     const symbolSize = parseFloat(mapSymbolNode.getAttribute('width')) || mapSymbolNode.width || 45;
-                    // Symbol drawn at centre of item
+                    // On screen only the glyph rotates (label outside rotate-wrapper stays upright).
+                    // Match that: rotate symbol drawing only, then draw label unrotated.
+                    pCtx.save();
+                    if (angleDeg) pCtx.rotate((angleDeg * Math.PI) / 180);
                     drawSvgSymbolOnCanvas(pCtx, mapSymbolNode, 0, northLabel ? -6 : 0, symbolSize, symbolSize);
                     if (northLabel) {
                         pCtx.font = 'bold 13px Arial';
@@ -3654,6 +3669,7 @@
                         pCtx.textBaseline = 'top';
                         pCtx.fillText('N', 0, symbolSize / 2 - 2);
                     }
+                    pCtx.restore();
                     if (labelNode && labelNode.innerText && labelNode.style.display !== 'none') {
                         const fs = labelNode.style.fontSize || '11px';
                         pCtx.font = 'bold ' + fs + ' Arial';
@@ -3691,6 +3707,51 @@
 
             return outCanvas;
         }
+
+
+        /** Browser Print / Save as PDF — prints the A4 page exactly as on screen */
+        function printMapPage() {
+            try {
+                // Clear selection chrome
+                const savedPathSel = (selectedPathIndices || []).slice();
+                selectedPathIndices = [];
+                document.querySelectorAll('.draggable-item.selected-item').forEach(el => el.classList.remove('selected-item'));
+                document.querySelectorAll('.item-resize-handle, .delete-btn, .rotation-slider').forEach(h => {
+                    h.dataset._prevVis = h.style.visibility;
+                    h.style.visibility = 'hidden';
+                });
+                if (typeof performRedraw === 'function') performRedraw();
+
+                // Reset zoom/pan so page is 1:1 for print
+                const cont = document.getElementById('container');
+                const prevTransform = cont ? cont.style.transform : '';
+                const prevZoom = typeof zoomScale !== 'undefined' ? zoomScale : 1;
+                if (cont) cont.style.transform = 'none';
+                document.body.classList.add('printing-map');
+
+                const restore = function() {
+                    document.body.classList.remove('printing-map');
+                    if (cont) cont.style.transform = prevTransform;
+                    document.querySelectorAll('.item-resize-handle, .delete-btn, .rotation-slider').forEach(h => {
+                        h.style.visibility = h.dataset._prevVis || '';
+                        delete h.dataset._prevVis;
+                    });
+                    selectedPathIndices = savedPathSel;
+                    if (typeof redrawAll === 'function') redrawAll();
+                    window.removeEventListener('afterprint', restore);
+                };
+                window.addEventListener('afterprint', restore);
+                // Fallback restore if afterprint doesn't fire
+                setTimeout(restore, 60000);
+
+                showToast('Print dialog — choose "Save as PDF" for exact page');
+                setTimeout(function() { window.print(); }, 80);
+            } catch (err) {
+                console.error(err);
+                showToast('Print failed');
+            }
+        }
+        window.printMapPage = printMapPage;
 
         async function compileAndSavePDF() {
             const outCanvas = await buildMergedExportCanvas();
