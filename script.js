@@ -632,10 +632,18 @@
                     span.textContent = name.replace(/-/g, ' ');
                     card.appendChild(img);
                     card.appendChild(span);
+                    card.addEventListener('mousedown', function(ev) {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                    });
                     card.addEventListener('click', function(ev) {
                         ev.preventDefault();
                         ev.stopPropagation();
-                        insertOnlineIcon(prefix, name, id);
+                        if (typeof window.insertOnlineIcon === 'function') {
+                            window.insertOnlineIcon(prefix, name, id);
+                        } else {
+                            insertOnlineIcon(prefix, name, id);
+                        }
                     });
                     grid.appendChild(card);
                 });
@@ -656,32 +664,54 @@
 
         async function insertOnlineIcon(prefix, name, fullId) {
             try {
+                if (!prefix || !name) throw new Error('Invalid icon id');
                 showToast('Loading icon…');
-                const svgUrl = 'https://api.iconify.design/' + prefix + '/' + name + '.svg?height=24&color=%23111111';
-                const res = await fetch(svgUrl);
-                if (!res.ok) throw new Error('SVG fetch failed');
-                let svgText = await res.text();
-                // Normalize to 24 viewBox and fixed size
-                const sizeVal = document.getElementById('iconSizeSelect')?.value || 'medium';
+                const sizeEl = document.getElementById('iconSizeSelect');
+                const sizeVal = (sizeEl && sizeEl.value) ? sizeEl.value : 'medium';
                 const svgSize = sizeVal === 'large' ? 60 : sizeVal === 'small' ? 30 : 45;
-                const safeId = 'CUSTOM_' + fullId.replace(/[^a-z0-9]+/gi, '_');
-                const innerMatch = svgText.match(/<svg[^>]*>([\s\S]*)<\/svg>/i);
-                let inner = innerMatch ? innerMatch[1] : svgText;
-                inner = inner.replace(/currentColor/g, '#37474F');
-                // Strip nested width/height so all online icons share the same pixel size
-                inner = inner.replace(/\s(width|height)=["'][^"']*["']/g, '');
-                // Uniform size from toolbar (small/medium/large) — same as built-in symbols
-                const wrapped =
-                    '<svg class="vector-map-symbol" data-symbol-code="' + safeId + '" data-custom-key="' + safeId +
-                    '" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="' + svgSize + '" height="' + svgSize +
-                    '" preserveAspectRatio="xMidYMid meet">' +
-                    '<g fill="#37474F" stroke="#37474F" stroke-width="0.5">' + inner + '</g></svg>';
-                addCustomSvgSymbol(wrapped, name.replace(/-/g, ' '));
-                closeAllDropdowns();
+                const color = '37474F';
+                // Fetch SVG already sized (Iconify supports width/height query)
+                const svgUrl = 'https://api.iconify.design/' + encodeURIComponent(prefix) + '/' +
+                    encodeURIComponent(name) + '.svg?width=' + svgSize + '&height=' + svgSize + '&color=%23' + color;
+                const res = await fetch(svgUrl, { mode: 'cors', cache: 'force-cache' });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                let svgText = (await res.text() || '').trim();
+                if (!svgText || svgText.indexOf('<svg') < 0) throw new Error('Empty SVG');
+
+                // Parse & normalize with DOMParser (safer than string regex)
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(svgText, 'image/svg+xml');
+                if (doc.querySelector('parsererror')) {
+                    // Fallback: light string normalize
+                    svgText = svgText.replace(/currentColor/gi, '#' + color);
+                } else {
+                    const root = doc.documentElement;
+                    root.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                    root.setAttribute('width', String(svgSize));
+                    root.setAttribute('height', String(svgSize));
+                    if (!root.getAttribute('viewBox')) root.setAttribute('viewBox', '0 0 24 24');
+                    root.setAttribute('class', 'vector-map-symbol');
+                    const safeId = 'CUSTOM_' + String(fullId || (prefix + '_' + name)).replace(/[^a-z0-9]+/gi, '_');
+                    root.setAttribute('data-symbol-code', safeId);
+                    root.setAttribute('data-custom-key', safeId);
+                    root.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+                    // Replace currentColor in tree
+                    root.querySelectorAll('*').forEach(function(n) {
+                        ['fill', 'stroke'].forEach(function(attr) {
+                            const v = n.getAttribute(attr);
+                            if (v && /currentColor/i.test(v)) n.setAttribute(attr, '#' + color);
+                        });
+                    });
+                    svgText = new XMLSerializer().serializeToString(root);
+                }
+                svgText = svgText.replace(/currentColor/gi, '#' + color);
+
+                addCustomSvgSymbol(svgText, String(name).replace(/-/g, ' '));
+                try { closeAllDropdowns(); } catch (e) {}
                 showToast('Symbol placed — drag to position');
             } catch (err) {
-                console.error(err);
-                showToast('Could not load icon — try another');
+                console.error('insertOnlineIcon', err);
+                showToast('Could not load icon: ' + (err && err.message ? err.message : 'try another'));
             }
         }
 
