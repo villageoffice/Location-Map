@@ -424,7 +424,40 @@
             LIGHTHOUSE:'<path d="M8 21h8l-2-13h-4zM9 8h6M12 2v3M5 21h14"/>',
             RUINS:'<path d="M3 21V8l4 3V6l5 4 4-5v5l5-3v14z"/>',
             POWER_LINE:'<path d="M4 3 8 21M20 3l-4 18M2 7h20M7 12h10"/>',
-            TELEPHONE_LINE:'<path d="M4 4h16M4 20h16M4 4v16M20 4v16M4 4l16 16M20 4 4 20" stroke-dasharray="2 2"/>'
+            TELEPHONE_LINE:'<path d="M4 4h16M4 20h16M4 4v16M20 4v16M4 4l16 16M20 4 4 20" stroke-dasharray="2 2"/>',
+            /* Household / site item symbols */
+            DOOR:'<path d="M5 3h11v18H5zM16 12h1.5M8 6h5v7H8z"/>',
+            WINDOW:'<rect x="3" y="4" width="18" height="16" rx="1"/><path d="M12 4v16M3 12h18"/>',
+            GATE:'<path d="M3 21V6h4v15M17 21V6h4v15M7 8h10M7 12h10M7 16h10M3 21h18"/>',
+            FENCE:'<path d="M3 8h18M3 16h18M5 8v8m3.5-8v8M12 8v8m3.5-8v8M19 8v8"/>',
+            FRIDGE:'<rect x="6" y="2" width="12" height="20" rx="1.5"/><path d="M6 10h12M15 6v2M15 14v3"/>',
+            SCOOTER:'<circle cx="6" cy="17" r="3"/><circle cx="18" cy="17" r="3"/><path d="M9 17h6M6 14 9 8h4l2 4h4"/>',
+            BIKE:'<circle cx="5.5" cy="16.5" r="3.5"/><circle cx="18.5" cy="16.5" r="3.5"/><path d="M5.5 13 12 6l3 5h4M12 6v5"/>',
+            CAR:'<path d="M4 15 6 9h12l2 6v4H4zM6 15h12M7 19v2m10-2v2M8 11h8"/>',
+            BUS:'<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M3 12h18M7 17v2m10-2v2M6 8h3m3 0h3"/>',
+            TRUCK:'<path d="M2 15V8h11v7M13 11h6l3 4v4h-9zM5 18v2m12-2v2M4 12h7"/>',
+            AUTO_RICKSHAW:'<path d="M4 15 6 8h9l3 4 2 3v4H4zM6 15h11M7 19v2m9-2v2M8 11h6"/>',
+            BED:'<path d="M3 10h18v8H3zM3 14h18M6 10V7h5v3M3 18v2m18-2v2"/>',
+            CHAIR:'<path d="M6 10h12v5H6zM8 15v5m8-5v5M6 10V7a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v3"/>',
+            TABLE:'<path d="M4 10h16v2H4zM6 12v8m12-8v8M8 20h-4m16 0h-4"/>',
+            TOILET:'<path d="M6 3h8v6H6zM8 9v3h8a4 4 0 0 1 0 8H5"/><circle cx="17" cy="16" r="1.5"/>',
+            BATHROOM:'<path d="M5 4h10v7H5zM7 11v3h9a3 3 0 0 1 0 6H5M4 21h16"/>',
+            KITCHEN:'<path d="M4 5h16v14H4zM4 11h16M8 5v6m8-6v6M8 14h2m4 0h2"/>',
+            STAIRS:'<path d="M3 21h5v-4h4v-4h4V9h5"/>',
+            LADDER:'<path d="M7 3v18m10-18v18M7 7h10M7 12h10M7 17h10"/>',
+            COMPOUND_WALL:'<path d="M2 8h20v12H2zM6 8v12m6-12v12m6-12v12M2 14h20"/>',
+            BOREWELL:'<path d="M9 3h6v5H9zM8 8h8v13H8zM11 12h2m-2 4h2M12 3V1"/>',
+            SEPTIC_TANK:'<rect x="3" y="8" width="18" height="10" rx="2"/><path d="M7 8V6h4v2m6 4h2M3 13h18"/>',
+            GENERATOR:'<rect x="3" y="7" width="14" height="12" rx="1"/><path d="M17 11h3v5h-3M7 11h6v4H7zM8 19v2m6-2v2"/>',
+            AC_UNIT:'<rect x="3" y="6" width="18" height="10" rx="1"/><path d="M6 11h12M3 16l2 3m16-3-2 3"/>',
+            CCTV:'<path d="M3 10h11l5-4v12l-5-4H3zM3 10v8h8"/>',
+            STREET_LIGHT:'<path d="M12 22V10m0-6 6 4H6zM9 4h6"/>',
+            DUSTBIN:'<path d="M6 8h12l-1 13H7zM5 8h14M9 8V5h6v3M10 12v5m4-5v5"/>',
+            PLAYGROUND:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/>',
+            PARK:'<path d="M12 21 13 10M8 10c-3-1-4-4-3-6 3 0 5 2 5 5 1-4 4-5 7-5 0 3-2 5-4 6h-5z"/>',
+            ATM:'<rect x="5" y="2" width="14" height="20" rx="1"/><path d="M8 6h8v5H8zM8 14h5m-5 3h8"/>',
+            FLAG_POLE:'<path d="M6 22V3m0 1 12 3-12 3"/>',
+            SIGN_BOARD:'<path d="M5 4h14v8H5zM12 12v10M8 22h8"/>'
         };
 
         const MAP_SYMBOL_COLORS = {
@@ -452,7 +485,16 @@
             ['BOUNDARY_PILLAR','Boundary Pillar'],['BENCH_MARK','Bench Mark'],['TRIANGULATION_STATION','Triangulation'],
             ['ORCHARD','Orchard'],['SCATTERED_TREES','Scattered Trees'],['ROCKY_GROUND','Rocky Ground'],
             ['EMBANKMENT','Embankment'],['DAM','Dam'],['AERODROME','Aerodrome'],['LIGHTHOUSE','Lighthouse'],
-            ['RUINS','Ruins'],['POWER_LINE','Power Line'],['TELEPHONE_LINE','Telephone Line']
+            ['RUINS','Ruins'],['POWER_LINE','Power Line'],['TELEPHONE_LINE','Telephone Line'],
+            ['DOOR','Door'],['WINDOW','Window'],['GATE','Gate'],['FENCE','Fence'],
+            ['FRIDGE','Fridge'],['SCOOTER','Scooter'],['BIKE','Bicycle'],['CAR','Car'],
+            ['BUS','Bus'],['TRUCK','Truck'],['AUTO_RICKSHAW','Auto Rickshaw'],
+            ['BED','Bed'],['CHAIR','Chair'],['TABLE','Table'],['TOILET','Toilet'],
+            ['BATHROOM','Bathroom'],['KITCHEN','Kitchen'],['STAIRS','Stairs'],['LADDER','Ladder'],
+            ['COMPOUND_WALL','Compound Wall'],['BOREWELL','Borewell'],['SEPTIC_TANK','Septic Tank'],
+            ['GENERATOR','Generator'],['AC_UNIT','AC Unit'],['CCTV','CCTV'],
+            ['STREET_LIGHT','Street Light'],['DUSTBIN','Dustbin'],['PLAYGROUND','Playground'],
+            ['PARK','Park'],['ATM','ATM'],['FLAG_POLE','Flag Pole'],['SIGN_BOARD','Sign Board']
         ];
 
         function makeMapSymbolSvg(code, size) {
@@ -484,15 +526,131 @@
             });
         }
 
+        // ---------- Online vector icons (Iconify — free, no API key) ----------
+        let onlineSymbolSearchTimer = null;
+        async function searchOnlineSymbols(query) {
+            const grid = document.getElementById('onlineSymbolsGrid');
+            const status = document.getElementById('onlineSymbolsStatus');
+            if (!grid) return;
+            const q = (query || '').trim();
+            if (q.length < 2) {
+                grid.innerHTML = '';
+                if (status) status.textContent = 'Type at least 2 letters (e.g. fridge, door, scooter, window)';
+                return;
+            }
+            if (status) status.textContent = 'Searching online icons…';
+            grid.innerHTML = '';
+            try {
+                const url = 'https://api.iconify.design/search?query=' + encodeURIComponent(q) + '&limit=48';
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+                const icons = data.icons || [];
+                if (!icons.length) {
+                    if (status) status.textContent = 'No icons found — try another word';
+                    return;
+                }
+                if (status) status.textContent = icons.length + ' icons — click to place on map';
+                icons.forEach(id => {
+                    const [prefix, name] = id.split(':');
+                    if (!prefix || !name) return;
+                    const card = document.createElement('button');
+                    card.type = 'button';
+                    card.className = 'symbol-card online-symbol-card';
+                    card.title = id;
+                    const img = document.createElement('img');
+                    img.alt = name;
+                    img.loading = 'lazy';
+                    img.src = 'https://api.iconify.design/' + prefix + '/' + name + '.svg?height=32&color=%23111111';
+                    const span = document.createElement('span');
+                    span.textContent = name.replace(/-/g, ' ');
+                    card.appendChild(img);
+                    card.appendChild(span);
+                    card.onclick = () => insertOnlineIcon(prefix, name, id);
+                    grid.appendChild(card);
+                });
+            } catch (err) {
+                console.error(err);
+                if (status) status.textContent = 'Online search failed (need internet). Built-in symbols still work.';
+            }
+        }
+
+        function onOnlineSymbolSearchInput(value) {
+            clearTimeout(onlineSymbolSearchTimer);
+            onlineSymbolSearchTimer = setTimeout(() => searchOnlineSymbols(value), 350);
+        }
+
+        async function insertOnlineIcon(prefix, name, fullId) {
+            try {
+                showToast('Loading icon…');
+                const svgUrl = 'https://api.iconify.design/' + prefix + '/' + name + '.svg?height=24&color=%23111111';
+                const res = await fetch(svgUrl);
+                if (!res.ok) throw new Error('SVG fetch failed');
+                let svgText = await res.text();
+                // Normalize to 24 viewBox and fixed size
+                const sizeVal = document.getElementById('iconSizeSelect')?.value || 'medium';
+                const svgSize = sizeVal === 'large' ? 60 : sizeVal === 'small' ? 30 : 45;
+                if (!/viewBox=/.test(svgText)) {
+                    svgText = svgText.replace('<svg', '<svg viewBox="0 0 24 24"');
+                }
+                svgText = svgText.replace(/<svg([^>]*)>/, (m, attrs) => {
+                    let a = attrs
+                        .replace(/\s(width|height|class)=["'][^"']*["']/g, '')
+                        .replace(/\sstroke=["']currentColor["']/g, ' stroke="#111111"')
+                        .replace(/\sfill=["']currentColor["']/g, ' fill="#111111"');
+                    return '<svg class="vector-map-symbol" data-symbol-code="CUSTOM_' + fullId.replace(/[^a-z0-9]+/gi, '_') + '" data-custom-key="CUSTOM_' + fullId + '" xmlns="http://www.w3.org/2000/svg" width="' + svgSize + '" height="' + svgSize + '"' + a + '>';
+                });
+                // replace remaining currentColor
+                svgText = svgText.replace(/currentColor/g, '#111111');
+                addCustomSvgSymbol(svgText, name.replace(/-/g, ' '));
+                closeAllDropdowns();
+                showToast('Symbol placed — drag to position');
+            } catch (err) {
+                console.error(err);
+                showToast('Could not load icon — try another');
+            }
+        }
+
+        function addCustomSvgSymbol(svgHtml, defaultLabel) {
+            activateSelectTool();
+            const labelFs = document.getElementById('labelFontSize')?.value || '11px';
+            const el = document.createElement('div');
+            el.className = 'draggable-item';
+            el.style.left = '50%';
+            el.style.top = '50%';
+            const displayState = rotateTabActive ? 'block' : 'none';
+            el.innerHTML = '<div class="rotate-wrapper">' + svgHtml +
+                '<input type="range" class="rotation-slider" min="0" max="360" value="0" style="display:' + displayState + ';" oninput="rotateElement(this)"></div>' +
+                '<span class="icon-label editable-label" style="font-size:' + labelFs + ';" ondblclick="editLabel(this)" title="Double-click to edit">' +
+                (defaultLabel || 'Symbol') + '</span>' +
+                '<div class="delete-btn" onclick="this.parentElement.remove();updateThumbnail();">✕</div>';
+            makeElementDraggable(el);
+            bindItemContextMenu(el);
+            itemContainer.appendChild(el);
+            selectItemElement(el);
+            updateThumbnail();
+        }
+
+        window.searchOnlineSymbols = searchOnlineSymbols;
+        window.onOnlineSymbolSearchInput = onOnlineSymbolSearchInput;
+        window.insertOnlineIcon = insertOnlineIcon;
+        window.addCustomSvgSymbol = addCustomSvgSymbol;
+
         const symbolImageCache = new Map();
         function getSymbolImage(svgNode) {
-            const code = svgNode?.dataset?.symbolCode;
-            if (!code) return null;
-            if (symbolImageCache.has(code)) return symbolImageCache.get(code);
-            const svg = svgNode.outerHTML.replace(/currentColor/g, '#111');
+            if (!svgNode) return null;
+            const code = svgNode.dataset?.symbolCode || svgNode.getAttribute('data-custom-key') || '';
+            const cacheKey = code || ('svg:' + (svgNode.outerHTML || '').slice(0, 120));
+            if (symbolImageCache.has(cacheKey)) return symbolImageCache.get(cacheKey);
+            let svg = svgNode.outerHTML || '';
+            svg = svg.replace(/currentColor/g, '#111111');
+            // Ensure xmlns for standalone data-url rendering
+            if (svg && !/xmlns=/.test(svg)) {
+                svg = svg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+            }
             const img = new Image();
             img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
-            symbolImageCache.set(code, img);
+            symbolImageCache.set(cacheKey, img);
             return img;
         }
 
@@ -519,6 +677,7 @@
                 el.innerHTML = `<div class="rotate-wrapper">${makeMapSymbolSvg(code, svgSize)}<input type="range" class="rotation-slider" min="0" max="360" value="0" style="display:${displayState};" oninput="rotateElement(this)"></div><span class="icon-label editable-label" style="font-size:${labelFs};" ondblclick="editLabel(this)" title="Double-click to edit">${defaultLabel}</span><div class="delete-btn" onclick="this.parentElement.remove();updateThumbnail();">✕</div>`;
             }
             makeElementDraggable(el);
+            bindItemContextMenu(el);
             itemContainer.appendChild(el);
             selectItemElement(el);
             updateThumbnail();

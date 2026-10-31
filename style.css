@@ -992,3 +992,19 @@
             .slide-sidebar { display: none; }
             .g-doc-title { width: 130px; }
         }
+
+
+/* Online Iconify symbol cards */
+.online-symbols-grid {
+    max-height: 220px;
+    overflow-y: auto;
+}
+.online-symbol-card img {
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+.symbols-mega-panel {
+    max-height: min(70vh, 560px);
+    overflow-y: auto;
+}
