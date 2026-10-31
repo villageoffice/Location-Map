@@ -1285,8 +1285,39 @@
             return { x: base.x + Math.cos(ang) * len, y: base.y + Math.sin(ang) * len };
         }
 
+        function getPageScale() {
+            // CSS pixels of a4Page vs internal canvas pixels (handles zoom/pan scale)
+            try {
+                const r = a4Page.getBoundingClientRect();
+                if (r.width > 1 && r.height > 1) {
+                    return {
+                        sx: r.width / pageTargetWidth,
+                        sy: r.height / pageTargetHeight,
+                        left: r.left,
+                        top: r.top
+                    };
+                }
+            } catch (e) {}
+            return { sx: 1, sy: 1, left: 0, top: 0 };
+        }
+
+        function clientToPage(clientX, clientY) {
+            const s = getPageScale();
+            return {
+                x: (clientX - s.left) / (s.sx || 1),
+                y: (clientY - s.top) / (s.sy || 1)
+            };
+        }
+
         function getItemPagePos(item) {
-            // Robust page-pixel centre position (matches CSS left/top + translate(-50%,-50%))
+            // Prefer live DOM geometry so PDF matches what user sees (incl. zoom)
+            try {
+                const ir = item.getBoundingClientRect();
+                if (ir.width > 0 || ir.height > 0) {
+                    const c = clientToPage(ir.left + ir.width / 2, ir.top + ir.height / 2);
+                    if (isFinite(c.x) && isFinite(c.y)) return c;
+                }
+            } catch (e) {}
             let left = item.style.left || '';
             let top = item.style.top || '';
             let x, y;
@@ -1297,6 +1328,25 @@
             if (!isFinite(x)) x = item.offsetLeft + item.offsetWidth / 2;
             if (!isFinite(y)) y = item.offsetTop + item.offsetHeight / 2;
             return { x, y };
+        }
+
+        function getElementPageBox(el) {
+            // Page-pixel box of any DOM node inside a4Page
+            try {
+                const r = el.getBoundingClientRect();
+                const tl = clientToPage(r.left, r.top);
+                const br = clientToPage(r.right, r.bottom);
+                return {
+                    x: tl.x,
+                    y: tl.y,
+                    w: Math.max(1, br.x - tl.x),
+                    h: Math.max(1, br.y - tl.y),
+                    cx: (tl.x + br.x) / 2,
+                    cy: (tl.y + br.y) / 2
+                };
+            } catch (e) {
+                return null;
+            }
         }
 
         function draw(e) {
@@ -2900,79 +2950,126 @@
             pCtx.fillRect(0, 0, outCanvas.width, outCanvas.height);
             pCtx.drawImage(canvas, 0, 0);
 
+            // Hide selection UI so geometry matches print (no handles/outline shift)
+            const hiddenSel = [];
+            document.querySelectorAll('.draggable-item.selected-item').forEach(el => {
+                el.classList.remove('selected-item');
+                hiddenSel.push(el);
+            });
+            document.querySelectorAll('.item-resize-handle').forEach(h => { h.style.visibility = 'hidden'; });
+            document.querySelectorAll('.delete-btn').forEach(h => { h.style.visibility = 'hidden'; });
+            document.querySelectorAll('.rotation-slider').forEach(h => { h.style.visibility = 'hidden'; });
+
             const items = document.querySelectorAll('.draggable-item');
             items.forEach(item => {
-                // Same page coordinates as on screen (1:1 with canvas)
-                const pos = getItemPagePos(item);
-                const posX = pos.x;
-                const posY = pos.y;
                 const textNode = item.querySelector('.draggable-text-style');
                 const mapSymbolNode = item.querySelector('.vector-map-symbol');
                 const northLabel = item.querySelector('.north-label');
                 const qrCanvas = item.querySelector('.draggable-qrcode-wrapper canvas');
                 const labelNode = item.querySelector('.icon-label');
                 const sliderNode = item.querySelector('.rotation-slider');
-                const angleDeg = sliderNode ? parseInt(sliderNode.value, 10) : 0;
+                const angleDeg = sliderNode ? (parseInt(sliderNode.value, 10) || 0) : 0;
+                const itemPos = getItemPagePos(item);
 
                 pCtx.save();
-                pCtx.translate(posX, posY);
-                if (angleDeg !== 0) pCtx.rotate((angleDeg * Math.PI) / 180);
+                // Rotate around the same visual centre as on screen
+                pCtx.translate(itemPos.x, itemPos.y);
+                if (angleDeg) pCtx.rotate((angleDeg * Math.PI) / 180);
+                pCtx.translate(-itemPos.x, -itemPos.y);
 
                 if (textNode && !textNode.classList.contains('is-placeholder')) {
-                    const comp = window.getComputedStyle(textNode);
-                    const fSize = comp.fontSize || '18px';
-                    const fFamily = comp.fontFamily || 'Arial';
-                    const fWeight = comp.fontWeight || 'bold';
-                    const fStyle = comp.fontStyle || 'normal';
-                    const fColor = comp.color || '#000000';
-                    const tAlign = (comp.textAlign === 'start' ? 'left' : (comp.textAlign || 'center'));
-                    const text = (textNode.innerText || '').replace(/\u00a0/g, ' ').replace(/\s+$/,'');
-                    if (text.trim()) {
-                        pCtx.font = `${fStyle} ${fWeight} ${fSize} ${fFamily}`;
-                        pCtx.fillStyle = fColor;
-                        pCtx.textBaseline = 'middle';
-                        pCtx.textAlign = tAlign === 'left' || tAlign === 'right' ? tAlign : 'center';
-                        const lines = text.split(/\r\n|\r|\n/);
-                        const fsNum = parseFloat(fSize) || 18;
-                        const lhMul = parseFloat(comp.lineHeight) && comp.lineHeight !== 'normal'
-                            ? (parseFloat(comp.lineHeight) / fsNum)
-                            : 1.3;
-                        const lh = fsNum * (isFinite(lhMul) && lhMul > 0.5 ? lhMul : 1.3);
-                        const totalH = lines.length * lh;
-                        // Match on-screen box: text is centered in the draggable item
-                        drawMultilineTextOnExport(pCtx, text, 0, -totalH / 2 + lh / 2, lh, pCtx.textAlign);
+                    const box = getElementPageBox(textNode);
+                    if (box) {
+                        const comp = window.getComputedStyle(textNode);
+                        const fSize = comp.fontSize || '18px';
+                        const fFamily = comp.fontFamily || 'Arial';
+                        const fWeight = comp.fontWeight || 'bold';
+                        const fStyle = comp.fontStyle || 'normal';
+                        const fColor = comp.color || '#000000';
+                        let tAlign = comp.textAlign || 'center';
+                        if (tAlign === 'start') tAlign = 'left';
+                        if (tAlign === 'end') tAlign = 'right';
+                        const text = (textNode.innerText || '').replace(/\u00a0/g, ' ').replace(/\s+$/,'');
+                        if (text.trim()) {
+                            const fsNum = parseFloat(fSize) || 18;
+                            const padX = 8;
+                            const padY = 5;
+                            let lh = fsNum * 1.3;
+                            if (comp.lineHeight && comp.lineHeight !== 'normal') {
+                                const plh = parseFloat(comp.lineHeight);
+                                if (isFinite(plh) && plh > 0) lh = plh;
+                            }
+                            pCtx.font = fStyle + ' ' + fWeight + ' ' + fSize + ' ' + fFamily;
+                            pCtx.fillStyle = fColor;
+                            pCtx.textBaseline = 'top';
+                            pCtx.textAlign = (tAlign === 'left' || tAlign === 'right') ? tAlign : 'center';
+                            let tx = box.cx;
+                            if (tAlign === 'left') tx = box.x + padX;
+                            if (tAlign === 'right') tx = box.x + box.w - padX;
+                            // Top padding matches CSS padding — same as screen
+                            const ty = box.y + padY;
+                            drawMultilineTextOnExport(pCtx, text, tx, ty, lh, pCtx.textAlign);
+                        }
                     }
                 } else if (mapSymbolNode) {
-                    const symbolSize = parseFloat(mapSymbolNode.getAttribute('width')) || 45;
-                    drawSvgSymbolOnCanvas(pCtx, mapSymbolNode, 0, -5, symbolSize, symbolSize);
+                    const sBox = getElementPageBox(mapSymbolNode);
+                    const symbolSize = sBox ? Math.max(sBox.w, sBox.h) : (parseFloat(mapSymbolNode.getAttribute('width')) || 45);
+                    const sx = sBox ? sBox.cx : itemPos.x;
+                    const sy = sBox ? sBox.cy : itemPos.y;
+                    drawSvgSymbolOnCanvas(pCtx, mapSymbolNode, sx, sy, symbolSize, symbolSize);
                     if (northLabel) {
+                        const nBox = getElementPageBox(northLabel);
                         pCtx.font = 'bold 13px Arial';
                         pCtx.fillStyle = '#111';
                         pCtx.textAlign = 'center';
-                        pCtx.fillText('N', 0, symbolSize / 2 + 10);
+                        pCtx.textBaseline = 'middle';
+                        if (nBox) pCtx.fillText('N', nBox.cx, nBox.cy);
+                        else pCtx.fillText('N', sx, sy + symbolSize / 2 + 10);
                     }
                     if (labelNode && labelNode.innerText && labelNode.style.display !== 'none') {
-                        pCtx.font = `bold ${labelNode.style.fontSize || '11px'} Arial`;
+                        const lBox = getElementPageBox(labelNode);
+                        const fs = labelNode.style.fontSize || '11px';
+                        pCtx.font = 'bold ' + fs + ' Arial';
                         pCtx.fillStyle = '#000';
                         pCtx.textBaseline = 'top';
-                        drawMultilineTextOnExport(pCtx, labelNode.innerText, 0, symbolSize / 2 + 2, 13, 'center');
+                        pCtx.textAlign = 'center';
+                        if (lBox) {
+                            drawMultilineTextOnExport(pCtx, labelNode.innerText, lBox.cx, lBox.y, 13, 'center');
+                        } else {
+                            drawMultilineTextOnExport(pCtx, labelNode.innerText, sx, sy + symbolSize / 2 + 2, 13, 'center');
+                        }
                     }
                 } else if (qrCanvas) {
-                    pCtx.fillStyle = 'white';
-                    pCtx.fillRect(-51, -51, 102, 102);
-                    pCtx.strokeStyle = '#2c3e50';
-                    pCtx.lineWidth = 2;
-                    pCtx.strokeRect(-51, -51, 102, 102);
-                    pCtx.drawImage(qrCanvas, -45, -45, 90, 90);
+                    const qWrap = item.querySelector('.draggable-qrcode-wrapper') || qrCanvas;
+                    const qBox = getElementPageBox(qWrap) || getElementPageBox(qrCanvas);
+                    if (qBox) {
+                        const side = Math.max(qBox.w, qBox.h);
+                        const qx = qBox.cx - side / 2;
+                        const qy = qBox.cy - side / 2;
+                        pCtx.fillStyle = 'white';
+                        pCtx.fillRect(qx - 3, qy - 3, side + 6, side + 6);
+                        pCtx.strokeStyle = '#2c3e50';
+                        pCtx.lineWidth = 2;
+                        pCtx.strokeRect(qx - 3, qy - 3, side + 6, side + 6);
+                        pCtx.drawImage(qrCanvas, qx, qy, side, side);
+                    }
                     if (labelNode && labelNode.innerText) {
+                        const lBox = getElementPageBox(labelNode);
                         pCtx.font = 'bold 11px Arial';
                         pCtx.fillStyle = '#c0392b';
                         pCtx.textBaseline = 'top';
-                        drawMultilineTextOnExport(pCtx, labelNode.innerText, 0, 56, 13, 'center');
+                        pCtx.textAlign = 'center';
+                        if (lBox) drawMultilineTextOnExport(pCtx, labelNode.innerText, lBox.cx, lBox.y, 13, 'center');
                     }
                 }
                 pCtx.restore();
             });
+
+            // Restore selection UI
+            document.querySelectorAll('.item-resize-handle').forEach(h => { h.style.visibility = ''; });
+            document.querySelectorAll('.delete-btn').forEach(h => { h.style.visibility = ''; });
+            document.querySelectorAll('.rotation-slider').forEach(h => { h.style.visibility = ''; });
+            hiddenSel.forEach(el => el.classList.add('selected-item'));
 
             return outCanvas;
         }
