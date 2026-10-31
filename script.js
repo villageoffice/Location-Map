@@ -664,60 +664,112 @@
 
         async function insertOnlineIcon(prefix, name, fullId) {
             try {
-                if (!prefix || !name) throw new Error('Invalid icon id');
+                if (!prefix || !name) throw new Error('Invalid icon');
                 showToast('Loading icon…');
                 const sizeEl = document.getElementById('iconSizeSelect');
                 const sizeVal = (sizeEl && sizeEl.value) ? sizeEl.value : 'medium';
                 const svgSize = sizeVal === 'large' ? 60 : sizeVal === 'small' ? 30 : 45;
-                const color = '37474F';
-                // Fetch SVG already sized (Iconify supports width/height query)
-                const svgUrl = 'https://api.iconify.design/' + encodeURIComponent(prefix) + '/' +
-                    encodeURIComponent(name) + '.svg?width=' + svgSize + '&height=' + svgSize + '&color=%23' + color;
-                const res = await fetch(svgUrl, { mode: 'cors', cache: 'force-cache' });
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                let svgText = (await res.text() || '').trim();
-                if (!svgText || svgText.indexOf('<svg') < 0) throw new Error('Empty SVG');
+                const safeId = 'CUSTOM_' + String(fullId || (prefix + '_' + name)).replace(/[^a-z0-9]+/gi, '_');
+                const label = String(name).replace(/-/g, ' ');
+                // Direct image URL — no SVG parse / CORS body issues; browser loads like a normal img
+                const imgUrl = 'https://api.iconify.design/' + prefix + '/' + name +
+                    '.svg?width=' + svgSize + '&height=' + svgSize + '&color=%2337474F';
 
-                // Parse & normalize with DOMParser (safer than string regex)
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(svgText, 'image/svg+xml');
-                if (doc.querySelector('parsererror')) {
-                    // Fallback: light string normalize
-                    svgText = svgText.replace(/currentColor/gi, '#' + color);
-                } else {
-                    const root = doc.documentElement;
-                    root.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-                    root.setAttribute('width', String(svgSize));
-                    root.setAttribute('height', String(svgSize));
-                    if (!root.getAttribute('viewBox')) root.setAttribute('viewBox', '0 0 24 24');
-                    root.setAttribute('class', 'vector-map-symbol');
-                    const safeId = 'CUSTOM_' + String(fullId || (prefix + '_' + name)).replace(/[^a-z0-9]+/gi, '_');
-                    root.setAttribute('data-symbol-code', safeId);
-                    root.setAttribute('data-custom-key', safeId);
-                    root.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-                    // Replace currentColor in tree
-                    root.querySelectorAll('*').forEach(function(n) {
-                        ['fill', 'stroke'].forEach(function(attr) {
-                            const v = n.getAttribute(attr);
-                            if (v && /currentColor/i.test(v)) n.setAttribute(attr, '#' + color);
-                        });
-                    });
-                    svgText = new XMLSerializer().serializeToString(root);
-                }
-                svgText = svgText.replace(/currentColor/gi, '#' + color);
+                // Preload so we know it works before placing
+                await new Promise(function(resolve, reject) {
+                    const test = new Image();
+                    test.onload = function() { resolve(); };
+                    test.onerror = function() { reject(new Error('Icon image failed to load')); };
+                    test.crossOrigin = 'anonymous';
+                    test.src = imgUrl;
+                });
 
-                addCustomSvgSymbol(svgText, String(name).replace(/-/g, ' '));
+                addOnlineIconItem(imgUrl, svgSize, safeId, label);
                 try { closeAllDropdowns(); } catch (e) {}
                 showToast('Symbol placed — drag to position');
             } catch (err) {
                 console.error('insertOnlineIcon', err);
-                showToast('Could not load icon: ' + (err && err.message ? err.message : 'try another'));
+                // Fallback: still place img; browser may load after place
+                try {
+                    const sizeEl = document.getElementById('iconSizeSelect');
+                    const sizeVal = (sizeEl && sizeEl.value) ? sizeEl.value : 'medium';
+                    const svgSize = sizeVal === 'large' ? 60 : sizeVal === 'small' ? 30 : 45;
+                    const safeId = 'CUSTOM_' + String(fullId || (prefix + '_' + name)).replace(/[^a-z0-9]+/gi, '_');
+                    const imgUrl = 'https://api.iconify.design/' + prefix + '/' + name +
+                        '.svg?width=' + svgSize + '&height=' + svgSize + '&color=%2337474F';
+                    addOnlineIconItem(imgUrl, svgSize, safeId, String(name).replace(/-/g, ' '));
+                    try { closeAllDropdowns(); } catch (e2) {}
+                    showToast('Symbol placed (loading…)');
+                } catch (e3) {
+                    showToast('Could not load icon — check internet');
+                }
             }
         }
 
-        function addCustomSvgSymbol(svgHtml, defaultLabel) {
+        function addOnlineIconItem(imgUrl, svgSize, safeId, defaultLabel) {
             activateSelectTool();
-            const labelFs = document.getElementById('labelFontSize')?.value || '11px';
+            const labelFs = (document.getElementById('labelFontSize') && document.getElementById('labelFontSize').value) || '11px';
+            const el = document.createElement('div');
+            el.className = 'draggable-item';
+            el.style.left = '50%';
+            el.style.top = '50%';
+            const displayState = rotateTabActive ? 'block' : 'none';
+
+            const wrap = document.createElement('div');
+            wrap.className = 'rotate-wrapper';
+
+            const img = document.createElement('img');
+            img.className = 'vector-map-symbol online-icon-img';
+            img.setAttribute('data-symbol-code', safeId);
+            img.setAttribute('data-custom-key', safeId);
+            img.setAttribute('width', String(svgSize));
+            img.setAttribute('height', String(svgSize));
+            img.width = svgSize;
+            img.height = svgSize;
+            img.alt = defaultLabel || 'icon';
+            img.draggable = false;
+            img.crossOrigin = 'anonymous';
+            img.src = imgUrl;
+
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.className = 'rotation-slider';
+            slider.min = '0';
+            slider.max = '360';
+            slider.value = '0';
+            slider.style.display = displayState;
+            slider.setAttribute('oninput', 'rotateElement(this)');
+
+            wrap.appendChild(img);
+            wrap.appendChild(slider);
+
+            const label = document.createElement('span');
+            label.className = 'icon-label editable-label';
+            label.style.fontSize = labelFs;
+            label.title = 'Double-click to edit';
+            label.textContent = defaultLabel || 'Symbol';
+            label.ondblclick = function() { editLabel(this); };
+
+            const del = document.createElement('div');
+            del.className = 'delete-btn';
+            del.textContent = '✕';
+            del.onclick = function() { el.remove(); if (typeof updateThumbnail === 'function') updateThumbnail(); };
+
+            el.appendChild(wrap);
+            el.appendChild(label);
+            el.appendChild(del);
+
+            makeElementDraggable(el);
+            bindItemContextMenu(el);
+            itemContainer.appendChild(el);
+            selectItemElement(el);
+            if (typeof updateThumbnail === 'function') updateThumbnail();
+        }
+
+        function addCustomSvgSymbol(svgHtml, defaultLabel) {
+            // Legacy path: still support SVG HTML strings
+            activateSelectTool();
+            const labelFs = (document.getElementById('labelFontSize') && document.getElementById('labelFontSize').value) || '11px';
             const el = document.createElement('div');
             el.className = 'draggable-item';
             el.style.left = '50%';
@@ -732,23 +784,27 @@
             bindItemContextMenu(el);
             itemContainer.appendChild(el);
             selectItemElement(el);
-            updateThumbnail();
+            if (typeof updateThumbnail === 'function') updateThumbnail();
         }
 
         window.searchOnlineSymbols = searchOnlineSymbols;
         window.onOnlineSymbolSearchInput = onOnlineSymbolSearchInput;
         window.insertOnlineIcon = insertOnlineIcon;
+        window.addOnlineIconItem = addOnlineIconItem;
         window.addCustomSvgSymbol = addCustomSvgSymbol;
 
         const symbolImageCache = new Map();
         function getSymbolImage(svgNode) {
             if (!svgNode) return null;
-            const code = svgNode.dataset?.symbolCode || svgNode.getAttribute('data-custom-key') || '';
+            // Online icons placed as <img class="vector-map-symbol">
+            if (svgNode.tagName === 'IMG' || svgNode.tagName === 'img') {
+                return svgNode;
+            }
+            const code = (svgNode.dataset && svgNode.dataset.symbolCode) || svgNode.getAttribute('data-custom-key') || '';
             const cacheKey = code || ('svg:' + (svgNode.outerHTML || '').slice(0, 120));
             if (symbolImageCache.has(cacheKey)) return symbolImageCache.get(cacheKey);
             let svg = svgNode.outerHTML || '';
             svg = svg.replace(/currentColor/g, '#111111');
-            // Ensure xmlns for standalone data-url rendering
             if (svg && !/xmlns=/.test(svg)) {
                 svg = svg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
             }
@@ -759,6 +815,16 @@
         }
 
         function drawSvgSymbolOnCanvas(pCtx, svgNode, x, y, width, height) {
+            if (!svgNode) return;
+            // Direct draw for <img>
+            if (svgNode.tagName === 'IMG' || svgNode.tagName === 'img') {
+                const w = width || parseFloat(svgNode.getAttribute('width')) || svgNode.width || 45;
+                const h = height || parseFloat(svgNode.getAttribute('height')) || svgNode.height || w;
+                if (svgNode.complete && svgNode.naturalWidth) {
+                    pCtx.drawImage(svgNode, x - w / 2, y - h / 2, w, h);
+                }
+                return;
+            }
             const img = getSymbolImage(svgNode);
             if (!img) return;
             if (img.complete && img.naturalWidth) pCtx.drawImage(img, x - width / 2, y - height / 2, width, height);
@@ -3559,7 +3625,7 @@
                     }
                 } else if (mapSymbolNode) {
                     const sBox = getElementPageBox(mapSymbolNode);
-                    const symbolSize = sBox ? Math.max(sBox.w, sBox.h) : (parseFloat(mapSymbolNode.getAttribute('width')) || 45);
+                    const symbolSize = sBox ? Math.max(sBox.w, sBox.h) : (parseFloat(mapSymbolNode.getAttribute('width')) || mapSymbolNode.width || 45);
                     const sx = sBox ? sBox.cx : itemPos.x;
                     const sy = sBox ? sBox.cy : itemPos.y;
                     drawSvgSymbolOnCanvas(pCtx, mapSymbolNode, sx, sy, symbolSize, symbolSize);

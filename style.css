@@ -1069,3 +1069,12 @@
     max-height: min(75vh, 620px);
     overflow-y: auto;
 }
+
+
+img.vector-map-symbol.online-icon-img {
+    display: block;
+    object-fit: contain;
+    flex-shrink: 0;
+    user-select: none;
+    -webkit-user-drag: none;
+}
