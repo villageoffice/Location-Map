@@ -962,9 +962,31 @@
             return Array.from(all).filter(i => paths[i]).sort((a, b) => a - b);
         }
 
+        /** Default stack level: dual-line roads = 0, everything else (line/stream/plot) = 10 */
+        function isDualLineRoadPath(p) {
+            if (!p) return false;
+            const st = roadStyles[p.type];
+            return !!(st && (st.isRoad || st.isRailway) && (st.innerWidth > 0 || st.isRailway));
+        }
+        function getPathZIndex(p) {
+            if (!p) return 0;
+            if (typeof p.zIndex === 'number' && isFinite(p.zIndex)) return p.zIndex;
+            return isDualLineRoadPath(p) ? 0 : 10;
+        }
+        function maxPathZIndex() {
+            let m = 0;
+            paths.forEach(p => { m = Math.max(m, getPathZIndex(p)); });
+            return m;
+        }
+        function minPathZIndex() {
+            let m = 0;
+            paths.forEach(p => { m = Math.min(m, getPathZIndex(p)); });
+            return m;
+        }
+
         /**
-         * Canvas layer order: later paths are drawn on top of earlier ones.
-         * Use after selecting a road/line so a new line can sit above a road.
+         * Layer order via zIndex so line/stream can go under or over roads
+         * while dual-line roads still use two-pass drawing for clean junctions.
          */
         function bringSelectedPathsToFront() {
             const sel = getExpandedSelectedPathIndices();
@@ -972,14 +994,12 @@
                 showToast('Select a road or line first');
                 return false;
             }
-            const selectedObjs = sel.map(i => paths[i]);
-            const others = paths.filter((_, i) => !sel.includes(i));
-            paths = others.concat(selectedObjs);
-            selectedPathIndices = selectedObjs.map((_, k) => others.length + k);
+            const z = maxPathZIndex() + 1;
+            sel.forEach(i => { if (paths[i]) paths[i].zIndex = z; });
             lastActionType = 'draw';
             hidePathContextMenu();
             redrawAll();
-            showToast('⬆️ Line(s) brought above (front)');
+            showToast('⬆️ Brought to front');
             return true;
         }
 
@@ -989,40 +1009,31 @@
                 showToast('Select a road or line first');
                 return false;
             }
-            const selectedObjs = sel.map(i => paths[i]);
-            const others = paths.filter((_, i) => !sel.includes(i));
-            paths = selectedObjs.concat(others);
-            selectedPathIndices = selectedObjs.map((_, k) => k);
+            // Put under the lowest existing layer (roads are usually 0)
+            const z = minPathZIndex() - 1;
+            sel.forEach(i => { if (paths[i]) paths[i].zIndex = z; });
             lastActionType = 'draw';
             hidePathContextMenu();
             redrawAll();
-            showToast('⬇️ Line(s) sent to back');
+            showToast('⬇️ Sent to back (under roads)');
             return true;
         }
 
         function bringSelectedPathsForward() {
-            const selSet = new Set(getExpandedSelectedPathIndices());
-            if (!selSet.size) {
+            const sel = getExpandedSelectedPathIndices();
+            if (!sel.length) {
                 showToast('Select a road or line first');
                 return false;
             }
-            // From high index down: swap with next non-selected so block moves up
-            let moved = false;
-            for (let i = paths.length - 2; i >= 0; i--) {
-                if (selSet.has(i) && !selSet.has(i + 1)) {
-                    const tmp = paths[i];
-                    paths[i] = paths[i + 1];
-                    paths[i + 1] = tmp;
-                    selSet.delete(i);
-                    selSet.add(i + 1);
-                    moved = true;
-                }
-            }
-            selectedPathIndices = Array.from(selSet).sort((a, b) => a - b);
-            if (!moved) {
-                showToast('Already on top');
-                return true;
-            }
+            // Move one step above the next higher non-selected layer
+            const otherZs = [];
+            paths.forEach((p, i) => {
+                if (!sel.includes(i)) otherZs.push(getPathZIndex(p));
+            });
+            const cur = Math.max(...sel.map(i => getPathZIndex(paths[i])));
+            const higher = otherZs.filter(z => z > cur).sort((a, b) => a - b);
+            const newZ = higher.length ? higher[0] + 1 : cur + 1;
+            sel.forEach(i => { if (paths[i]) paths[i].zIndex = newZ; });
             lastActionType = 'draw';
             hidePathContextMenu();
             redrawAll();
@@ -1031,27 +1042,19 @@
         }
 
         function sendSelectedPathsBackward() {
-            const selSet = new Set(getExpandedSelectedPathIndices());
-            if (!selSet.size) {
+            const sel = getExpandedSelectedPathIndices();
+            if (!sel.length) {
                 showToast('Select a road or line first');
                 return false;
             }
-            let moved = false;
-            for (let i = 1; i < paths.length; i++) {
-                if (selSet.has(i) && !selSet.has(i - 1)) {
-                    const tmp = paths[i];
-                    paths[i] = paths[i - 1];
-                    paths[i - 1] = tmp;
-                    selSet.delete(i);
-                    selSet.add(i - 1);
-                    moved = true;
-                }
-            }
-            selectedPathIndices = Array.from(selSet).sort((a, b) => a - b);
-            if (!moved) {
-                showToast('Already at back');
-                return true;
-            }
+            const otherZs = [];
+            paths.forEach((p, i) => {
+                if (!sel.includes(i)) otherZs.push(getPathZIndex(p));
+            });
+            const cur = Math.min(...sel.map(i => getPathZIndex(paths[i])));
+            const lower = otherZs.filter(z => z < cur).sort((a, b) => b - a);
+            const newZ = lower.length ? lower[0] - 1 : cur - 1;
+            sel.forEach(i => { if (paths[i]) paths[i].zIndex = newZ; });
             lastActionType = 'draw';
             hidePathContextMenu();
             redrawAll();
@@ -1858,7 +1861,8 @@
                         fillColor: p.fillColor,
                         centerLine: p.centerLine,
                         groupId: p.groupId,
-                        closed: p.closed
+                        closed: p.closed,
+                        zIndex: p.zIndex
                     });
                 } else {
                     allPaths.push(p);
@@ -1897,24 +1901,30 @@
             ctx.translate(globalDrawingTranslateX, globalDrawingTranslateY);
             const allPaths = getCombinedPaths();
 
-            // Dual-line roads need a global two-pass (all outers, then all inners)
-            // so junctions stay continuous like survey maps. Per-path outer+inner
-            // breaks roads at crossings (white gaps / open corners).
+            // Draw lowest zIndex first. Within the same z, dual-line roads use
+            // two-pass (all outers then all inners) so junctions stay clean.
+            // Line/stream with zIndex < road can sit under roads (Send to back).
+            function pathZ(p) {
+                if (typeof p.zIndex === 'number' && isFinite(p.zIndex)) return p.zIndex;
+                const st = roadStyles[p.type];
+                const dual = !!(st && (st.isRoad || st.isRailway) && (st.innerWidth > 0 || st.isRailway));
+                return dual ? 0 : 10;
+            }
             function isDualLineRoad(p) {
                 const st = roadStyles[p.type];
                 return !!(st && (st.isRoad || st.isRailway) && (st.innerWidth > 0 || st.isRailway));
             }
-            const roadPaths = allPaths.filter(isDualLineRoad);
-            const overlayPaths = allPaths.filter(p => !isDualLineRoad(p));
-
-            // 1) Road casings (black outer)
-            roadPaths.forEach(p => drawPassOnCtx(ctx, p.points, p.type, 'outer', p.fillColor, p.centerLine));
-            // 2) Road fills (white inner + center dash) — cleans junctions
-            roadPaths.forEach(p => drawPassOnCtx(ctx, p.points, p.type, 'inner', p.fillColor, p.centerLine));
-            // 3) Simple lines / polygons / plots on top (bring-to-front works here)
-            overlayPaths.forEach(p => {
-                drawPassOnCtx(ctx, p.points, p.type, 'outer', p.fillColor, p.centerLine);
-                drawPassOnCtx(ctx, p.points, p.type, 'inner', p.fillColor, p.centerLine);
+            const levels = Array.from(new Set(allPaths.map(pathZ))).sort((a, b) => a - b);
+            levels.forEach(z => {
+                const group = allPaths.filter(p => pathZ(p) === z);
+                const roadPaths = group.filter(isDualLineRoad);
+                const overlayPaths = group.filter(p => !isDualLineRoad(p));
+                roadPaths.forEach(p => drawPassOnCtx(ctx, p.points, p.type, 'outer', p.fillColor, p.centerLine));
+                roadPaths.forEach(p => drawPassOnCtx(ctx, p.points, p.type, 'inner', p.fillColor, p.centerLine));
+                overlayPaths.forEach(p => {
+                    drawPassOnCtx(ctx, p.points, p.type, 'outer', p.fillColor, p.centerLine);
+                    drawPassOnCtx(ctx, p.points, p.type, 'inner', p.fillColor, p.centerLine);
+                });
             });
 
             // Selection highlight for selected / grouped roads & lines
@@ -1997,6 +2007,7 @@
                 if (p.groupId != null) out.groupId = p.groupId;
                 if (p.centerLine) out.centerLine = true;
                 if (p.closed) out.closed = true;
+                if (typeof p.zIndex === 'number' && isFinite(p.zIndex)) out.zIndex = p.zIndex;
                 return out;
             });
         }
