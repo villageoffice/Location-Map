@@ -331,7 +331,6 @@
     <!-- ================= DROPDOWN 2: SHAPES & SURVEY SYMBOLS MEGA MENU ================= -->
     <div id="shapeSymbolsMenu" class="g-dropdown symbols-mega-panel">
         <div class="symbols-controls-bar">
-            <input type="text" id="symbolSearchInput" class="symbols-search" placeholder="🔍 Search built-in (House, Door, Fridge, Scooter…)" oninput="filterSymbolGrid(this.value)">
             <select id="iconSizeSelect" class="tb-select" style="border:1px solid #dadce0;" title="Symbol Size">
                 <option value="small">Small</option>
                 <option value="medium" selected>Medium</option>
@@ -344,15 +343,25 @@
                 <option value="15px">Label 15px</option>
             </select>
         </div>
-        <div class="g-dd-header" style="padding-left:2px;">Built-in Survey & Item Symbols — click to place</div>
-        <div id="symbolsGridContainer" class="symbols-grid"></div>
-        <div class="g-dd-sep"></div>
-        <div class="g-dd-header" style="padding-left:2px;">🌐 Online vector icons (Iconify)</div>
-        <div class="symbols-controls-bar" style="margin-top:4px;">
-            <input type="text" id="onlineSymbolSearchInput" class="symbols-search" placeholder="Search online: fridge, door, scooter, window, sofa…" oninput="onOnlineSymbolSearchInput(this.value)">
+        <div class="symbol-tabs">
+            <button type="button" class="symbol-tab active" data-symbol-tab="builtin">Built-in symbols</button>
+            <button type="button" class="symbol-tab" data-symbol-tab="online">🌐 Online search</button>
         </div>
-        <div id="onlineSymbolsStatus" style="font-size:11px;color:#5f6368;padding:4px 6px;">Type to search thousands of free vector icons</div>
-        <div id="onlineSymbolsGrid" class="symbols-grid online-symbols-grid"></div>
+        <div id="builtInSymbolsSection">
+            <div class="symbols-controls-bar" style="border-bottom:none;margin-bottom:4px;padding-bottom:4px;">
+                <input type="text" id="symbolSearchInput" class="symbols-search" placeholder="🔍 Search built-in (House, Door, Fridge, Scooter…)" autocomplete="off">
+            </div>
+            <div class="g-dd-header" style="padding-left:2px;">Click a symbol to place on map</div>
+            <div id="symbolsGridContainer" class="symbols-grid"></div>
+        </div>
+        <div id="onlineSymbolsSection" style="display:none;">
+            <div class="symbols-controls-bar" style="border-bottom:none;margin-bottom:4px;padding-bottom:4px;">
+                <input type="text" id="onlineSymbolSearchInput" class="symbols-search" placeholder="Search online: fridge, door, scooter, window…" autocomplete="off">
+                <button type="button" id="onlineSymbolSearchBtn" class="tb-btn" style="flex-shrink:0;padding:6px 12px;">Search</button>
+            </div>
+            <div id="onlineSymbolsStatus" style="font-size:11px;color:#5f6368;padding:4px 6px;">Type a word and press Search / Enter (needs internet)</div>
+            <div id="onlineSymbolsGrid" class="symbols-grid online-symbols-grid"></div>
+        </div>
     </div>
 
     <!-- ================= DROPDOWN 3: ALIGNMENT & LINE SPACING MENU ================= -->

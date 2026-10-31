@@ -461,10 +461,62 @@
         };
 
         const MAP_SYMBOL_COLORS = {
-            TREE:'#237A3B', FOREST:'#237A3B', COCONUT_TREE:'#237A3B', FARM:'#237A3B', ORCHARD:'#237A3B', SCATTERED_TREES:'#237A3B',
-            POND:'#1676B8', WELL:'#1676B8', WATER_TANK:'#1676B8', WATER_TAP:'#1676B8', HARBOUR:'#1676B8',
-            CULVERT:'#1676B8', STREAM_PERENNIAL:'#1676B8', STREAM_NONPERENNIAL:'#1676B8', CANAL:'#1676B8', RESERVOIR:'#1676B8', MARSH:'#1676B8',
-            EMBANKMENT:'#8A5A2B', DAM:'#8A5A2B'
+            /* Nature */
+            TREE:'#1B7A3C', FOREST:'#1B7A3C', COCONUT_TREE:'#1B7A3C', FARM:'#2E7D32', ORCHARD:'#2E7D32',
+            SCATTERED_TREES:'#1B7A3C', PARK:'#2E7D32', PLAYGROUND:'#00897B',
+            /* Water */
+            POND:'#1565C0', WELL:'#1565C0', WATER_TANK:'#0277BD', WATER_TAP:'#0277BD', HARBOUR:'#0277BD',
+            CULVERT:'#1565C0', STREAM_PERENNIAL:'#1565C0', STREAM_NONPERENNIAL:'#5C6BC0', CANAL:'#0277BD',
+            RESERVOIR:'#0277BD', MARSH:'#00838F', BOREWELL:'#0277BD',
+            /* Earth / structure */
+            EMBANKMENT:'#6D4C41', DAM:'#5D4037', COMPOUND_WALL:'#5D4037', FENCE:'#6D4C41', GATE:'#5D4037',
+            /* Civic / services */
+            HOSPITAL:'#C62828', FIRE_STATION:'#D84315', POLICE_STATION:'#283593', BANK:'#1A237E',
+            SCHOOL:'#4527A0', POST_OFFICE:'#AD1457', ATM:'#2E7D32', VILLAGE_OFFICE:'#37474F', PANCHAYAT_OFFICE:'#37474F',
+            /* Transport */
+            BUS_STOP:'#E65100', RAILWAY_STATION:'#455A64', PARKING:'#1565C0', PETROL_PUMP:'#EF6C00',
+            AUTO_STAND:'#F9A825', TAXI_STAND:'#F9A825', CAR:'#37474F', BUS:'#E65100', TRUCK:'#546E7A',
+            SCOOTER:'#00838F', BIKE:'#00695C', AUTO_RICKSHAW:'#F9A825',
+            /* Buildings */
+            HOUSE:'#455A64', BUILDING:'#37474F', TEMPLE:'#6A1B9A', MOSQUE:'#2E7D32', CHURCH:'#4527A0',
+            SHOP:'#C62828', MARKET:'#D84315', FACTORY:'#546E7A', CONSTRUCTION:'#EF6C00',
+            /* Utilities */
+            UTILITY_POLE:'#F9A825', MOBILE_TOWER:'#546E7A', TRANSFORMER:'#F57F17', POWER_LINE:'#F9A825',
+            STREET_LIGHT:'#F9A825', GENERATOR:'#546E7A', CCTV:'#37474F',
+            /* Markers */
+            NORTH_ARROW:'#1565C0', DIR_ARROW:'#1565C0', PLOT_MARKER:'#C62828', JUNCTION:'#37474F',
+            SPOT_HEIGHT:'#C62828', BOUNDARY_PILLAR:'#5D4037', BENCH_MARK:'#5D4037', TRIANGULATION_STATION:'#C62828',
+            /* Household */
+            DOOR:'#5D4037', WINDOW:'#0277BD', FRIDGE:'#455A64', BED:'#5D4037', CHAIR:'#6D4C41', TABLE:'#6D4C41',
+            TOILET:'#00838F', BATHROOM:'#00838F', KITCHEN:'#EF6C00', STAIRS:'#5D4037', LADDER:'#6D4C41',
+            SEPTIC_TANK:'#546E7A', AC_UNIT:'#0277BD', DUSTBIN:'#546E7A', FLAG_POLE:'#C62828', SIGN_BOARD:'#37474F',
+            ROAD_WORK:'#EF6C00', LEVEL_CROSSING:'#C62828'
+        };
+
+        /** Soft coloured plate behind icon (legible on map + professional pin look) */
+        const MAP_SYMBOL_PLATE = {
+            HOSPITAL:'#FFEBEE', FIRE_STATION:'#FBE9E7', POLICE_STATION:'#E8EAF6', BANK:'#E8EAF6',
+            SCHOOL:'#EDE7F6', TEMPLE:'#F3E5F5', MOSQUE:'#E8F5E9', CHURCH:'#EDE7F6',
+            TREE:'#E8F5E9', FOREST:'#E8F5E9', PARK:'#E8F5E9', PLAYGROUND:'#E0F2F1',
+            COCONUT_TREE:'#E8F5E9', FARM:'#E8F5E9', ORCHARD:'#E8F5E9', SCATTERED_TREES:'#E8F5E9',
+            POND:'#E3F2FD', WELL:'#E3F2FD', WATER_TANK:'#E1F5FE', CANAL:'#E1F5FE',
+            WATER_TAP:'#E1F5FE', BOREWELL:'#E1F5FE', RESERVOIR:'#E3F2FD', MARSH:'#E0F7FA',
+            CULVERT:'#E3F2FD', STREAM_PERENNIAL:'#E3F2FD', HARBOUR:'#E3F2FD',
+            HOUSE:'#ECEFF1', BUILDING:'#ECEFF1', SHOP:'#FFEBEE', MARKET:'#FBE9E7',
+            FACTORY:'#ECEFF1', CONSTRUCTION:'#FFF3E0', VILLAGE_OFFICE:'#ECEFF1', PANCHAYAT_OFFICE:'#ECEFF1',
+            NORTH_ARROW:'#E3F2FD', DIR_ARROW:'#E3F2FD', PLOT_MARKER:'#FFEBEE', JUNCTION:'#ECEFF1',
+            PETROL_PUMP:'#FFF3E0', BUS_STOP:'#FFF3E0', PARKING:'#E3F2FD', RAILWAY_STATION:'#ECEFF1',
+            AUTO_STAND:'#FFFDE7', TAXI_STAND:'#FFFDE7', CAR:'#ECEFF1', BUS:'#FFF3E0', TRUCK:'#ECEFF1',
+            SCOOTER:'#E0F7FA', BIKE:'#E0F2F1', AUTO_RICKSHAW:'#FFFDE7',
+            UTILITY_POLE:'#FFFDE7', MOBILE_TOWER:'#ECEFF1', TRANSFORMER:'#FFF8E1', STREET_LIGHT:'#FFFDE7',
+            DOOR:'#EFEBE9', WINDOW:'#E3F2FD', GATE:'#EFEBE9', FENCE:'#EFEBE9', FRIDGE:'#ECEFF1',
+            BED:'#EFEBE9', CHAIR:'#EFEBE9', TABLE:'#EFEBE9', TOILET:'#E0F7FA', BATHROOM:'#E0F7FA',
+            KITCHEN:'#FFF3E0', STAIRS:'#EFEBE9', LADDER:'#EFEBE9', COMPOUND_WALL:'#EFEBE9',
+            SEPTIC_TANK:'#ECEFF1', GENERATOR:'#ECEFF1', AC_UNIT:'#E3F2FD', CCTV:'#ECEFF1',
+            DUSTBIN:'#ECEFF1', ATM:'#E8F5E9', FLAG_POLE:'#FFEBEE', SIGN_BOARD:'#ECEFF1',
+            BRIDGE:'#EFEBE9', DAM:'#EFEBE9', EMBANKMENT:'#EFEBE9', ROAD_WORK:'#FFF3E0',
+            POST_OFFICE:'#FCE4EC', CEMETERY:'#ECEFF1', GROUND:'#E8F5E9',
+            LEVEL_CROSSING:'#FFEBEE', SPOT_HEIGHT:'#FFEBEE', BOUNDARY_PILLAR:'#EFEBE9'
         };
 
         const SYMBOL_LABELS = [
@@ -499,8 +551,20 @@
 
         function makeMapSymbolSvg(code, size) {
             const content = MAP_SYMBOLS[code] || MAP_SYMBOLS.PLOT_MARKER;
-            const color = MAP_SYMBOL_COLORS[code] || '#111111';
-            return `<svg class="vector-map-symbol soi-conventional-symbol" data-symbol-code="${code}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}"><g fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${content}</g></svg>`;
+            const color = MAP_SYMBOL_COLORS[code] || '#37474F';
+            const plate = MAP_SYMBOL_PLATE[code] || '#F7F9FC';
+            // Icon scaled into plate so strokes stay crisp and not clipped
+            const scale = 0.66;
+            const sw = (size >= 50 ? 1.55 : size >= 36 ? 1.65 : 1.75) / scale;
+            const fid = 's' + String(code).replace(/[^a-z0-9]/gi, '') + String(size);
+            // Google Maps / modern survey style: soft pin plate + scaled glyph + light shadow
+            return `<svg class="vector-map-symbol soi-conventional-symbol" data-symbol-code="${code}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">` +
+                `<defs><filter id="${fid}" x="-25%" y="-25%" width="150%" height="150%">` +
+                `<feDropShadow dx="0" dy="0.85" stdDeviation="0.85" flood-color="#000" flood-opacity="0.18"/>` +
+                `</filter></defs>` +
+                `<circle class="sym-plate" cx="12" cy="12" r="10.6" fill="${plate}" stroke="${color}" stroke-width="1.15" filter="url(#${fid})"/>` +
+                `<g class="sym-icon" transform="translate(12 12) scale(${scale}) translate(-12 -12)" fill="none" stroke="${color}" stroke-width="${sw.toFixed(2)}" stroke-linecap="round" stroke-linejoin="round">${content}</g>` +
+                `</svg>`;
         }
 
         function buildSymbolsMegaGrid() {
@@ -522,37 +586,45 @@
         function filterSymbolGrid(query) {
             const q = (query || '').toLowerCase().trim();
             document.querySelectorAll('#symbolsGridContainer .symbol-card').forEach(card => {
-                card.style.display = card.dataset.search.includes(q) ? 'flex' : 'none';
+                const hay = (card.dataset.search || '').toLowerCase();
+                card.style.display = (!q || hay.includes(q)) ? 'flex' : 'none';
             });
         }
+        window.filterSymbolGrid = filterSymbolGrid;
 
         // ---------- Online vector icons (Iconify — free, no API key) ----------
         let onlineSymbolSearchTimer = null;
         async function searchOnlineSymbols(query) {
             const grid = document.getElementById('onlineSymbolsGrid');
             const status = document.getElementById('onlineSymbolsStatus');
-            if (!grid) return;
+            if (!grid) {
+                console.warn('onlineSymbolsGrid missing');
+                return;
+            }
             const q = (query || '').trim();
             if (q.length < 2) {
                 grid.innerHTML = '';
                 if (status) status.textContent = 'Type at least 2 letters (e.g. fridge, door, scooter, window)';
                 return;
             }
-            if (status) status.textContent = 'Searching online icons…';
-            grid.innerHTML = '';
+            if (status) status.textContent = 'Searching online icons for "' + q + '"…';
+            grid.innerHTML = '<div style="padding:12px;color:#5f6368;font-size:12px;">Loading…</div>';
             try {
                 const url = 'https://api.iconify.design/search?query=' + encodeURIComponent(q) + '&limit=48';
-                const res = await fetch(url);
+                const res = await fetch(url, { mode: 'cors' });
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const data = await res.json();
                 const icons = data.icons || [];
+                grid.innerHTML = '';
                 if (!icons.length) {
                     if (status) status.textContent = 'No icons found — try another word';
                     return;
                 }
-                if (status) status.textContent = icons.length + ' icons — click to place on map';
+                if (status) status.textContent = icons.length + ' icons — click any to place on map';
                 icons.forEach(id => {
-                    const [prefix, name] = id.split(':');
+                    const parts = String(id).split(':');
+                    const prefix = parts[0];
+                    const name = parts.slice(1).join(':');
                     if (!prefix || !name) return;
                     const card = document.createElement('button');
                     card.type = 'button';
@@ -561,23 +633,33 @@
                     const img = document.createElement('img');
                     img.alt = name;
                     img.loading = 'lazy';
+                    img.referrerPolicy = 'no-referrer';
                     img.src = 'https://api.iconify.design/' + prefix + '/' + name + '.svg?height=32&color=%23111111';
+                    img.onerror = function() { this.style.opacity = '0.3'; };
                     const span = document.createElement('span');
                     span.textContent = name.replace(/-/g, ' ');
                     card.appendChild(img);
                     card.appendChild(span);
-                    card.onclick = () => insertOnlineIcon(prefix, name, id);
+                    card.addEventListener('click', function(ev) {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        insertOnlineIcon(prefix, name, id);
+                    });
                     grid.appendChild(card);
                 });
             } catch (err) {
-                console.error(err);
-                if (status) status.textContent = 'Online search failed (need internet). Built-in symbols still work.';
+                console.error('Iconify search error', err);
+                grid.innerHTML = '';
+                if (status) status.textContent = 'Online search failed — check internet / firewall. Built-in symbols still work.';
+                if (typeof showToast === 'function') showToast('Online symbol search failed');
             }
         }
 
         function onOnlineSymbolSearchInput(value) {
             clearTimeout(onlineSymbolSearchTimer);
-            onlineSymbolSearchTimer = setTimeout(() => searchOnlineSymbols(value), 350);
+            onlineSymbolSearchTimer = setTimeout(function() {
+                searchOnlineSymbols(value);
+            }, 280);
         }
 
         async function insertOnlineIcon(prefix, name, fullId) {
@@ -590,19 +672,21 @@
                 // Normalize to 24 viewBox and fixed size
                 const sizeVal = document.getElementById('iconSizeSelect')?.value || 'medium';
                 const svgSize = sizeVal === 'large' ? 60 : sizeVal === 'small' ? 30 : 45;
-                if (!/viewBox=/.test(svgText)) {
-                    svgText = svgText.replace('<svg', '<svg viewBox="0 0 24 24"');
-                }
-                svgText = svgText.replace(/<svg([^>]*)>/, (m, attrs) => {
-                    let a = attrs
-                        .replace(/\s(width|height|class)=["'][^"']*["']/g, '')
-                        .replace(/\sstroke=["']currentColor["']/g, ' stroke="#111111"')
-                        .replace(/\sfill=["']currentColor["']/g, ' fill="#111111"');
-                    return '<svg class="vector-map-symbol" data-symbol-code="CUSTOM_' + fullId.replace(/[^a-z0-9]+/gi, '_') + '" data-custom-key="CUSTOM_' + fullId + '" xmlns="http://www.w3.org/2000/svg" width="' + svgSize + '" height="' + svgSize + '"' + a + '>';
-                });
-                // replace remaining currentColor
-                svgText = svgText.replace(/currentColor/g, '#111111');
-                addCustomSvgSymbol(svgText, name.replace(/-/g, ' '));
+                const safeId = 'CUSTOM_' + fullId.replace(/[^a-z0-9]+/gi, '_');
+                const innerMatch = svgText.match(/<svg[^>]*>([\s\S]*)<\/svg>/i);
+                let inner = innerMatch ? innerMatch[1] : svgText;
+                inner = inner.replace(/currentColor/g, '#37474F');
+                const fid = 'o' + safeId.replace(/[^a-z0-9]/gi, '') + String(svgSize);
+                const wrapped =
+                    '<svg class="vector-map-symbol" data-symbol-code="' + safeId + '" data-custom-key="' + safeId +
+                    '" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="' + svgSize + '" height="' + svgSize + '">' +
+                    '<defs><filter id="' + fid + '" x="-25%" y="-25%" width="150%" height="150%">' +
+                    '<feDropShadow dx="0" dy="0.85" stdDeviation="0.85" flood-color="#000" flood-opacity="0.18"/>' +
+                    '</filter></defs>' +
+                    '<circle cx="12" cy="12" r="10.6" fill="#F7F9FC" stroke="#455A64" stroke-width="1.15" filter="url(#' + fid + ')"/>' +
+                    '<g transform="translate(12 12) scale(0.58) translate(-12 -12)" fill="#37474F" stroke="#37474F" stroke-width="0.6">' +
+                    inner + '</g></svg>';
+                addCustomSvgSymbol(wrapped, name.replace(/-/g, ' '));
                 closeAllDropdowns();
                 showToast('Symbol placed — drag to position');
             } catch (err) {
@@ -4021,8 +4105,67 @@
         })();
 
         // ================= INITIALIZE STUDIO =================
+        function wireSymbolSearchUI() {
+            const builtIn = document.getElementById('symbolSearchInput');
+            if (builtIn && !builtIn.dataset.wired) {
+                builtIn.dataset.wired = '1';
+                builtIn.addEventListener('input', function() {
+                    filterSymbolGrid(this.value);
+                });
+                builtIn.addEventListener('keydown', function(e) { e.stopPropagation(); });
+            }
+            const online = document.getElementById('onlineSymbolSearchInput');
+            if (online && !online.dataset.wired) {
+                online.dataset.wired = '1';
+                online.addEventListener('input', function() {
+                    onOnlineSymbolSearchInput(this.value);
+                });
+                online.addEventListener('keydown', function(e) {
+                    e.stopPropagation();
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        clearTimeout(onlineSymbolSearchTimer);
+                        searchOnlineSymbols(this.value);
+                    }
+                });
+            }
+            const btn = document.getElementById('onlineSymbolSearchBtn');
+            if (btn && !btn.dataset.wired) {
+                btn.dataset.wired = '1';
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const q = document.getElementById('onlineSymbolSearchInput');
+                    searchOnlineSymbols(q ? q.value : '');
+                });
+            }
+            // Keep symbols menu open while interacting inside it
+            const menu = document.getElementById('shapeSymbolsMenu');
+            if (menu && !menu.dataset.keepOpen) {
+                menu.dataset.keepOpen = '1';
+                menu.addEventListener('click', function(e) { e.stopPropagation(); });
+                menu.addEventListener('mousedown', function(e) { e.stopPropagation(); });
+            }
+            // Tabs
+            document.querySelectorAll('[data-symbol-tab]').forEach(tab => {
+                if (tab.dataset.wired) return;
+                tab.dataset.wired = '1';
+                tab.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const which = this.getAttribute('data-symbol-tab');
+                    document.querySelectorAll('[data-symbol-tab]').forEach(x => x.classList.toggle('active', x === this));
+                    const built = document.getElementById('builtInSymbolsSection');
+                    const onl = document.getElementById('onlineSymbolsSection');
+                    if (built) built.style.display = which === 'builtin' ? '' : 'none';
+                    if (onl) onl.style.display = which === 'online' ? '' : 'none';
+                });
+            });
+        }
+
         window.addEventListener('load', async () => {
             buildSymbolsMegaGrid();
+            wireSymbolSearchUI();
             changePageOrientation();
             loadKeralaRevenueTemplate();
             updateOnlineVisitBadge();
