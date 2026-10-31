@@ -38,4 +38,4 @@ English narrated walkthrough:
 Also linked from **Help → Video tutorial (English)** and inside the Help guide modal.
 
 GitHub Pages path example:
-`https://<user>.github.io/<repo>/docs/Location-Map-Studio-Tutorial-EN.mp4`
+https://villageoffice.github.io/Location-Map/docs/Location-Map-Studio-Tutorial-EN.mp4
