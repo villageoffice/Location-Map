@@ -460,8 +460,13 @@
     </div>
 
     <div id="arrangeMenu" class="g-dropdown">
+        <div class="g-dd-header">Order</div>
+        <div class="g-dd-item" onclick="window.bringSelectedToFront();closeAllDropdowns()"><span>⬆️ Bring to front</span></div>
+        <div class="g-dd-item" onclick="window.bringSelectedForward();closeAllDropdowns()"><span>🔼 Bring forward</span></div>
+        <div class="g-dd-item" onclick="window.sendSelectedBackward();closeAllDropdowns()"><span>🔽 Send backward</span></div>
+        <div class="g-dd-item" onclick="window.sendSelectedToBack();closeAllDropdowns()"><span>⬇️ Send to back</span></div>
+        <div class="g-dd-sep"></div>
         <div class="g-dd-item" onclick="toggleRotateTab();closeAllDropdowns()"><span>🔄 Toggle Rotation Sliders</span></div>
-        <div class="g-dd-item" onclick="bringSelectedToFront();closeAllDropdowns()"><span>⬆️ Bring Selected Item to Front</span></div>
         <div class="g-dd-item" onclick="alignSelectedItemOnPage('center');closeAllDropdowns()"><span>↔️ Center Item Horizontally</span></div>
         <div class="g-dd-item" onclick="alignSelectedItemOnPage('middle');closeAllDropdowns()"><span>↕️ Center Item Vertically</span></div>
     </div>
@@ -631,7 +636,11 @@
         <div class="g-dd-item" onclick="itemRotateBy(180)">🔄 Rotate 180°</div>
         <div class="g-dd-item" onclick="itemShowFreeRotate()">↻ Free rotate (slider)</div>
         <div class="g-dd-sep"></div>
-        <div class="g-dd-item" onclick="bringSelectedToFront();hideItemContextMenu()">⬆️ Bring to front</div>
+        <div class="g-dd-item" onclick="window.bringSelectedToFront();hideItemContextMenu()">⬆️ Bring to front</div>
+        <div class="g-dd-item" onclick="window.bringSelectedForward();hideItemContextMenu()">🔼 Bring forward</div>
+        <div class="g-dd-item" onclick="window.sendSelectedBackward();hideItemContextMenu()">🔽 Send backward</div>
+        <div class="g-dd-item" onclick="window.sendSelectedToBack();hideItemContextMenu()">⬇️ Send to back</div>
+        <div class="g-dd-sep"></div>
         <div class="g-dd-item" onclick="alignSelectedItemOnPage('center');hideItemContextMenu()">↔️ Center horizontally</div>
         <div class="g-dd-item" onclick="alignSelectedItemOnPage('middle');hideItemContextMenu()">↕️ Center vertically</div>
         <div class="g-dd-sep"></div>

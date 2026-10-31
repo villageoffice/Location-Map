@@ -2443,11 +2443,78 @@
             closeAllDropdowns();
         }
 
-        function bringSelectedToFront() {
-            if (selectedDraggableItem) {
-                itemContainer.appendChild(selectedDraggableItem);
-            }
+        function getSelectedLayerItem() {
+            return selectedDraggableItem || (activeTextBox && activeTextBox.closest('.draggable-item')) || null;
         }
+
+        function listLayerItems() {
+            return Array.from(itemContainer.querySelectorAll(':scope > .draggable-item'));
+        }
+
+        function getItemZ(el) {
+            const z = parseInt(el.style.zIndex || window.getComputedStyle(el).zIndex, 10);
+            return isFinite(z) ? z : 50;
+        }
+
+        /** Google slides / Office style layer order */
+        function bringSelectedToFront() {
+            const el = getSelectedLayerItem();
+            if (!el) { showToast('Select a symbol or text box first'); return; }
+            itemContainer.appendChild(el);
+            let maxZ = 50;
+            listLayerItems().forEach(n => { maxZ = Math.max(maxZ, getItemZ(n)); });
+            el.style.zIndex = String(maxZ + 1);
+            selectItemElement(el);
+            showToast('⬆️ Brought to front');
+        }
+
+        function sendSelectedToBack() {
+            const el = getSelectedLayerItem();
+            if (!el) { showToast('Select a symbol or text box first'); return; }
+            const canvasEl = document.getElementById('mapCanvas');
+            if (canvasEl && canvasEl.parentElement === itemContainer) {
+                if (canvasEl.nextSibling) itemContainer.insertBefore(el, canvasEl.nextSibling);
+                else itemContainer.appendChild(el);
+            } else {
+                itemContainer.insertBefore(el, itemContainer.firstChild);
+            }
+            let minZ = 50;
+            listLayerItems().forEach(n => { if (n !== el) minZ = Math.min(minZ, getItemZ(n)); });
+            el.style.zIndex = String(Math.max(1, minZ - 1));
+            selectItemElement(el);
+            showToast('⬇️ Sent to back');
+        }
+
+        function bringSelectedForward() {
+            const el = getSelectedLayerItem();
+            if (!el) { showToast('Select a symbol or text box first'); return; }
+            let next = el.nextElementSibling;
+            while (next && !next.classList.contains('draggable-item')) next = next.nextElementSibling;
+            if (!next) { showToast('Already at front'); return; }
+            if (next.nextSibling) itemContainer.insertBefore(el, next.nextSibling);
+            else itemContainer.appendChild(el);
+            el.style.zIndex = String(Math.max(getItemZ(el), getItemZ(next)) + 1);
+            selectItemElement(el);
+            showToast('⬆️ Brought forward');
+        }
+
+        function sendSelectedBackward() {
+            const el = getSelectedLayerItem();
+            if (!el) { showToast('Select a symbol or text box first'); return; }
+            let prev = el.previousElementSibling;
+            while (prev && !prev.classList.contains('draggable-item')) prev = prev.previousElementSibling;
+            if (!prev) { showToast('Already at back'); return; }
+            itemContainer.insertBefore(el, prev);
+            const pz = getItemZ(prev);
+            el.style.zIndex = String(Math.max(1, Math.min(getItemZ(el), pz) - 1));
+            selectItemElement(el);
+            showToast('⬇️ Sent backward');
+        }
+
+        window.bringSelectedToFront = bringSelectedToFront;
+        window.sendSelectedToBack = sendSelectedToBack;
+        window.bringSelectedForward = bringSelectedForward;
+        window.sendSelectedBackward = sendSelectedBackward;
 
         function deleteSelectedItem() {
             if (selectedDraggableItem) {
@@ -2960,7 +3027,16 @@
             document.querySelectorAll('.delete-btn').forEach(h => { h.style.visibility = 'hidden'; });
             document.querySelectorAll('.rotation-slider').forEach(h => { h.style.visibility = 'hidden'; });
 
-            const items = document.querySelectorAll('.draggable-item');
+            const items = Array.from(document.querySelectorAll('.draggable-item')).sort((a, b) => {
+                const za = parseInt(a.style.zIndex || '50', 10) || 50;
+                const zb = parseInt(b.style.zIndex || '50', 10) || 50;
+                if (za !== zb) return za - zb;
+                // DOM order as tie-breaker
+                const pos = a.compareDocumentPosition(b);
+                if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+                if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+                return 0;
+            });
             items.forEach(item => {
                 const textNode = item.querySelector('.draggable-text-style');
                 const mapSymbolNode = item.querySelector('.vector-map-symbol');
