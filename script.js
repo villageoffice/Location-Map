@@ -936,6 +936,152 @@
             showToast('Deleted selected line(s)');
         }
 
+        /** Expand selection to full groups; return sorted unique indices */
+        function getExpandedSelectedPathIndices() {
+            const all = new Set();
+            (selectedPathIndices || []).forEach(i => {
+                if (paths[i]) getGroupMembers(i).forEach(m => all.add(m));
+            });
+            return Array.from(all).filter(i => paths[i]).sort((a, b) => a - b);
+        }
+
+        /**
+         * Canvas layer order: later paths are drawn on top of earlier ones.
+         * Use after selecting a road/line so a new line can sit above a road.
+         */
+        function bringSelectedPathsToFront() {
+            const sel = getExpandedSelectedPathIndices();
+            if (!sel.length) {
+                showToast('Select a road or line first');
+                return false;
+            }
+            const selectedObjs = sel.map(i => paths[i]);
+            const others = paths.filter((_, i) => !sel.includes(i));
+            paths = others.concat(selectedObjs);
+            selectedPathIndices = selectedObjs.map((_, k) => others.length + k);
+            lastActionType = 'draw';
+            hidePathContextMenu();
+            redrawAll();
+            showToast('⬆️ Line(s) brought above (front)');
+            return true;
+        }
+
+        function sendSelectedPathsToBack() {
+            const sel = getExpandedSelectedPathIndices();
+            if (!sel.length) {
+                showToast('Select a road or line first');
+                return false;
+            }
+            const selectedObjs = sel.map(i => paths[i]);
+            const others = paths.filter((_, i) => !sel.includes(i));
+            paths = selectedObjs.concat(others);
+            selectedPathIndices = selectedObjs.map((_, k) => k);
+            lastActionType = 'draw';
+            hidePathContextMenu();
+            redrawAll();
+            showToast('⬇️ Line(s) sent to back');
+            return true;
+        }
+
+        function bringSelectedPathsForward() {
+            const selSet = new Set(getExpandedSelectedPathIndices());
+            if (!selSet.size) {
+                showToast('Select a road or line first');
+                return false;
+            }
+            // From high index down: swap with next non-selected so block moves up
+            let moved = false;
+            for (let i = paths.length - 2; i >= 0; i--) {
+                if (selSet.has(i) && !selSet.has(i + 1)) {
+                    const tmp = paths[i];
+                    paths[i] = paths[i + 1];
+                    paths[i + 1] = tmp;
+                    selSet.delete(i);
+                    selSet.add(i + 1);
+                    moved = true;
+                }
+            }
+            selectedPathIndices = Array.from(selSet).sort((a, b) => a - b);
+            if (!moved) {
+                showToast('Already on top');
+                return true;
+            }
+            lastActionType = 'draw';
+            hidePathContextMenu();
+            redrawAll();
+            showToast('⬆️ Brought forward');
+            return true;
+        }
+
+        function sendSelectedPathsBackward() {
+            const selSet = new Set(getExpandedSelectedPathIndices());
+            if (!selSet.size) {
+                showToast('Select a road or line first');
+                return false;
+            }
+            let moved = false;
+            for (let i = 1; i < paths.length; i++) {
+                if (selSet.has(i) && !selSet.has(i - 1)) {
+                    const tmp = paths[i];
+                    paths[i] = paths[i - 1];
+                    paths[i - 1] = tmp;
+                    selSet.delete(i);
+                    selSet.add(i - 1);
+                    moved = true;
+                }
+            }
+            selectedPathIndices = Array.from(selSet).sort((a, b) => a - b);
+            if (!moved) {
+                showToast('Already at back');
+                return true;
+            }
+            lastActionType = 'draw';
+            hidePathContextMenu();
+            redrawAll();
+            showToast('⬇️ Sent backward');
+            return true;
+        }
+
+        /** Arrange menu: path order if drawings selected, else symbol/text order */
+        function arrangeBringToFront() {
+            if (selectedPathIndices && selectedPathIndices.length) {
+                bringSelectedPathsToFront();
+                return;
+            }
+            bringSelectedToFront();
+        }
+        function arrangeBringForward() {
+            if (selectedPathIndices && selectedPathIndices.length) {
+                bringSelectedPathsForward();
+                return;
+            }
+            bringSelectedForward();
+        }
+        function arrangeSendBackward() {
+            if (selectedPathIndices && selectedPathIndices.length) {
+                sendSelectedPathsBackward();
+                return;
+            }
+            sendSelectedBackward();
+        }
+        function arrangeSendToBack() {
+            if (selectedPathIndices && selectedPathIndices.length) {
+                sendSelectedPathsToBack();
+                return;
+            }
+            sendSelectedToBack();
+        }
+
+        window.bringSelectedPathsToFront = bringSelectedPathsToFront;
+        window.sendSelectedPathsToBack = sendSelectedPathsToBack;
+        window.bringSelectedPathsForward = bringSelectedPathsForward;
+        window.sendSelectedPathsBackward = sendSelectedPathsBackward;
+        window.arrangeBringToFront = arrangeBringToFront;
+        window.arrangeBringForward = arrangeBringForward;
+        window.arrangeSendBackward = arrangeSendBackward;
+        window.arrangeSendToBack = arrangeSendToBack;
+
+
         function applyPathMoveDelta(dx, dy) {
             const moved = new Set();
             selectedPathIndices.forEach(i => {

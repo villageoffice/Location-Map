@@ -461,10 +461,10 @@
 
     <div id="arrangeMenu" class="g-dropdown">
         <div class="g-dd-header">Order</div>
-        <div class="g-dd-item" onclick="window.bringSelectedToFront();closeAllDropdowns()"><span>⬆️ Bring to front</span></div>
-        <div class="g-dd-item" onclick="window.bringSelectedForward();closeAllDropdowns()"><span>🔼 Bring forward</span></div>
-        <div class="g-dd-item" onclick="window.sendSelectedBackward();closeAllDropdowns()"><span>🔽 Send backward</span></div>
-        <div class="g-dd-item" onclick="window.sendSelectedToBack();closeAllDropdowns()"><span>⬇️ Send to back</span></div>
+        <div class="g-dd-item" onclick="window.arrangeBringToFront();closeAllDropdowns()"><span>⬆️ Bring to front</span></div>
+        <div class="g-dd-item" onclick="window.arrangeBringForward();closeAllDropdowns()"><span>🔼 Bring forward</span></div>
+        <div class="g-dd-item" onclick="window.arrangeSendBackward();closeAllDropdowns()"><span>🔽 Send backward</span></div>
+        <div class="g-dd-item" onclick="window.arrangeSendToBack();closeAllDropdowns()"><span>⬇️ Send to back</span></div>
         <div class="g-dd-sep"></div>
         <div class="g-dd-item" onclick="toggleRotateTab();closeAllDropdowns()"><span>🔄 Toggle Rotation Sliders</span></div>
         <div class="g-dd-item" onclick="alignSelectedItemOnPage('center');closeAllDropdowns()"><span>↔️ Center Item Horizontally</span></div>
@@ -624,6 +624,12 @@
         <div class="g-dd-item" onclick="applyCenterLineToSelected(true)">− − − Add road center line</div>
         <div class="g-dd-item" onclick="applyCenterLineToSelected(false)">✕ Remove center line</div>
         <div class="g-dd-item" onclick="deleteSelectedPaths()">🗑️ Delete selected</div>
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-header" style="font-size:11px;color:#5f6368;padding:4px 12px;">Layer order (above / below road)</div>
+        <div class="g-dd-item" onclick="bringSelectedPathsToFront()">⬆️ Bring to front (above roads)</div>
+        <div class="g-dd-item" onclick="bringSelectedPathsForward()">🔼 Bring forward</div>
+        <div class="g-dd-item" onclick="sendSelectedPathsBackward()">🔽 Send backward</div>
+        <div class="g-dd-item" onclick="sendSelectedPathsToBack()">⬇️ Send to back (under roads)</div>
         <div class="g-dd-sep"></div>
         <div class="g-dd-item" onclick="clearPathSelection()">✕ Deselect</div>
         <div class="g-dd-item" style="font-size:11px;color:#5f6368;cursor:default;">Tip: drag blue box corners to resize</div>
