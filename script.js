@@ -1897,9 +1897,22 @@
             ctx.translate(globalDrawingTranslateX, globalDrawingTranslateY);
             const allPaths = getCombinedPaths();
 
-            // Draw each path fully (outer then inner) in array order.
-            // Later paths sit on top — required for "bring to front" over roads.
-            allPaths.forEach(p => {
+            // Dual-line roads need a global two-pass (all outers, then all inners)
+            // so junctions stay continuous like survey maps. Per-path outer+inner
+            // breaks roads at crossings (white gaps / open corners).
+            function isDualLineRoad(p) {
+                const st = roadStyles[p.type];
+                return !!(st && (st.isRoad || st.isRailway) && (st.innerWidth > 0 || st.isRailway));
+            }
+            const roadPaths = allPaths.filter(isDualLineRoad);
+            const overlayPaths = allPaths.filter(p => !isDualLineRoad(p));
+
+            // 1) Road casings (black outer)
+            roadPaths.forEach(p => drawPassOnCtx(ctx, p.points, p.type, 'outer', p.fillColor, p.centerLine));
+            // 2) Road fills (white inner + center dash) — cleans junctions
+            roadPaths.forEach(p => drawPassOnCtx(ctx, p.points, p.type, 'inner', p.fillColor, p.centerLine));
+            // 3) Simple lines / polygons / plots on top (bring-to-front works here)
+            overlayPaths.forEach(p => {
                 drawPassOnCtx(ctx, p.points, p.type, 'outer', p.fillColor, p.centerLine);
                 drawPassOnCtx(ctx, p.points, p.type, 'inner', p.fillColor, p.centerLine);
             });
