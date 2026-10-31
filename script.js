@@ -3058,11 +3058,16 @@
         /** Read rotation degrees for a draggable item (slider, style, or computed matrix) */
         function getItemRotationDeg(item) {
             if (!item) return 0;
+            // 1) data-rotation attribute (Chrome-safe, set by applyItemRotation)
+            const dr = item.getAttribute('data-rotation');
+            if (dr != null && dr !== '') {
+                const v = parseFloat(dr);
+                if (isFinite(v)) return ((v % 360) + 360) % 360;
+            }
             const slider = item.querySelector('.rotation-slider');
             if (slider && slider.value !== '' && slider.value != null) {
                 const v = parseFloat(slider.value);
                 if (isFinite(v)) {
-                    // Prefer non-zero from slider; still allow 0 if nothing else
                     if (Math.abs(v) > 0.01) return ((v % 360) + 360) % 360;
                 }
             }
@@ -3114,15 +3119,20 @@
         function applyItemRotation(item, deg) {
             if (!item) return;
             deg = ((parseFloat(deg) || 0) % 360 + 360) % 360;
+            // Persist on dataset — reliable in Chrome even if transform is hidden/optimized away
+            item.setAttribute('data-rotation', String(deg));
             const slider = item.querySelector('.rotation-slider');
-            if (slider) slider.value = String(Math.round(deg));
+            if (slider) {
+                slider.value = String(Math.round(deg));
+                slider.setAttribute('value', String(Math.round(deg)));
+            }
             const wrap = item.querySelector('.rotate-wrapper');
             if (wrap) {
-                // Keep wrapper unrotated; rotate visual children (glyph / text)
                 wrap.style.transform = '';
                 Array.from(wrap.children).forEach(function(ch) {
                     if (ch.classList.contains('rotation-slider')) return;
                     ch.style.transform = deg ? ('rotate(' + deg + 'deg)') : '';
+                    ch.setAttribute('data-rotation', String(deg));
                 });
             }
             const text = item.querySelector('.draggable-text-style');
@@ -3641,6 +3651,25 @@
             });
             await Promise.all(pendingSymbols);
 
+            // CRITICAL (Chrome): read rotation WHILE elements are still visible.
+            // Chrome often returns transform:none for visibility:hidden nodes; Edge does not.
+            const items = Array.from(document.querySelectorAll('.draggable-item')).sort((a, b) => {
+                const za = parseInt(a.style.zIndex || '50', 10) || 50;
+                const zb = parseInt(b.style.zIndex || '50', 10) || 50;
+                if (za !== zb) return za - zb;
+                const pos = a.compareDocumentPosition(b);
+                if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+                if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+                return 0;
+            });
+            const itemExportMeta = items.map(function(item) {
+                return {
+                    item: item,
+                    angleDeg: getItemRotationDeg(item),
+                    itemPos: getItemPagePos(item)
+                };
+            });
+
             // Hide selection so PDF has no blue dashes / handles
             const savedPathSel = (selectedPathIndices || []).slice();
             selectedPathIndices = [];
@@ -3651,6 +3680,8 @@
             });
             document.querySelectorAll('.item-resize-handle').forEach(h => { h.style.visibility = 'hidden'; });
             document.querySelectorAll('.delete-btn').forEach(h => { h.style.visibility = 'hidden'; });
+            // Do NOT hide rotation-slider before angle snapshot (already done above).
+            // Hiding is fine now for visual capture of canvas only.
             document.querySelectorAll('.rotation-slider').forEach(h => { h.style.visibility = 'hidden'; });
 
             // Sync canvas redraw without selection chrome
@@ -3667,25 +3698,15 @@
             // Canvas already at pageTarget resolution — 1:1 copy
             pCtx.drawImage(canvas, 0, 0, pageTargetWidth, pageTargetHeight);
 
-            const items = Array.from(document.querySelectorAll('.draggable-item')).sort((a, b) => {
-                const za = parseInt(a.style.zIndex || '50', 10) || 50;
-                const zb = parseInt(b.style.zIndex || '50', 10) || 50;
-                if (za !== zb) return za - zb;
-                const pos = a.compareDocumentPosition(b);
-                if (pos & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
-                if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
-                return 0;
-            });
-
-            items.forEach(item => {
+            itemExportMeta.forEach(function(meta) {
+                const item = meta.item;
+                const angleDeg = meta.angleDeg || 0;
+                const itemPos = meta.itemPos;
                 const textNode = item.querySelector('.draggable-text-style');
                 const mapSymbolNode = item.querySelector('.vector-map-symbol');
                 const northLabel = item.querySelector('.north-label');
                 const qrCanvas = item.querySelector('.draggable-qrcode-wrapper canvas');
                 const labelNode = item.querySelector('.icon-label');
-                const angleDeg = getItemRotationDeg(item);
-                // Item centre from style.left/top (not affected by CSS rotate on children)
-                const itemPos = getItemPagePos(item);
 
                 pCtx.save();
                 pCtx.translate(itemPos.x, itemPos.y);
