@@ -588,7 +588,280 @@
         window.filterSymbolGrid = filterSymbolGrid;
 
         // ---------- Online vector icons (Iconify — free, no API key) ----------
+        // Smart + robust version
+        //  • Icon DRAWINGS are fetched as JSON (fetch/CORS — the same way the search works) and rendered
+        //    locally as inline SVG data-URIs. Nothing depends on remote <img src="https://..."> loading,
+        //    which some ad-blockers / ISPs / firewalls block (that was the "broken image" problem).
+        //  • Placed icons are fully embedded → saved maps, PDF/PNG export and offline use keep working.
+        //  • 3 mirror hosts with automatic fallback + timeout, stale-search cancel, Retry button.
+        //  • Malayalam / Manglish keywords (vathil, kinar, ambalam, വീട് …) are translated to English.
+        //  • Quick category chips + "recently used" icons.
+        const ICONIFY_HOSTS = ['https://api.iconify.design', 'https://api.simplesvg.com', 'https://api.unisvg.com'];
+        const ICONIFY_DEFAULT_COLOR = '#37474F';
+        const ICONIFY_RECENT_KEY = 'lsm_recent_online_icons_v1';
+        const ICONIFY_PREFERRED_SETS = ['mdi', 'material-symbols', 'tabler', 'ph', 'lucide', 'maki', 'map', 'fa6-solid', 'bi', 'ri', 'carbon', 'healthicons', 'fluent', 'heroicons', 'iconoir'];
+        let iconifyHostIdx = 0;
         let onlineSymbolSearchTimer = null;
+        let onlineSearchAbort = null;
+        let onlineSearchSeq = 0;
+        const onlineIconCache = new Map(); // "prefix:name" -> icon record
+
+        // Malayalam / Manglish → English search words (value array = several words are searched and merged)
+        const ONLINE_ICON_DICT = (function() {
+            const rows = [
+                [['veedu', 'veed', 'vedu', 'വീട്'], ['house']],
+                [['vathil', 'vaathil', 'vaathilu', 'വാതിൽ'], ['door']],
+                [['jalakam', 'janal', 'janala', 'ജനൽ'], ['window']],
+                [['kinar', 'kinaru', 'കിണർ'], ['well']],
+                [['ambalam', 'kshethram', 'kshetram', 'ക്ഷേത്രം', 'അമ്പലം'], ['temple']],
+                [['palli', 'pally', 'പള്ളി'], ['mosque', 'church']],
+                [['masjid', 'musjid', 'മസ്ജിദ്'], ['mosque']],
+                [['pallikoodam', 'pallikkoodam', 'skool', 'സ്കൂൾ'], ['school']],
+                [['aashupathri', 'asupathri', 'ashupathri', 'ആശുപത്രി'], ['hospital']],
+                [['kada', 'കട'], ['shop']],
+                [['hotel', 'hotal', 'ഹോട്ടൽ'], ['restaurant']],
+                [['bank', 'ബാങ്ക്'], ['bank']],
+                [['paalam', 'palam', 'പാലം'], ['bridge']],
+                [['maram', 'മരം'], ['tree']],
+                [['thengu', 'thenga', 'തെങ്ങ്'], ['palm tree']],
+                [['kulam', 'കുളം'], ['pond']],
+                [['puzha', 'പുഴ'], ['river']],
+                [['thodu', 'തോട്'], ['stream']],
+                [['road', 'roadu', 'റോഡ്'], ['road']],
+                [['bus stop', 'busstop', 'bus stand', 'ബസ് സ്റ്റോപ്പ്'], ['bus stop']],
+                [['petrol pump', 'petrolpump', 'പെട്രോൾ പമ്പ്'], ['gas station']],
+                [['tower', 'ടവർ'], ['tower']],
+                [['vayal', 'വയൽ'], ['field']],
+                [['kunnu', 'കുന്ന്'], ['hill']],
+                [['transformer', 'ട്രാൻസ്ഫോർമർ'], ['transformer']],
+                [['kodi', 'കൊടി'], ['flag']]
+            ];
+            const m = {};
+            rows.forEach(function(r) {
+                r[0].forEach(function(k) { m[k.normalize('NFC').toLowerCase()] = r[1]; });
+            });
+            return m;
+        })();
+
+        const ONLINE_ICON_CHIPS = [
+            ['House', 'house'], ['Temple', 'temple'], ['Mosque', 'mosque'], ['Church', 'church'],
+            ['School', 'school'], ['Hospital', 'hospital'], ['Shop', 'shop'], ['Bank', 'bank'],
+            ['Bus stop', 'bus stop'], ['Petrol pump', 'gas station'], ['Coconut tree', 'palm tree'],
+            ['Tree', 'tree'], ['Well', 'well'], ['Bridge', 'bridge'], ['Tower', 'tower'], ['Transformer', 'transformer']
+        ];
+
+        function translateOnlineIconQuery(raw) {
+            const clean = String(raw || '').normalize('NFC').trim().toLowerCase().replace(/\s+/g, ' ');
+            if (!clean) return { terms: [], note: '' };
+            if (ONLINE_ICON_DICT[clean]) {
+                const t = ONLINE_ICON_DICT[clean].slice();
+                return { terms: t, note: '"' + raw.trim() + '" → ' + t.join(' / ') };
+            }
+            let changed = false;
+            const out = clean.split(' ').map(function(tok) {
+                const hit = ONLINE_ICON_DICT[tok];
+                if (hit) { changed = true; return hit[0]; }
+                return tok;
+            }).join(' ');
+            return { terms: [out], note: changed ? '"' + raw.trim() + '" → ' + out : '' };
+        }
+
+        // Fetch JSON from Iconify with host fallback + timeout. Rejects with AbortError only if the caller aborted.
+        async function iconifyJson(path, outerSignal) {
+            let lastErr = null;
+            for (let k = 0; k < ICONIFY_HOSTS.length; k++) {
+                const idx = (iconifyHostIdx + k) % ICONIFY_HOSTS.length;
+                if (outerSignal && outerSignal.aborted) throw new DOMException('Aborted', 'AbortError');
+                const ctrl = new AbortController();
+                const onAbort = function() { ctrl.abort(); };
+                if (outerSignal) outerSignal.addEventListener('abort', onAbort, { once: true });
+                const timer = setTimeout(function() { ctrl.abort(); }, 9000);
+                try {
+                    const res = await fetch(ICONIFY_HOSTS[idx] + path, { signal: ctrl.signal, mode: 'cors' });
+                    if (!res.ok) throw new Error('HTTP ' + res.status);
+                    const data = await res.json();
+                    iconifyHostIdx = idx;
+                    return data;
+                } catch (e) {
+                    if (outerSignal && outerSignal.aborted) throw e;
+                    lastErr = e;
+                } finally {
+                    clearTimeout(timer);
+                    if (outerSignal) outerSignal.removeEventListener('abort', onAbort);
+                }
+            }
+            throw lastErr || new Error('Icon server unreachable');
+        }
+
+        // Turn one entry of an Iconify JSON response into a self-contained record (aliases / flips / rotation baked in)
+        function iconifyResolveRecord(json, name, depth) {
+            depth = depth || 0;
+            if (!json || depth > 6) return null;
+            const icons = json.icons || {};
+            const aliases = json.aliases || {};
+            let rec = null;
+            if (icons[name]) {
+                rec = Object.assign({}, icons[name]);
+            } else if (aliases[name] && aliases[name].parent) {
+                const parent = iconifyResolveRecord(json, aliases[name].parent, depth + 1);
+                if (!parent) return null;
+                const a = aliases[name];
+                rec = Object.assign({}, parent);
+                ['width', 'height', 'left', 'top'].forEach(function(k) { if (a[k] != null) rec[k] = a[k]; });
+                rec.hFlip = !!parent.hFlip !== !!a.hFlip;
+                rec.vFlip = !!parent.vFlip !== !!a.vFlip;
+                rec.rotate = (((parent.rotate || 0) + (a.rotate || 0)) % 4 + 4) % 4;
+            }
+            if (!rec || typeof rec.body !== 'string') return null;
+            let w = rec.width != null ? rec.width : (json.width != null ? json.width : 16);
+            let h = rec.height != null ? rec.height : (json.height != null ? json.height : 16);
+            let l = rec.left != null ? rec.left : (json.left != null ? json.left : 0);
+            let t = rec.top != null ? rec.top : (json.top != null ? json.top : 0);
+            let body = rec.body;
+            const rot = (((rec.rotate || 0) % 4) + 4) % 4;
+            if (rec.hFlip || rec.vFlip || rot) {
+                const cx = l + w / 2, cy = t + h / 2;
+                const ops = [];
+                if (rot) ops.push('rotate(' + (rot * 90) + ')');
+                if (rec.hFlip) ops.push('scale(-1 1)');
+                if (rec.vFlip) ops.push('scale(1 -1)');
+                body = '<g transform="translate(' + cx + ' ' + cy + ') ' + ops.join(' ') + ' translate(' + (-cx) + ' ' + (-cy) + ')">' + body + '</g>';
+                if (rot % 2) { const nw = h, nh = w; l = cx - nw / 2; t = cy - nh / 2; w = nw; h = nh; }
+            }
+            return { body: body, left: l, top: t, width: w, height: h };
+        }
+
+        function onlineIconSvgString(rec, size, color) {
+            const c = color || ICONIFY_DEFAULT_COLOR;
+            const body = String(rec.body).replace(/currentColor/g, c);
+            const px = size ? ' width="' + size + '" height="' + size + '"' : '';
+            return '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="' +
+                rec.left + ' ' + rec.top + ' ' + rec.width + ' ' + rec.height + '"' + px + ' fill="' + c + '">' + body + '</svg>';
+        }
+
+        function onlineIconDataUri(rec, size, color) {
+            return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(onlineIconSvgString(rec, size, color));
+        }
+
+        // Download drawings for many icons at once: one request per icon set (prefix), cached in memory
+        async function fetchOnlineIconRecords(ids, signal) {
+            const byPrefix = {};
+            ids.forEach(function(id) {
+                if (onlineIconCache.has(id)) return;
+                const i = id.indexOf(':');
+                if (i < 1) return;
+                const p = id.slice(0, i);
+                (byPrefix[p] = byPrefix[p] || []).push(id.slice(i + 1));
+            });
+            const jobs = [];
+            Object.keys(byPrefix).forEach(function(prefix) {
+                const names = byPrefix[prefix];
+                for (let i = 0; i < names.length; i += 40) {
+                    const chunk = names.slice(i, i + 40);
+                    jobs.push(
+                        iconifyJson('/' + encodeURIComponent(prefix) + '.json?icons=' + chunk.map(encodeURIComponent).join(','), signal)
+                            .then(function(json) {
+                                chunk.forEach(function(n) {
+                                    const rec = iconifyResolveRecord(json, n);
+                                    if (rec) {
+                                        rec.id = prefix + ':' + n;
+                                        rec.name = n;
+                                        onlineIconCache.set(rec.id, rec);
+                                    }
+                                });
+                            })
+                            .catch(function(e) {
+                                if (signal && signal.aborted) throw e;
+                                console.warn('Icon set load failed:', prefix, e);
+                            })
+                    );
+                }
+            });
+            await Promise.all(jobs);
+            return ids.map(function(id) { return onlineIconCache.get(id); }).filter(Boolean);
+        }
+
+        function loadRecentOnlineIcons() {
+            try {
+                const arr = JSON.parse(localStorage.getItem(ICONIFY_RECENT_KEY) || '[]');
+                return (Array.isArray(arr) ? arr : []).filter(function(r) {
+                    return r && typeof r.id === 'string' && typeof r.body === 'string' && isFinite(r.width) && isFinite(r.height);
+                });
+            } catch (e) { return []; }
+        }
+
+        function rememberOnlineIcon(rec) {
+            try {
+                const list = loadRecentOnlineIcons().filter(function(r) { return r.id !== rec.id; });
+                list.unshift({ id: rec.id, name: rec.name, body: rec.body, left: rec.left, top: rec.top, width: rec.width, height: rec.height });
+                localStorage.setItem(ICONIFY_RECENT_KEY, JSON.stringify(list.slice(0, 18)));
+            } catch (e) { /* storage may be blocked — recents are optional */ }
+        }
+
+        function buildOnlineIconCard(rec) {
+            const sep = rec.id.indexOf(':');
+            const prefix = rec.id.slice(0, sep);
+            const name = rec.id.slice(sep + 1);
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'symbol-card online-symbol-card';
+            card.title = rec.id;
+            const img = document.createElement('img');
+            img.alt = name;
+            img.width = 28;
+            img.height = 28;
+            img.src = onlineIconDataUri(rec, 28, ICONIFY_DEFAULT_COLOR);
+            const span = document.createElement('span');
+            span.textContent = name.replace(/-/g, ' ');
+            card.appendChild(img);
+            card.appendChild(span);
+            card.addEventListener('mousedown', function(ev) { ev.preventDefault(); ev.stopPropagation(); });
+            card.addEventListener('click', function(ev) {
+                ev.preventDefault();
+                ev.stopPropagation();
+                insertOnlineIcon(prefix, name, rec.id);
+            });
+            return card;
+        }
+
+        function showRecentOnlineIcons() {
+            const grid = document.getElementById('onlineSymbolsGrid');
+            const status = document.getElementById('onlineSymbolsStatus');
+            if (!grid) return;
+            grid.innerHTML = '';
+            const recents = loadRecentOnlineIcons();
+            if (!recents.length) {
+                if (status) status.textContent = 'Type a word (English / Manglish / Malayalam — door, vathil, കിണർ) or tap a category';
+                return;
+            }
+            if (status) status.textContent = 'Recently used — click to place again';
+            recents.forEach(function(r) {
+                onlineIconCache.set(r.id, r);
+                grid.appendChild(buildOnlineIconCard(r));
+            });
+        }
+
+        function showOnlineSearchError(message, retryQuery) {
+            const grid = document.getElementById('onlineSymbolsGrid');
+            const status = document.getElementById('onlineSymbolsStatus');
+            if (status) status.textContent = message;
+            if (!grid) return;
+            grid.innerHTML = '';
+            const box = document.createElement('div');
+            box.style.cssText = 'grid-column:1/-1;padding:10px;text-align:center;';
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'tb-btn online-retry-btn';
+            btn.textContent = '↻ Retry';
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                searchOnlineSymbols(retryQuery);
+            });
+            box.appendChild(btn);
+            grid.appendChild(box);
+        }
+
         async function searchOnlineSymbols(query) {
             const grid = document.getElementById('onlineSymbolsGrid');
             const status = document.getElementById('onlineSymbolsStatus');
@@ -596,64 +869,56 @@
                 console.warn('onlineSymbolsGrid missing');
                 return;
             }
-            const q = (query || '').trim();
-            if (q.length < 2) {
-                grid.innerHTML = '';
-                if (status) status.textContent = 'Type at least 2 letters (e.g. fridge, door, scooter, window)';
+            const raw = (query || '').trim();
+            const seq = ++onlineSearchSeq;
+            if (onlineSearchAbort) { try { onlineSearchAbort.abort(); } catch (e) {} }
+            if (raw.length < 2) {
+                showRecentOnlineIcons();
                 return;
             }
-            if (status) status.textContent = 'Searching online icons for "' + q + '"…';
-            grid.innerHTML = '<div style="padding:12px;color:#5f6368;font-size:12px;">Loading…</div>';
+            const ctrl = new AbortController();
+            onlineSearchAbort = ctrl;
+            const tr = translateOnlineIconQuery(raw);
+            if (status) status.textContent = 'Searching online icons for "' + tr.terms.join(' / ') + '"…';
+            grid.innerHTML = '<div style="padding:12px;color:#5f6368;font-size:12px;grid-column:1/-1;">Loading…</div>';
             try {
-                const url = 'https://api.iconify.design/search?query=' + encodeURIComponent(q) + '&limit=48';
-                const res = await fetch(url, { mode: 'cors' });
-                if (!res.ok) throw new Error('HTTP ' + res.status);
-                const data = await res.json();
-                const icons = data.icons || [];
-                grid.innerHTML = '';
-                if (!icons.length) {
-                    if (status) status.textContent = 'No icons found — try another word';
+                const results = await Promise.all(tr.terms.map(function(term) {
+                    return iconifyJson('/search?query=' + encodeURIComponent(term) + '&limit=64&palette=false', ctrl.signal);
+                }));
+                if (seq !== onlineSearchSeq) return;
+                // merge (interleave if several words), de-duplicate, put clean map-friendly icon sets first
+                const lists = results.map(function(r) { return (r && r.icons) || []; });
+                const maxLen = lists.reduce(function(m, l) { return Math.max(m, l.length); }, 0);
+                const seen = new Set();
+                const merged = [];
+                for (let i = 0; i < maxLen; i++) {
+                    lists.forEach(function(l) {
+                        if (i < l.length && !seen.has(l[i])) { seen.add(l[i]); merged.push(String(l[i])); }
+                    });
+                }
+                const pref = [], other = [];
+                merged.forEach(function(id) {
+                    (ICONIFY_PREFERRED_SETS.indexOf(id.split(':')[0]) >= 0 ? pref : other).push(id);
+                });
+                const ids = pref.concat(other).slice(0, 60);
+                if (!ids.length) {
+                    grid.innerHTML = '';
+                    if (status) status.textContent = 'No icons found for "' + tr.terms.join(' / ') + '" — try another word (English works best)';
                     return;
                 }
-                if (status) status.textContent = icons.length + ' icons — click any to place on map';
-                icons.forEach(id => {
-                    const parts = String(id).split(':');
-                    const prefix = parts[0];
-                    const name = parts.slice(1).join(':');
-                    if (!prefix || !name) return;
-                    const card = document.createElement('button');
-                    card.type = 'button';
-                    card.className = 'symbol-card online-symbol-card';
-                    card.title = id;
-                    const img = document.createElement('img');
-                    img.alt = name;
-                    img.loading = 'lazy';
-                    img.referrerPolicy = 'no-referrer';
-                    img.src = 'https://api.iconify.design/' + prefix + '/' + name + '.svg?height=28&width=28&color=%2337474F';
-                    img.onerror = function() { this.style.opacity = '0.3'; };
-                    const span = document.createElement('span');
-                    span.textContent = name.replace(/-/g, ' ');
-                    card.appendChild(img);
-                    card.appendChild(span);
-                    card.addEventListener('mousedown', function(ev) {
-                        ev.preventDefault();
-                        ev.stopPropagation();
-                    });
-                    card.addEventListener('click', function(ev) {
-                        ev.preventDefault();
-                        ev.stopPropagation();
-                        if (typeof window.insertOnlineIcon === 'function') {
-                            window.insertOnlineIcon(prefix, name, id);
-                        } else {
-                            insertOnlineIcon(prefix, name, id);
-                        }
-                    });
-                    grid.appendChild(card);
-                });
-            } catch (err) {
-                console.error('Iconify search error', err);
+                const records = await fetchOnlineIconRecords(ids, ctrl.signal);
+                if (seq !== onlineSearchSeq) return;
+                if (!records.length) {
+                    showOnlineSearchError('Icons were found but their drawings could not be loaded — check internet / VPN / ad-blocker, then Retry.', raw);
+                    return;
+                }
                 grid.innerHTML = '';
-                if (status) status.textContent = 'Online search failed — check internet / firewall. Built-in symbols still work.';
+                if (status) status.textContent = records.length + ' icons — click any to place on map' + (tr.note ? '  ·  ' + tr.note : '');
+                records.forEach(function(rec) { grid.appendChild(buildOnlineIconCard(rec)); });
+            } catch (err) {
+                if (seq !== onlineSearchSeq || (err && err.name === 'AbortError' && ctrl.signal.aborted)) return;
+                console.error('Iconify search error', err);
+                showOnlineSearchError('Online search failed — could not reach the icon server (3 mirrors tried). Check internet / VPN / ad-blocker. Built-in symbols still work.', raw);
                 if (typeof showToast === 'function') showToast('Online symbol search failed');
             }
         }
@@ -662,50 +927,56 @@
             clearTimeout(onlineSymbolSearchTimer);
             onlineSymbolSearchTimer = setTimeout(function() {
                 searchOnlineSymbols(value);
-            }, 280);
+            }, 300);
+        }
+
+        function renderOnlineIconChips() {
+            const box = document.getElementById('onlineSymbolChips');
+            if (!box || box.dataset.built) return;
+            box.dataset.built = '1';
+            ONLINE_ICON_CHIPS.forEach(function(c) {
+                const b = document.createElement('button');
+                b.type = 'button';
+                b.className = 'online-chip';
+                b.textContent = c[0];
+                b.addEventListener('mousedown', function(e) { e.preventDefault(); e.stopPropagation(); });
+                b.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const inp = document.getElementById('onlineSymbolSearchInput');
+                    if (inp) inp.value = c[1];
+                    clearTimeout(onlineSymbolSearchTimer);
+                    searchOnlineSymbols(c[1]);
+                });
+                box.appendChild(b);
+            });
         }
 
         async function insertOnlineIcon(prefix, name, fullId) {
             try {
                 if (!prefix || !name) throw new Error('Invalid icon');
-                showToast('Loading icon…');
+                const id = fullId || (prefix + ':' + name);
+                let rec = onlineIconCache.get(id);
+                if (!rec) {
+                    showToast('Loading icon…');
+                    const got = await fetchOnlineIconRecords([id]);
+                    rec = got[0];
+                }
+                if (!rec) throw new Error('Icon data unavailable');
                 const sizeEl = document.getElementById('iconSizeSelect');
                 const sizeVal = (sizeEl && sizeEl.value) ? sizeEl.value : 'medium';
                 const svgSize = sizeVal === 'large' ? 60 : sizeVal === 'small' ? 30 : 45;
-                const safeId = 'CUSTOM_' + String(fullId || (prefix + '_' + name)).replace(/[^a-z0-9]+/gi, '_');
+                const safeId = 'CUSTOM_' + String(id).replace(/[^a-z0-9]+/gi, '_');
                 const label = String(name).replace(/-/g, ' ');
-                // Direct image URL — no SVG parse / CORS body issues; browser loads like a normal img
-                const imgUrl = 'https://api.iconify.design/' + prefix + '/' + name +
-                    '.svg?width=' + svgSize + '&height=' + svgSize + '&color=%2337474F';
-
-                // Preload so we know it works before placing
-                await new Promise(function(resolve, reject) {
-                    const test = new Image();
-                    test.onload = function() { resolve(); };
-                    test.onerror = function() { reject(new Error('Icon image failed to load')); };
-                    test.crossOrigin = 'anonymous';
-                    test.src = imgUrl;
-                });
-
+                // Fully embedded SVG (data URI): no network needed after this point
+                const imgUrl = onlineIconDataUri(rec, svgSize, ICONIFY_DEFAULT_COLOR);
                 addOnlineIconItem(imgUrl, svgSize, safeId, label);
+                rememberOnlineIcon(rec);
                 try { closeAllDropdowns(); } catch (e) {}
                 showToast('Symbol placed — drag to position');
             } catch (err) {
                 console.error('insertOnlineIcon', err);
-                // Fallback: still place img; browser may load after place
-                try {
-                    const sizeEl = document.getElementById('iconSizeSelect');
-                    const sizeVal = (sizeEl && sizeEl.value) ? sizeEl.value : 'medium';
-                    const svgSize = sizeVal === 'large' ? 60 : sizeVal === 'small' ? 30 : 45;
-                    const safeId = 'CUSTOM_' + String(fullId || (prefix + '_' + name)).replace(/[^a-z0-9]+/gi, '_');
-                    const imgUrl = 'https://api.iconify.design/' + prefix + '/' + name +
-                        '.svg?width=' + svgSize + '&height=' + svgSize + '&color=%2337474F';
-                    addOnlineIconItem(imgUrl, svgSize, safeId, String(name).replace(/-/g, ' '));
-                    try { closeAllDropdowns(); } catch (e2) {}
-                    showToast('Symbol placed (loading…)');
-                } catch (e3) {
-                    showToast('Could not load icon — check internet');
-                }
+                showToast('Could not load icon — check internet');
             }
         }
 
@@ -4693,6 +4964,7 @@
                     searchOnlineSymbols(q ? q.value : '');
                 });
             }
+            renderOnlineIconChips();
             // Keep symbols menu open while interacting inside it
             const menu = document.getElementById('shapeSymbolsMenu');
             if (menu && !menu.dataset.keepOpen) {
@@ -4713,6 +4985,10 @@
                     const onl = document.getElementById('onlineSymbolsSection');
                     if (built) built.style.display = which === 'builtin' ? '' : 'none';
                     if (onl) onl.style.display = which === 'online' ? '' : 'none';
+                    if (which === 'online') {
+                        const oi = document.getElementById('onlineSymbolSearchInput');
+                        if (!oi || (oi.value || '').trim().length < 2) showRecentOnlineIcons();
+                    }
                 });
             });
         }
