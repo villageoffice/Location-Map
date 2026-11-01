@@ -2,7 +2,10 @@
 <html lang="ml">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#1a73e8">
     <title>Location Map - Master Location Sketch Studio V4.3</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&display=swap">
@@ -806,5 +809,17 @@
 
     <!-- ================= APPLICATION SCRIPT ================= -->
     <script src="script.js"></script>
+
+    <!-- Mobile bottom dock (shown in mobile mode) -->
+    <nav id="mobileDock" class="mobile-dock" style="display:none;" aria-label="Mobile tools">
+        <button type="button" class="md-btn" onclick="mobileDockAction('select')" title="Select">👆<span>Select</span></button>
+        <button type="button" class="md-btn" onclick="mobileDockAction('draw')" title="Draw">✏️<span>Draw</span></button>
+        <button type="button" class="md-btn" onclick="mobileDockAction('text')" title="Text">🔤<span>Text</span></button>
+        <button type="button" class="md-btn" onclick="mobileDockAction('symbol')" title="Symbols">📌<span>Symbol</span></button>
+        <button type="button" class="md-btn" onclick="mobileDockAction('undo')" title="Undo">↩️<span>Undo</span></button>
+        <button type="button" class="md-btn" onclick="mobileDockAction('fit')" title="Fit">🔍<span>Fit</span></button>
+        <button type="button" class="md-btn md-primary" onclick="mobileDockAction('pdf')" title="PDF">📥<span>PDF</span></button>
+    </nav>
+
 </body>
 </html>

@@ -928,19 +928,111 @@
             a4Page.classList.toggle('show-grid');
         }
 
-        function toggleDeviceMode() {
-            const btn = document.getElementById('deviceModeBtn');
-            if (currentDeviceMode === 'mobile') {
-                currentDeviceMode = 'pc';
-                btn.innerHTML = '🖥️ PC Mode';
-            } else {
-                currentDeviceMode = 'mobile';
-                btn.innerHTML = '📱 Mobile Mode';
-            }
-            resetZoomAndPan();
+        function isTouchDevice() {
+            return (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) ||
+                (window.matchMedia && window.matchMedia('(pointer: coarse)').matches));
         }
 
-        window.addEventListener('resize', resetZoomAndPan);
+        function eventClientXY(e) {
+            if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            if (e.changedTouches && e.changedTouches.length) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+            return { x: e.clientX, y: e.clientY };
+        }
+
+        function applyDeviceModeUI() {
+            const btn = document.getElementById('deviceModeBtn');
+            const mobile = currentDeviceMode === 'mobile';
+            document.body.classList.toggle('mobile-mode', mobile);
+            document.documentElement.classList.toggle('mobile-mode', mobile);
+            if (btn) btn.innerHTML = mobile ? '📱 Mobile Mode' : '🖥️ PC Mode';
+            const dock = document.getElementById('mobileDock');
+            if (dock) dock.style.display = mobile ? 'flex' : 'none';
+            // Prefer fit-to-width on phones
+            resetZoomAndPan();
+            if (mobile) {
+                try { document.documentElement.style.overflow = 'hidden'; document.body.style.overflow = 'hidden'; } catch (e) {}
+            } else {
+                try { document.documentElement.style.overflow = ''; document.body.style.overflow = ''; } catch (e) {}
+            }
+        }
+
+        function setDeviceMode(mode) {
+            currentDeviceMode = (mode === 'mobile') ? 'mobile' : 'pc';
+            applyDeviceModeUI();
+            showToast(currentDeviceMode === 'mobile' ? '📱 Mobile mode — draw with finger, pinch to zoom' : '🖥️ PC mode');
+        }
+
+        function toggleDeviceMode() {
+            setDeviceMode(currentDeviceMode === 'mobile' ? 'pc' : 'mobile');
+        }
+
+        /** Auto mobile when phone-sized or touch primary */
+        function autoDetectDeviceMode() {
+            const narrow = window.matchMedia && window.matchMedia('(max-width: 900px)').matches;
+            if (narrow || (isTouchDevice() && window.innerWidth < 1100)) {
+                currentDeviceMode = 'mobile';
+            } else {
+                currentDeviceMode = 'pc';
+            }
+            applyDeviceModeUI();
+        }
+
+        window.addEventListener('resize', function() {
+            resetZoomAndPan();
+        });
+        window.addEventListener('orientationchange', function() {
+            setTimeout(function() { resetZoomAndPan(); }, 200);
+        });
+
+        // Pinch-to-zoom + two-finger pan (mobile)
+        let pinchState = null;
+        function getTouchDist(t0, t1) {
+            return Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+        }
+        function getTouchCenter(t0, t1) {
+            return { x: (t0.clientX + t1.clientX) / 2, y: (t0.clientY + t1.clientY) / 2 };
+        }
+        function onPinchStart(e) {
+            if (currentDeviceMode !== 'mobile') return;
+            if (!e.touches || e.touches.length !== 2) return;
+            e.preventDefault();
+            const c = getTouchCenter(e.touches[0], e.touches[1]);
+            const rect = wrapper.getBoundingClientRect();
+            pinchState = {
+                dist: getTouchDist(e.touches[0], e.touches[1]),
+                scale: zoomScale,
+                centerX: c.x - rect.left,
+                centerY: c.y - rect.top,
+                panX: panX,
+                panY: panY
+            };
+            isDrawing = false;
+        }
+        function onPinchMove(e) {
+            if (!pinchState || currentDeviceMode !== 'mobile') return;
+            if (!e.touches || e.touches.length !== 2) return;
+            e.preventDefault();
+            const dist = getTouchDist(e.touches[0], e.touches[1]);
+            const ratio = dist / Math.max(1, pinchState.dist);
+            let next = pinchState.scale * ratio;
+            next = Math.max(0.12, Math.min(3.0, next));
+            const c = getTouchCenter(e.touches[0], e.touches[1]);
+            const rect = wrapper.getBoundingClientRect();
+            const cx = c.x - rect.left;
+            const cy = c.y - rect.top;
+            // Zoom about midpoint between fingers
+            panX = cx - (cx - pinchState.panX) * (next / pinchState.scale);
+            panY = cy - (cy - pinchState.panY) * (next / pinchState.scale);
+            zoomScale = next;
+            updateTransform();
+        }
+        function onPinchEnd(e) {
+            if (!e.touches || e.touches.length < 2) pinchState = null;
+        }
+        wrapper.addEventListener('touchstart', onPinchStart, { passive: false });
+        wrapper.addEventListener('touchmove', onPinchMove, { passive: false });
+        wrapper.addEventListener('touchend', onPinchEnd);
+        wrapper.addEventListener('touchcancel', onPinchEnd);
 
         // Mouse Wheel Zoom
         wrapper.addEventListener('wheel', (e) => {
@@ -1608,10 +1700,9 @@
             window.open(url, '_blank', 'noopener');
         }
 
-        // Canvas right-click → select + context menu
-        canvas.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            if (drawModeOn || eraseModeOn) return;
+        // Canvas right-click / long-press → select + context menu
+        function openPathMenuAtEvent(e) {
+            if (drawModeOn || eraseModeOn) return false;
             const coord = getCoordinates(e);
             const mx = coord.x - globalDrawingTranslateX;
             const my = coord.y - globalDrawingTranslateY;
@@ -1620,11 +1711,44 @@
                 if (!selectedPathIndices.includes(hit)) {
                     selectedPathIndices = getGroupMembers(hit);
                 }
-                showPathContextMenu(e.clientX, e.clientY);
+                const xy = eventClientXY(e);
+                showPathContextMenu(xy.x, xy.y);
                 redrawAll();
-            } else {
-                hidePathContextMenu();
+                return true;
             }
+            hidePathContextMenu();
+            return false;
+        }
+        canvas.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            openPathMenuAtEvent(e);
+        });
+        // Mobile long-press (~0.55s) opens path menu
+        let longPressTimer = null;
+        let longPressStart = null;
+        canvas.addEventListener('touchstart', function(e) {
+            if (currentDeviceMode !== 'mobile') return;
+            if (!e.touches || e.touches.length !== 1) return;
+            longPressStart = { x: e.touches[0].clientX, y: e.touches[0].clientY, e: e };
+            clearTimeout(longPressTimer);
+            longPressTimer = setTimeout(function() {
+                if (!longPressStart) return;
+                openPathMenuAtEvent(longPressStart.e);
+                longPressStart = null;
+            }, 550);
+        }, { passive: true });
+        canvas.addEventListener('touchmove', function(e) {
+            if (!longPressStart || !e.touches || !e.touches[0]) return;
+            const dx = e.touches[0].clientX - longPressStart.x;
+            const dy = e.touches[0].clientY - longPressStart.y;
+            if (Math.hypot(dx, dy) > 12) {
+                clearTimeout(longPressTimer);
+                longPressStart = null;
+            }
+        }, { passive: true });
+        canvas.addEventListener('touchend', function() {
+            clearTimeout(longPressTimer);
+            longPressStart = null;
         });
 
         window.addEventListener('click', (e) => {
@@ -2602,6 +2726,7 @@
                 h.className = 'item-resize-handle ' + id;
                 h.dataset.handle = id;
                 h.addEventListener('mousedown', onItemResizeHandleDown);
+                h.addEventListener('touchstart', onItemResizeHandleDown, { passive: false });
                 el.appendChild(h);
             });
         }
@@ -2628,9 +2753,10 @@
             }
             isResizingItem = true;
             itemResizeHandle = e.currentTarget.dataset.handle;
+            const xy = (typeof eventClientXY === 'function') ? eventClientXY(e) : { x: e.clientX, y: e.clientY };
             itemResizeStart = {
                 cx: pos.x, cy: pos.y, w: w, h: h,
-                clientX: e.clientX, clientY: e.clientY,
+                clientX: xy.x, clientY: xy.y,
                 textEl: textEl, symbol: symbol, el: el
             };
             dragPendingEl = null;
@@ -2640,8 +2766,9 @@
         function applyItemResize(e) {
             if (!isResizingItem || !itemResizeStart || !itemResizeHandle) return;
             const st = itemResizeStart;
-            const dx = (e.clientX - st.clientX) / zoomScale;
-            const dy = (e.clientY - st.clientY) / zoomScale;
+            const xy = (typeof eventClientXY === 'function') ? eventClientXY(e) : { x: e.clientX, y: e.clientY };
+            const dx = (xy.x - st.clientX) / zoomScale;
+            const dy = (xy.y - st.clientY) / zoomScale;
             const id = itemResizeHandle;
             let w = st.w, h = st.h, cx = st.cx, cy = st.cy;
             // Google Slides: opposite edge stays fixed
@@ -4412,6 +4539,7 @@
 
         window.addEventListener('load', async () => {
             buildSymbolsMegaGrid();
+            autoDetectDeviceMode();
             wireSymbolSearchUI();
             changePageOrientation();
             loadKeralaRevenueTemplate();
@@ -4430,3 +4558,28 @@
                 }
             } catch (e) {}
         });
+
+        window.mobileDockAction = function(action) {
+            setDeviceMode('mobile');
+            if (action === 'select') { activateSelectTool(); showToast('Select / Move'); }
+            else if (action === 'draw') {
+                activateSelectTool();
+                // turn on draw with current road type
+                const rt = document.getElementById('roadType');
+                if (rt) selectDrawingLine(rt.value || 'nh', 'Draw');
+                else if (typeof activateDrawMode === 'function') activateDrawMode();
+                showToast('Draw mode');
+            }
+            else if (action === 'text') { activateTextTool(); showToast('Text — tap & drag'); }
+            else if (action === 'symbol') {
+                const btn = document.getElementById('shapeDropdownBtn');
+                if (btn) openMenuDropdown({ currentTarget: btn, stopPropagation: function(){}, preventDefault: function(){} }, 'shapeSymbolsMenu');
+                else openMenuById && openMenuById('shapeSymbolsMenu', btn);
+            }
+            else if (action === 'undo') { undoLast(); }
+            else if (action === 'pdf') { compileAndSavePDF(); }
+            else if (action === 'fit') { resetZoomAndPan(); showToast('Fit page'); }
+        };
+
+        window.toggleDeviceMode = toggleDeviceMode;
+        window.setDeviceMode = setDeviceMode;

@@ -1148,3 +1148,166 @@ img.vector-map-symbol.online-icon-img {
         box-shadow: none !important;
     }
 }
+
+
+/* ========== SMART MOBILE MODE ========== */
+html.mobile-mode, body.mobile-mode {
+    height: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-text-size-adjust: 100%;
+    touch-action: manipulation;
+}
+
+body.mobile-mode .g-header {
+    padding: 4px 8px 0;
+    padding-top: max(4px, env(safe-area-inset-top));
+}
+body.mobile-mode .g-title-row {
+    flex-wrap: wrap;
+    gap: 6px;
+}
+body.mobile-mode .g-doc-title {
+    width: min(140px, 36vw);
+    font-size: 14px;
+}
+body.mobile-mode .g-header-right {
+    flex-wrap: wrap;
+    gap: 4px;
+}
+body.mobile-mode .g-pill-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+    min-height: 36px;
+}
+body.mobile-mode .g-menubar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    gap: 2px;
+    padding-bottom: 2px;
+}
+body.mobile-mode .g-menu-item {
+    padding: 8px 10px;
+    font-size: 13px;
+    white-space: nowrap;
+}
+body.mobile-mode .g-toolbar-wrap {
+    overflow: hidden;
+}
+body.mobile-mode .g-toolbar {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    gap: 4px;
+    padding: 6px 8px;
+    max-height: none;
+}
+body.mobile-mode .tb-btn {
+    min-width: 40px;
+    min-height: 40px;
+    padding: 8px;
+    flex-shrink: 0;
+}
+body.mobile-mode .tb-select {
+    min-height: 36px;
+    font-size: 13px;
+}
+body.mobile-mode .slide-sidebar {
+    display: none !important;
+}
+body.mobile-mode .studio-body {
+    min-height: 0;
+    flex: 1;
+}
+body.mobile-mode .workspace-wrapper {
+    /* room for mobile dock */
+    padding-bottom: calc(58px + env(safe-area-inset-bottom, 0px));
+}
+body.mobile-mode .g-dropdown {
+    max-width: calc(100vw - 16px) !important;
+    width: min(360px, calc(100vw - 16px)) !important;
+    max-height: min(70vh, 520px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    left: 8px !important;
+    right: 8px;
+}
+body.mobile-mode .symbols-mega-panel {
+    width: min(520px, calc(100vw - 12px)) !important;
+    max-height: min(75vh, 560px);
+}
+body.mobile-mode #pathContextMenu,
+body.mobile-mode #itemContextMenu {
+    max-width: calc(100vw - 16px);
+    max-height: min(70vh, 480px);
+    overflow-y: auto;
+    font-size: 15px;
+}
+body.mobile-mode #pathContextMenu .g-dd-item,
+body.mobile-mode #itemContextMenu .g-dd-item {
+    padding: 12px 16px;
+    min-height: 44px;
+}
+body.mobile-mode .item-resize-handle {
+    width: 14px;
+    height: 14px;
+}
+body.mobile-mode .draggable-item {
+    /* easier grab */
+    touch-action: none;
+}
+body.mobile-mode #mapCanvas {
+    touch-action: none;
+}
+
+/* Bottom dock */
+.mobile-dock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 5000;
+    display: none;
+    flex-direction: row;
+    align-items: stretch;
+    justify-content: space-around;
+    gap: 2px;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
+    background: rgba(255, 255, 255, 0.96);
+    border-top: 1px solid #dadce0;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+    backdrop-filter: blur(8px);
+}
+.mobile-dock .md-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    border: none;
+    background: transparent;
+    color: #3c4043;
+    font-size: 16px;
+    padding: 6px 2px;
+    border-radius: 10px;
+    min-height: 48px;
+    cursor: pointer;
+}
+.mobile-dock .md-btn span {
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+}
+.mobile-dock .md-btn:active {
+    background: #e8f0fe;
+}
+.mobile-dock .md-primary {
+    color: #174ea6;
+}
+
+@media (max-width: 900px) {
+    .slide-sidebar { display: none; }
+}
