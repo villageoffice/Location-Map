@@ -2732,7 +2732,7 @@
         }
 
         function onItemResizeHandleDown(e) {
-            e.preventDefault();
+            if (e.cancelable) e.preventDefault();
             e.stopPropagation();
             const el = e.currentTarget.parentElement;
             if (!el || !el.classList.contains('draggable-item')) return;
@@ -2797,16 +2797,17 @@
             selectItemElement(this);
             if (drawModeOn || eraseModeOn || offSubMode !== 'items' || e.target.className === 'delete-btn' || e.target.className === 'rotation-slider' || e.button === 2) return;
             if (e.target.isContentEditable || (e.target.classList && e.target.classList.contains('is-editing'))) return;
-            // Clicking text / label / symbol → select or edit, do not move until drag threshold
+            // Multi-touch = pinch zoom, not item drag
             if (e.touches && e.touches.length > 1) return;
+            // Touch: stop scroll/page gesture so symbol moves smoothly
+            if (e.cancelable && e.touches) e.preventDefault();
 
-            // Pending drag — only move after 5px so click/edit does not shift box
+            const xy = (typeof eventClientXY === 'function') ? eventClientXY(e) : { x: e.clientX, y: e.clientY };
             dragPendingEl = this;
-            dragStartClient = {
-                x: e.touches ? e.touches[0].clientX : e.clientX,
-                y: e.touches ? e.touches[0].clientY : e.clientY
-            };
+            dragStartClient = { x: xy.x, y: xy.y };
             draggedElement = null;
+            // Slightly easier to start drag on touch (mobile)
+            if (e.touches) this.style.cursor = 'grabbing';
         }
 
         wrapper.addEventListener('mousedown', (e) => {
@@ -2916,10 +2917,13 @@
             }
         });
 
-        window.addEventListener('mousemove', (e) => {
+        function onPointerMoveWindow(e) {
+            // Ignore multi-touch here (pinch handled on wrapper)
+            if (e.touches && e.touches.length > 1) return;
             if (isPanning) {
-                panX = e.clientX - startX;
-                panY = e.clientY - startY;
+                const xy = (typeof eventClientXY === 'function') ? eventClientXY(e) : { x: e.clientX, y: e.clientY };
+                panX = xy.x - startX;
+                panY = xy.y - startY;
                 updateTransform();
             } else if (isResizingSelection && resizeStartBounds) {
                 const coord = getCoordinates(e);
@@ -2981,33 +2985,37 @@
                 globalDrawingTranslateY = (e.clientY - rect.top) / zoomScale - blockOffsetY;
                 redrawAll();
             } else if (isResizingItem) {
-                e.preventDefault();
+                if (e.cancelable) e.preventDefault();
                 applyItemResize(e);
             } else if (dragPendingEl && dragStartClient && !draggedElement) {
-                const cx = e.clientX, cy = e.clientY;
-                const dist = Math.hypot(cx - dragStartClient.x, cy - dragStartClient.y);
-                if (dist >= DRAG_THRESHOLD_PX) {
-                    // If click was on pure text without drag intent, allow edit path; else move
+                const xy = (typeof eventClientXY === 'function') ? eventClientXY(e) : { x: e.clientX, y: e.clientY };
+                const dist = Math.hypot(xy.x - dragStartClient.x, xy.y - dragStartClient.y);
+                // Mobile: lower threshold so move starts sooner
+                const thr = (e.touches || e.changedTouches) ? Math.min(DRAG_THRESHOLD_PX, 4) : DRAG_THRESHOLD_PX;
+                if (dist >= thr) {
                     draggedElement = dragPendingEl;
                     dragPendingEl = null;
                 }
             }
             if (draggedElement) {
-                e.preventDefault();
+                if (e.cancelable) e.preventDefault();
+                const xy = (typeof eventClientXY === 'function') ? eventClientXY(e) : { x: e.clientX, y: e.clientY };
                 const containerRect = itemContainer.getBoundingClientRect();
                 // Account for translate(-50%,-50%): left/top are the visual centre
-                let x = (e.clientX - containerRect.left) / zoomScale;
-                let y = (e.clientY - containerRect.top) / zoomScale;
+                let x = (xy.x - containerRect.left) / zoomScale;
+                let y = (xy.y - containerRect.top) / zoomScale;
                 draggedElement.style.left = x + 'px';
                 draggedElement.style.top = y + 'px';
-
-                const modelCoord = getCoordinates(e);
-                triggerMagnifierRender(e.clientX, e.clientY, modelCoord.x, modelCoord.y);
+                try {
+                    const modelCoord = getCoordinates(e);
+                    triggerMagnifierRender(xy.x, xy.y, modelCoord.x, modelCoord.y);
+                } catch (err) {}
             }
-        });
+        }
+        window.addEventListener('mousemove', onPointerMoveWindow);
+        window.addEventListener('touchmove', onPointerMoveWindow, { passive: false });
 
-        window.addEventListener('mouseup', (e) => {
-            if (isResizingSelection) {
+                function onPointerUpWindow(e) {     if (isResizingSelection) {
                 isResizingSelection = false;
                 resizeHandleId = null;
                 resizeStartBounds = null;
@@ -3077,7 +3085,10 @@
             itemResizeStart = null;
             magnifier.style.display = 'none';
             updateToolButtonsUI();
-        });
+        }
+        window.addEventListener('mouseup', onPointerUpWindow);
+        window.addEventListener('touchend', onPointerUpWindow);
+        window.addEventListener('touchcancel', onPointerUpWindow);
 
         function alignSelectedItemOnPage(pos) {
             const target = selectedDraggableItem || (activeTextBox && activeTextBox.closest('.draggable-item'));

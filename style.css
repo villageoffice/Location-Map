@@ -1251,8 +1251,32 @@ body.mobile-mode #itemContextMenu .g-dd-item {
     min-height: 44px;
 }
 body.mobile-mode .item-resize-handle {
-    width: 14px;
-    height: 14px;
+    width: 18px;
+    height: 18px;
+    border-width: 2px;
+    z-index: 90;
+    touch-action: none;
+}
+body.mobile-mode .draggable-item.selected-item {
+    outline-width: 2px;
+}
+body.mobile-mode .draggable-item {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+body.mobile-mode .rotate-wrapper,
+body.mobile-mode .vector-map-symbol,
+body.mobile-mode .icon-label {
+    pointer-events: none; /* let parent item receive the drag */
+}
+body.mobile-mode .draggable-item .delete-btn,
+body.mobile-mode .draggable-item .item-resize-handle,
+body.mobile-mode .draggable-item .rotation-slider {
+    pointer-events: auto;
+}
+body.mobile-mode .draggable-text-style {
+    pointer-events: auto; /* still allow text edit */
 }
 body.mobile-mode .draggable-item {
     /* easier grab */
