@@ -3931,13 +3931,26 @@
                 if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
                 return 0;
             });
+            // Drop selection chrome first so rects are not inflated by blue outline
+            const savedPathSel = (selectedPathIndices || []).slice();
+            selectedPathIndices = [];
+            const hiddenSel = [];
+            document.querySelectorAll('.draggable-item.selected-item').forEach(el => {
+                el.classList.remove('selected-item');
+                hiddenSel.push(el);
+            });
+            document.querySelectorAll('.item-resize-handle').forEach(h => { h.style.visibility = 'hidden'; });
+            document.querySelectorAll('.delete-btn').forEach(h => { h.style.visibility = 'hidden'; });
+            document.querySelectorAll('.rotation-slider').forEach(h => { h.style.visibility = 'hidden'; });
+            document.querySelectorAll('.draggable-text-style.is-selected').forEach(el => el.classList.remove('is-selected'));
+
             const itemExportMeta = items.map(function(item) {
                 const textNode = item.querySelector('.draggable-text-style');
                 const angleDeg = getItemRotationDeg(item);
                 const itemPos = getItemPagePos(item);
-                // Live visual centre of text (screen) → page px — matches what user sees
+                // Live centre only used when angle ≈ 0 (see draw loop)
                 let textCenter = null;
-                if (textNode && !textNode.classList.contains('is-placeholder')) {
+                if (textNode && !textNode.classList.contains('is-placeholder') && Math.abs(angleDeg) < 0.5) {
                     try {
                         const r = textNode.getBoundingClientRect();
                         if (r.width > 0 || r.height > 0) {
@@ -3947,7 +3960,7 @@
                 }
                 let symbolCenter = null;
                 const sym = item.querySelector('.vector-map-symbol');
-                if (sym) {
+                if (sym && Math.abs(angleDeg) < 0.5) {
                     try {
                         const r = sym.getBoundingClientRect();
                         if (r.width > 0 || r.height > 0) {
@@ -3964,19 +3977,7 @@
                 };
             });
 
-            // Hide selection so PDF has no blue dashes / handles
-            const savedPathSel = (selectedPathIndices || []).slice();
-            selectedPathIndices = [];
-            const hiddenSel = [];
-            document.querySelectorAll('.draggable-item.selected-item').forEach(el => {
-                el.classList.remove('selected-item');
-                hiddenSel.push(el);
-            });
-            document.querySelectorAll('.item-resize-handle').forEach(h => { h.style.visibility = 'hidden'; });
-            document.querySelectorAll('.delete-btn').forEach(h => { h.style.visibility = 'hidden'; });
-            // Do NOT hide rotation-slider before angle snapshot (already done above).
-            // Hiding is fine now for visual capture of canvas only.
-            document.querySelectorAll('.rotation-slider').forEach(h => { h.style.visibility = 'hidden'; });
+            // Selection already cleared above (before geometry snapshot)
 
             // Sync canvas redraw without selection chrome
             if (typeof performRedraw === 'function') performRedraw();
@@ -4003,12 +4004,18 @@
                 const labelNode = item.querySelector('.icon-label');
 
                 pCtx.save();
-                // Prefer live visual centre for text/symbols so PDF matches screen
-                const anchor = (textNode && meta.textCenter && isFinite(meta.textCenter.x))
-                    ? meta.textCenter
-                    : (mapSymbolNode && meta.symbolCenter && isFinite(meta.symbolCenter.x))
-                        ? meta.symbolCenter
-                        : itemPos;
+                // IMPORTANT: always anchor at style left/top centre (itemPos).
+                // getBoundingClientRect centre is the AABB of a rotated box — using it
+                // AFTER the last update shifted rotated text in PDF (screen looked OK).
+                // Only for nearly-unrotated items may we nudge to live centre.
+                let anchor = itemPos;
+                if (Math.abs(angleDeg) < 0.5) {
+                    if (textNode && meta.textCenter && isFinite(meta.textCenter.x) && isFinite(meta.textCenter.y)) {
+                        anchor = meta.textCenter;
+                    } else if (mapSymbolNode && meta.symbolCenter && isFinite(meta.symbolCenter.x)) {
+                        anchor = meta.symbolCenter;
+                    }
+                }
                 pCtx.translate(anchor.x, anchor.y);
                 // Text rotates as a whole; symbols rotate glyph only (see branch below)
 
