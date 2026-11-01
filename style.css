@@ -1357,3 +1357,29 @@ body.mobile-mode #mapCanvas {
 body.mobile-mode .draggable-item {
     z-index: 20;
 }
+
+
+/* Online symbol search — quick category chips + retry */
+.online-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 2px 4px 6px;
+}
+.online-chip {
+    border: 1px solid #dadce0;
+    background: #fff;
+    color: #3c4043;
+    border-radius: 14px;
+    padding: 3px 10px;
+    font-size: 12px;
+    cursor: pointer;
+}
+.online-chip:hover {
+    background: #e8f0fe;
+    border-color: #1a73e8;
+    color: #174ea6;
+}
+.online-retry-btn {
+    padding: 6px 14px;
+}
