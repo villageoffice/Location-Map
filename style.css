@@ -1335,3 +1335,25 @@ body.mobile-mode #mapCanvas {
 @media (max-width: 900px) {
     .slide-sidebar { display: none; }
 }
+
+
+/* Mobile select: bigger finger target for symbols */
+body.mobile-mode.mode-select-items .draggable-item {
+    min-width: 52px;
+    min-height: 52px;
+    padding: 12px;
+    box-sizing: content-box;
+}
+body.mobile-mode .draggable-item {
+    z-index: 60;
+    -webkit-tap-highlight-color: transparent;
+}
+body.mobile-mode #canvasContainer {
+    position: relative;
+}
+body.mobile-mode #mapCanvas {
+    z-index: 1;
+}
+body.mobile-mode .draggable-item {
+    z-index: 20;
+}

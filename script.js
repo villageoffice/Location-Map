@@ -354,6 +354,9 @@
             } else {
                 canvas.style.cursor = 'default';
             }
+            // Mobile select mode: class for CSS hit-area / cursor
+            const selecting = !drawModeOn && !eraseModeOn && !textToolActive && offSubMode === 'items';
+            document.body.classList.toggle('mode-select-items', selecting);
         }
 
         // ================= SURVEY SYMBOLS & SOI CONVENTIONAL SIGNS =================
@@ -1759,11 +1762,18 @@
         // ================= DRAWING & CONNECTOR ENGINE =================
         function getCoordinates(e) {
             const rect = canvas.getBoundingClientRect();
-            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            let clientX, clientY;
+            if (e.touches && e.touches.length) {
+                clientX = e.touches[0].clientX; clientY = e.touches[0].clientY;
+            } else if (e.changedTouches && e.changedTouches.length) {
+                clientX = e.changedTouches[0].clientX; clientY = e.changedTouches[0].clientY;
+            } else {
+                clientX = e.clientX; clientY = e.clientY;
+            }
+            const rw = rect.width || 1, rh = rect.height || 1;
             return {
-                x: (clientX - rect.left) * (canvas.width / rect.width),
-                y: (clientY - rect.top) * (canvas.height / rect.height)
+                x: (clientX - rect.left) * (canvas.width / rw),
+                y: (clientY - rect.top) * (canvas.height / rh)
             };
         }
 
@@ -2718,6 +2728,144 @@
             bindItemContextMenu(el);
         }
 
+        /** Top-most .draggable-item under a screen point (works even if canvas is on top) */
+        function hitDraggableItemAt(clientX, clientY) {
+            try {
+                const stack = document.elementsFromPoint(clientX, clientY) || [];
+                for (let i = 0; i < stack.length; i++) {
+                    const n = stack[i];
+                    if (!n || !n.closest) continue;
+                    if (n.classList && n.classList.contains('item-resize-handle')) {
+                        return { item: n.parentElement, handle: n };
+                    }
+                    const item = n.closest('.draggable-item');
+                    if (item) return { item: item, handle: null };
+                }
+            } catch (err) {}
+            return null;
+        }
+
+        // ===== Mobile-first item drag / resize (bypasses canvas swallowing touches) =====
+        let mobileItemTouchId = null;
+        function mobileCanMoveItems() {
+            return !drawModeOn && !eraseModeOn && !textToolActive && offSubMode === 'items';
+        }
+        function onMobileItemTouchStart(e) {
+            if (currentDeviceMode !== 'mobile') return;
+            if (!e.touches || e.touches.length !== 1) return;
+            if (!mobileCanMoveItems()) return;
+            const t0 = e.touches[0];
+            const hit = hitDraggableItemAt(t0.clientX, t0.clientY);
+            if (!hit || !hit.item) return;
+            // Resize handle
+            if (hit.handle) {
+                e.preventDefault();
+                e.stopPropagation();
+                selectItemElement(hit.item);
+                const textEl = hit.item.querySelector('.draggable-text-style');
+                const symbol = hit.item.querySelector('.vector-map-symbol');
+                const pos = getItemPagePos(hit.item);
+                let w = 80, h = 40;
+                if (textEl) {
+                    w = textEl.offsetWidth || parseFloat(textEl.style.width) || 170;
+                    h = textEl.offsetHeight || parseFloat(textEl.style.minHeight) || 36;
+                } else if (symbol) {
+                    w = parseFloat(symbol.getAttribute('width')) || symbol.width || 45;
+                    h = parseFloat(symbol.getAttribute('height')) || symbol.height || 45;
+                }
+                isResizingItem = true;
+                itemResizeHandle = hit.handle.dataset.handle || 'se';
+                itemResizeStart = {
+                    cx: pos.x, cy: pos.y, w: w, h: h,
+                    clientX: t0.clientX, clientY: t0.clientY,
+                    textEl: textEl, symbol: symbol, el: hit.item
+                };
+                dragPendingEl = null;
+                draggedElement = null;
+                mobileItemTouchId = t0.identifier;
+                return;
+            }
+            // Move item
+            e.preventDefault();
+            e.stopPropagation();
+            selectItemElement(hit.item);
+            mobileItemTouchId = t0.identifier;
+            dragPendingEl = hit.item;
+            dragStartClient = { x: t0.clientX, y: t0.clientY };
+            draggedElement = null;
+        }
+        function onMobileItemTouchMove(e) {
+            if (currentDeviceMode !== 'mobile') return;
+            if (mobileItemTouchId == null && !draggedElement && !isResizingItem && !dragPendingEl) return;
+            if (!e.touches || !e.touches.length) return;
+            // multi-touch → let pinch handle it
+            if (e.touches.length > 1) {
+                dragPendingEl = null;
+                draggedElement = null;
+                isResizingItem = false;
+                mobileItemTouchId = null;
+                return;
+            }
+            const t0 = e.touches[0];
+            if (mobileItemTouchId != null && t0.identifier !== mobileItemTouchId) return;
+
+            if (isResizingItem) {
+                e.preventDefault();
+                applyItemResize(e);
+                return;
+            }
+            if (dragPendingEl && dragStartClient && !draggedElement) {
+                const dist = Math.hypot(t0.clientX - dragStartClient.x, t0.clientY - dragStartClient.y);
+                if (dist >= 3) {
+                    draggedElement = dragPendingEl;
+                    dragPendingEl = null;
+                }
+            }
+            if (draggedElement) {
+                e.preventDefault();
+                // Prefer page coordinates (same as mouse path) for correct zoom/pan
+                try {
+                    const coord = getCoordinates(e);
+                    draggedElement.style.left = coord.x + 'px';
+                    draggedElement.style.top = coord.y + 'px';
+                } catch (err) {
+                    const containerRect = itemContainer.getBoundingClientRect();
+                    const x = (t0.clientX - containerRect.left) / zoomScale;
+                    const y = (t0.clientY - containerRect.top) / zoomScale;
+                    draggedElement.style.left = x + 'px';
+                    draggedElement.style.top = y + 'px';
+                }
+            }
+        }
+        function onMobileItemTouchEnd(e) {
+            if (currentDeviceMode !== 'mobile') return;
+            if (mobileItemTouchId == null && !draggedElement && !isResizingItem) return;
+            // If the ended touch is ours, clear
+            let still = false;
+            if (e.touches) {
+                for (let i = 0; i < e.touches.length; i++) {
+                    if (e.touches[i].identifier === mobileItemTouchId) still = true;
+                }
+            }
+            if (!still) {
+                if (draggedElement || isResizingItem) {
+                    try { updateThumbnail(); } catch (err) {}
+                }
+                draggedElement = null;
+                dragPendingEl = null;
+                isResizingItem = false;
+                itemResizeHandle = null;
+                itemResizeStart = null;
+                mobileItemTouchId = null;
+            }
+        }
+        // Capture phase on wrapper so we run before canvas drawing handlers
+        wrapper.addEventListener('touchstart', onMobileItemTouchStart, { passive: false, capture: true });
+        wrapper.addEventListener('touchmove', onMobileItemTouchMove, { passive: false, capture: true });
+        wrapper.addEventListener('touchend', onMobileItemTouchEnd, { capture: true });
+        wrapper.addEventListener('touchcancel', onMobileItemTouchEnd, { capture: true });
+
+
         function ensureItemResizeHandles(el) {
             if (!el || el.querySelector('.item-resize-handle')) return;
             // Google Slides-style: 4 corner blue handles (resize width + height)
@@ -3000,16 +3148,16 @@
             if (draggedElement) {
                 if (e.cancelable) e.preventDefault();
                 const xy = (typeof eventClientXY === 'function') ? eventClientXY(e) : { x: e.clientX, y: e.clientY };
-                const containerRect = itemContainer.getBoundingClientRect();
-                // Account for translate(-50%,-50%): left/top are the visual centre
-                let x = (xy.x - containerRect.left) / zoomScale;
-                let y = (xy.y - containerRect.top) / zoomScale;
-                draggedElement.style.left = x + 'px';
-                draggedElement.style.top = y + 'px';
                 try {
                     const modelCoord = getCoordinates(e);
+                    draggedElement.style.left = modelCoord.x + 'px';
+                    draggedElement.style.top = modelCoord.y + 'px';
                     triggerMagnifierRender(xy.x, xy.y, modelCoord.x, modelCoord.y);
-                } catch (err) {}
+                } catch (err) {
+                    const containerRect = itemContainer.getBoundingClientRect();
+                    draggedElement.style.left = ((xy.x - containerRect.left) / zoomScale) + 'px';
+                    draggedElement.style.top = ((xy.y - containerRect.top) / zoomScale) + 'px';
+                }
             }
         }
         window.addEventListener('mousemove', onPointerMoveWindow);
@@ -4572,7 +4720,7 @@
 
         window.mobileDockAction = function(action) {
             setDeviceMode('mobile');
-            if (action === 'select') { activateSelectTool(); showToast('Select / Move'); }
+            if (action === 'select') { activateSelectTool(); offSubMode = 'items'; updateToolButtonsUI(); showToast('Select / Move — drag symbols'); }
             else if (action === 'draw') {
                 activateSelectTool();
                 // turn on draw with current road type
