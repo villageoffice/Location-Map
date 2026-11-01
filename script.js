@@ -3344,56 +3344,39 @@
         /** Read rotation degrees for a draggable item (slider, style, or computed matrix) */
         function getItemRotationDeg(item) {
             if (!item) return 0;
-            // 1) data-rotation attribute (Chrome-safe, set by applyItemRotation)
+            // 1) Explicit data-rotation (set by slider / rotate menu) — most reliable
             const dr = item.getAttribute('data-rotation');
             if (dr != null && dr !== '') {
                 const v = parseFloat(dr);
                 if (isFinite(v)) return ((v % 360) + 360) % 360;
             }
+            // 2) Slider value
             const slider = item.querySelector('.rotation-slider');
             if (slider && slider.value !== '' && slider.value != null) {
                 const v = parseFloat(slider.value);
-                if (isFinite(v)) {
-                    if (Math.abs(v) > 0.01) return ((v % 360) + 360) % 360;
-                }
+                if (isFinite(v) && Math.abs(v) > 0.01) return ((v % 360) + 360) % 360;
             }
-            function angleFromTransform(el) {
-                if (!el) return null;
-                const t = el.style && el.style.transform ? el.style.transform : '';
-                let m = t.match(/rotate\(([\-\d.]+)deg\)/i);
+            // 3) Inline style transform rotate(...) on glyph / text only — NOT computed matrix
+            //    (matrix from parent scale/translate confuses Chrome vs Edge)
+            function angleFromInline(el) {
+                if (!el || !el.style) return null;
+                const tr = el.style.transform || '';
+                const m = tr.match(/rotate\(\s*([-\d.]+)\s*deg\s*\)/i);
                 if (m) return parseFloat(m[1]);
-                try {
-                    const cs = window.getComputedStyle(el).transform;
-                    if (cs && cs !== 'none') {
-                        const mm = cs.match(/matrix\(([^)]+)\)/);
-                        if (mm) {
-                            const parts = mm[1].split(',').map(parseFloat);
-                            if (parts.length >= 4 && isFinite(parts[0]) && isFinite(parts[1])) {
-                                return Math.atan2(parts[1], parts[0]) * 180 / Math.PI;
-                            }
-                        }
-                        const m3 = cs.match(/matrix3d\(([^)]+)\)/);
-                        if (m3) {
-                            const parts = m3[1].split(',').map(parseFloat);
-                            // matrix3d: a1=parts[0], b1=parts[1]
-                            if (parts.length >= 2) return Math.atan2(parts[1], parts[0]) * 180 / Math.PI;
-                        }
-                    }
-                } catch (e) {}
                 return null;
             }
             const candidates = [
-                item.querySelector('.vector-map-symbol'),
                 item.querySelector('.draggable-text-style'),
-                item.querySelector('.rotate-wrapper'),
-                item
+                item.querySelector('.vector-map-symbol'),
+                item.querySelector('.rotate-wrapper')
             ];
             for (let i = 0; i < candidates.length; i++) {
-                const a = angleFromTransform(candidates[i]);
+                const a = angleFromInline(candidates[i]);
                 if (a != null && isFinite(a) && Math.abs(a) > 0.05) {
                     return ((a % 360) + 360) % 360;
                 }
             }
+            // 4) Slider may be exactly 0
             if (slider) {
                 const v = parseFloat(slider.value);
                 if (isFinite(v)) return ((v % 360) + 360) % 360;
@@ -3949,10 +3932,35 @@
                 return 0;
             });
             const itemExportMeta = items.map(function(item) {
+                const textNode = item.querySelector('.draggable-text-style');
+                const angleDeg = getItemRotationDeg(item);
+                const itemPos = getItemPagePos(item);
+                // Live visual centre of text (screen) → page px — matches what user sees
+                let textCenter = null;
+                if (textNode && !textNode.classList.contains('is-placeholder')) {
+                    try {
+                        const r = textNode.getBoundingClientRect();
+                        if (r.width > 0 || r.height > 0) {
+                            textCenter = clientToPage(r.left + r.width / 2, r.top + r.height / 2);
+                        }
+                    } catch (err) {}
+                }
+                let symbolCenter = null;
+                const sym = item.querySelector('.vector-map-symbol');
+                if (sym) {
+                    try {
+                        const r = sym.getBoundingClientRect();
+                        if (r.width > 0 || r.height > 0) {
+                            symbolCenter = clientToPage(r.left + r.width / 2, r.top + r.height / 2);
+                        }
+                    } catch (err) {}
+                }
                 return {
                     item: item,
-                    angleDeg: getItemRotationDeg(item),
-                    itemPos: getItemPagePos(item)
+                    angleDeg: angleDeg,
+                    itemPos: itemPos,
+                    textCenter: textCenter,
+                    symbolCenter: symbolCenter
                 };
             });
 
@@ -3995,7 +4003,13 @@
                 const labelNode = item.querySelector('.icon-label');
 
                 pCtx.save();
-                pCtx.translate(itemPos.x, itemPos.y);
+                // Prefer live visual centre for text/symbols so PDF matches screen
+                const anchor = (textNode && meta.textCenter && isFinite(meta.textCenter.x))
+                    ? meta.textCenter
+                    : (mapSymbolNode && meta.symbolCenter && isFinite(meta.symbolCenter.x))
+                        ? meta.symbolCenter
+                        : itemPos;
+                pCtx.translate(anchor.x, anchor.y);
                 // Text rotates as a whole; symbols rotate glyph only (see branch below)
 
                 if (textNode && !textNode.classList.contains('is-placeholder')) {
