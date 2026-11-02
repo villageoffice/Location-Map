@@ -236,7 +236,7 @@
         });
 
         // ================= LINE & DOUBLE-LINE ROAD STYLES =================
-        const roadStyles = {
+        const roadStylesBase = {
             nh:              { outerWidth: 20,  outerColor: '#000000', innerWidth: 16.5, innerColor: '#ffffff', isBox: false, isRoad: true },
             sh:              { outerWidth: 15,  outerColor: '#000000', innerWidth: 11.7, innerColor: '#ffffff', isBox: false, isRoad: true },
             pwd:             { outerWidth: 12,  outerColor: '#000000', innerWidth: 8.7,  innerColor: '#ffffff', isBox: false, isRoad: true },
@@ -258,6 +258,87 @@
             scribbleTool:    { outerWidth: 2,   outerColor: '#000000', innerWidth: 0,    innerColor: 'transparent', isBox: false, isFreehand: true }
         };
 
+        // ================= CUSTOM ROAD (any width — black edge lines always stay 1.75 px) =================
+        // Roads are stored as type "custom_<width>" (e.g. custom_30), so every drawn road keeps its own width,
+        // old saved maps still open, and changing the width later never alters roads already drawn.
+        const CUSTOM_ROAD_EDGE_PX = 1.75;
+        const CUSTOM_ROAD_MIN = 6;
+        const CUSTOM_ROAD_MAX = 150;
+        const CUSTOM_ROAD_STORE_KEY = 'lsm_custom_road_width';
+
+        function clampCustomRoadWidth(w) {
+            w = parseFloat(w);
+            if (!isFinite(w)) w = 30;
+            return Math.min(CUSTOM_ROAD_MAX, Math.max(CUSTOM_ROAD_MIN, Math.round(w * 10) / 10));
+        }
+
+        function makeCustomRoadStyle(w) {
+            w = clampCustomRoadWidth(w);
+            return {
+                outerWidth: w,
+                outerColor: '#000000',
+                innerWidth: Math.round((w - 2 * CUSTOM_ROAD_EDGE_PX) * 100) / 100,   // white fill → leaves 1.75 px black on each side
+                innerColor: '#ffffff',
+                isBox: false,
+                isRoad: true,
+                isCustomRoad: true
+            };
+        }
+
+        const roadStyles = new Proxy(roadStylesBase, {
+            get: function(target, key) {
+                if (typeof key === 'string' && !(key in target)) {
+                    const m = /^custom_(\d+(?:\.\d+)?)$/.exec(key);
+                    if (m) target[key] = makeCustomRoadStyle(m[1]);
+                }
+                return target[key];
+            }
+        });
+
+        function ensureRoadTypeOption(key, label) {
+            const sel = document.getElementById('roadType');
+            if (!sel) return;
+            for (let i = 0; i < sel.options.length; i++) if (sel.options[i].value === key) return;
+            const opt = document.createElement('option');
+            opt.value = key;
+            opt.textContent = label || key;
+            sel.appendChild(opt);
+        }
+
+        function updateCustomRoadInfo() {
+            const el = document.getElementById('customRoadWidth');
+            const info = document.getElementById('customRoadInfo');
+            if (!el || !info) return;
+            const raw = parseFloat(el.value);
+            const w = clampCustomRoadWidth(raw);
+            const st = makeCustomRoadStyle(w);
+            const note = (isFinite(raw) && (raw < CUSTOM_ROAD_MIN || raw > CUSTOM_ROAD_MAX))
+                ? ' (limit ' + CUSTOM_ROAD_MIN + '–' + CUSTOM_ROAD_MAX + ')' : '';
+            info.textContent = 'Total ' + w + ' · white ' + st.innerWidth + ' · edge ' + CUSTOM_ROAD_EDGE_PX + ' px/side' + note;
+        }
+
+        function selectCustomRoad() {
+            const el = document.getElementById('customRoadWidth');
+            const w = clampCustomRoadWidth(el ? el.value : 30);
+            if (el) el.value = w;
+            updateCustomRoadInfo();
+            try { localStorage.setItem(CUSTOM_ROAD_STORE_KEY, String(w)); } catch (e) {}
+            const key = 'custom_' + w;
+            ensureRoadTypeOption(key, 'Custom ' + w);
+            selectDrawingLine(key, '🛣️ Custom Road ' + w + 'px');
+        }
+
+        function initCustomRoadUI() {
+            const el = document.getElementById('customRoadWidth');
+            if (!el) return;
+            let saved = null;
+            try { saved = localStorage.getItem(CUSTOM_ROAD_STORE_KEY); } catch (e) {}
+            if (saved) el.value = clampCustomRoadWidth(saved);
+            updateCustomRoadInfo();
+        }
+        window.selectCustomRoad = selectCustomRoad;
+        window.updateCustomRoadInfo = updateCustomRoadInfo;
+
         function selectDrawingLine(typeKey, labelText) {
             if (drawingLockOn) {
                 showToast('Drawing locked — unlock to draw new lines');
@@ -271,7 +352,7 @@
             document.getElementById('activeLineLabel').textContent = labelText;
 
             document.querySelectorAll('#lineToolsMenu .g-dd-item').forEach(item => {
-                item.classList.toggle('selected', item.dataset.line === typeKey);
+                item.classList.toggle('selected', item.dataset.line === (String(typeKey).indexOf('custom_') === 0 ? 'custom' : typeKey));
             });
 
             if (eraseModeOn) toggleEraserMode();
@@ -4997,6 +5078,7 @@
             buildSymbolsMegaGrid();
             autoDetectDeviceMode();
             wireSymbolSearchUI();
+            initCustomRoadUI();
             changePageOrientation();
             loadKeralaRevenueTemplate();
             updateOnlineVisitBadge();

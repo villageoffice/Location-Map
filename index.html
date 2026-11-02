@@ -289,6 +289,16 @@
             <span class="dd-icon"><svg width="22" height="14" viewBox="0 0 24 14"><line x1="1" y1="3" x2="23" y2="3" stroke="#000" stroke-width="2.2"/><line x1="1" y1="11" x2="23" y2="11" stroke="#000" stroke-width="2.2"/></svg></span>
             <span>🛣️ NH Road (Double Line - Wide)</span>
         </div>
+        <div class="g-dd-item" id="customRoadItem" data-line="custom" onclick="selectCustomRoad()" title="Draw a road of any width — black edge lines stay 1.75 px">
+            <span class="dd-icon"><svg width="22" height="16" viewBox="0 0 24 16"><line x1="1" y1="2" x2="23" y2="2" stroke="#000" stroke-width="2"/><line x1="1" y1="14" x2="23" y2="14" stroke="#000" stroke-width="2"/></svg></span>
+            <span>🛣️ Custom Road</span>
+            <span class="dd-shortcut custom-road-ctl" onclick="event.stopPropagation()">
+                <input type="number" id="customRoadWidth" min="6" max="150" step="1" value="30" aria-label="Custom road width in pixels"
+                       oninput="updateCustomRoadInfo()"
+                       onkeydown="event.stopPropagation(); if (event.key === 'Enter') { event.preventDefault(); selectCustomRoad(); }"> px
+            </span>
+        </div>
+        <div id="customRoadInfo" class="custom-road-info"></div>
         <div class="g-dd-item" data-line="sh" onclick="selectDrawingLine('sh', '🛤️ SH Road')">
             <span class="dd-icon"><svg width="22" height="14" viewBox="0 0 24 14"><line x1="1" y1="4" x2="23" y2="4" stroke="#000" stroke-width="2"/><line x1="1" y1="10" x2="23" y2="10" stroke="#000" stroke-width="2"/></svg></span>
             <span>🛤️ SH Road (State Highway)</span>
@@ -751,7 +761,7 @@
 
                 <h4 style="margin:0 0 6px;color:#1a73e8;">1. Roads / lines / polygon വരയ്ക്കുക</h4>
                 <ul style="margin:0 0 14px;padding-left:18px;">
-                    <li>Toolbar <b>Line</b> menu → NH, SH, PWD, Panchayat, Mud, Railway, Basic line, Polygon</li>
+                    <li>Toolbar <b>Line</b> menu → NH, <b>Custom Road (any width)</b>, SH, PWD, Panchayat, Mud, Railway, Basic line, Polygon</li>
                     <li>Map-ൽ click–drag; multi-point: ഓരോ click-ഉം vertex; <b>double-click</b> അല്ലെങ്കിൽ <b>Enter</b> = finish</li>
                     <li><b>Snap 12px</b> ON → endpoints / vertices അടുത്ത് വന്നാൽ ഒട്ടും</li>
                     <li><b>Center − − −</b> ON → road-ന്റെ രണ്ട് line-ന് നടുവിൽ dashed center line</li>

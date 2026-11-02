@@ -17,6 +17,12 @@ Kerala village-office style location sketch tool.
 - 3 mirror servers with automatic fallback, Retry button, quick category chips, recently-used icons.
 - Malayalam / Manglish search words work: `vathil`, `kinar`, `ambalam`, `palli`, `വീട്`, `കിണർ` …
 
+## Custom Road
+
+Line / Road menu → **Custom Road** → type any width (6–150 px) → press Enter or click the row.
+The white fill auto-adjusts so the black edge line is always **1.75 px** on each side
+(e.g. 30 px road = white 26.5 px + 2 × 1.75 px black). Each road remembers its own width.
+
 ## Folder
 
 ```
