@@ -103,213 +103,88 @@
         }
 
         // ================= OFFICIAL KERALA LOCATION SKETCH FORM GENERATOR =================
-        /** Official ലൊക്കേഷൻ മാപ്പ് form — A4 Portrait (default) or Landscape full-page */
-        function createOfficialTemplateDataURL(orientation) {
-            const ori = orientation || (document.getElementById('pageOrientation')
-                ? document.getElementById('pageOrientation').value : 'portrait');
-            const isLand = ori === 'landscape';
-            const W = isLand ? 1123 : 794;
-            const H = isLand ? 794 : 1123;
+        function createOfficialTemplateDataURL() {
+            // Fallback form matching official "ലൊക്കേഷൻ മാപ്പ്" PDF (no watermark text)
+            const W = 794, H = 1123;
             const tCanvas = document.createElement('canvas');
             tCanvas.width = W;
             tCanvas.height = H;
             const tCtx = tCanvas.getContext('2d');
-            const ml = 'Noto Sans Malayalam', ar = 'Arial, sans-serif';
-
-            function strokeOuter() {
-                tCtx.strokeStyle = '#111';
-                tCtx.lineWidth = 2.25;
-                tCtx.strokeRect(28, 28, W - 56, H - 56);
-                tCtx.lineWidth = 0.75;
-                tCtx.strokeRect(34, 34, W - 68, H - 68);
-            }
-            function titleBlock(cx, y) {
-                tCtx.fillStyle = '#111';
-                tCtx.font = 'bold 22px "' + ml + '", ' + ar;
-                tCtx.textAlign = 'center';
-                tCtx.fillText('ലൊക്കേഷൻ മാപ്പ്', cx, y);
-                const tw = tCtx.measureText('ലൊക്കേഷൻ മാപ്പ്').width;
-                tCtx.beginPath();
-                tCtx.lineWidth = 1.4;
-                tCtx.moveTo(cx - tw / 2, y + 5);
-                tCtx.lineTo(cx + tw / 2, y + 5);
-                tCtx.stroke();
-            }
-            function field(label, x, y, lineW) {
-                tCtx.fillStyle = '#111';
-                tCtx.font = '13px "' + ml + '", ' + ar;
-                tCtx.textAlign = 'left';
-                tCtx.fillText(label, x, y);
-                // underline guide for writing
-                const lw = tCtx.measureText(label).width;
-                tCtx.strokeStyle = '#bbb';
-                tCtx.lineWidth = 0.6;
-                tCtx.beginPath();
-                tCtx.moveTo(x + lw + 6, y + 2);
-                tCtx.lineTo(x + (lineW || 220), y + 2);
-                tCtx.stroke();
-                tCtx.strokeStyle = '#111';
-            }
 
             tCtx.fillStyle = '#ffffff';
             tCtx.fillRect(0, 0, W, H);
-            strokeOuter();
 
-            if (!isLand) {
-                // ===== PORTRAIT (default) =====
-                titleBlock(W / 2, 58);
-                const leftX = 52, rightX = 420, row0 = 92, gap = 24;
-                field('ജില്ല :', leftX, row0, 360);
-                field('താലൂക്ക് :', leftX, row0 + gap, 360);
-                field('വില്ലേജ് :', leftX, row0 + gap * 2, 360);
-                field('ദേശം :', leftX, row0 + gap * 3, 360);
-                field('Doc No & SRO .', leftX, row0 + gap * 4, 360);
-                field('തണ്ടപ്പേർ :', rightX, row0, W - 60);
-                field('റി. സ. :', rightX, row0 + gap, W - 60);
-                field('വിസ്തീർണ്ണം :', rightX, row0 + gap * 2, W - 60);
+            tCtx.strokeStyle = '#111111';
+            tCtx.lineWidth = 2;
+            tCtx.strokeRect(36, 36, W - 72, H - 72);
 
-                const mapTop = 220;
-                const mapBot = H - 200;
-                const mapX = 48, mapW = W - 96;
-                tCtx.strokeStyle = '#111';
-                tCtx.lineWidth = 1.75;
-                tCtx.strokeRect(mapX, mapTop, mapW, mapBot - mapTop);
+            // Title underlined
+            tCtx.fillStyle = '#111';
+            tCtx.font = 'bold 20px "Noto Sans Malayalam", Arial, sans-serif';
+            tCtx.textAlign = 'center';
+            tCtx.fillText('ലൊക്കേഷൻ മാപ്പ്', W / 2, 62);
+            const tw = tCtx.measureText('ലൊക്കേഷൻ മാപ്പ്').width;
+            tCtx.beginPath();
+            tCtx.moveTo(W / 2 - tw / 2, 66);
+            tCtx.lineTo(W / 2 + tw / 2, 66);
+            tCtx.stroke();
 
-                // Boundaries block bottom-left inside map frame area (below drawing space)
-                // Keep map drawing area clean — boundaries BELOW map box
-                let fy = mapBot + 22;
-                tCtx.fillStyle = '#111';
-                tCtx.font = 'bold 13px "' + ml + '", ' + ar;
-                tCtx.textAlign = 'left';
-                tCtx.fillText('നാലതിരുകൾ', mapX + 4, fy);
-                // underline title
-                const ntw = tCtx.measureText('നാലതിരുകൾ').width;
-                tCtx.beginPath();
-                tCtx.lineWidth = 1;
-                tCtx.moveTo(mapX + 4, fy + 3);
-                tCtx.lineTo(mapX + 4 + ntw, fy + 3);
-                tCtx.stroke();
-                tCtx.font = '12.5px "' + ml + '", ' + ar;
+            tCtx.font = '13px "Noto Sans Malayalam", Arial, sans-serif';
+            tCtx.textAlign = 'left';
+            tCtx.fillText('ജില്ല :', 52, 95);
+            tCtx.fillText('താലൂക്ക് :', 52, 118);
+            tCtx.fillText('വില്ലേജ് :', 52, 141);
+            tCtx.fillText('കൈവശം:', 52, 164);
+            tCtx.fillText('Doc No & SRO .', 52, 187);
+
+            tCtx.fillText('തണ്ടപ്പേർ :', 420, 95);
+            tCtx.fillText('റി. സ. :', 420, 118);
+            tCtx.fillText('വിസ്തീർണ്ണം :', 420, 141);
+
+            // Map box (നാലതിരുകൾ inside bottom)
+            const mapTop = 205, mapBot = 880;
+            tCtx.strokeRect(52, mapTop, W - 104, mapBot - mapTop);
+
+            tCtx.font = 'bold 13px "Noto Sans Malayalam", Arial, sans-serif';
+            let fy = mapBot - 110;
+            tCtx.fillText('നാലതിരുകൾ', 68, fy);
+            tCtx.font = '12px "Noto Sans Malayalam", Arial, sans-serif';
+            fy += 22;
+            ['കിഴക്ക് :', 'വടക്ക് :', 'പടിഞ്ഞാറ് :', 'തെക്ക് :'].forEach(lab => {
+                tCtx.fillText(lab + ' ....................................................', 68, fy);
                 fy += 20;
-                ['കിഴക്ക് :', 'വടക്ക് :', 'പടിഞ്ഞാറ് :', 'തെക്ക് :'].forEach(function(lab) {
-                    field(lab, mapX + 4, fy, 300);
-                    fy += 18;
-                });
+            });
 
-                // Disclaimer centered under map
-                tCtx.font = '11.5px "' + ml + '", ' + ar;
-                tCtx.textAlign = 'center';
-                tCtx.fillStyle = '#222';
-                const discY = H - 88;
-                tCtx.fillText('(സർട്ടിഫിക്കറ്റ് എന്താവശ്യത്തിനാണോ ആവശ്യപ്പെട്ടിട്ടുള്ളത്, ആ ആവശ്യത്തിന് മാത്രം', W / 2, discY);
-                tCtx.fillText('അനുവദിച്ചിട്ടുള്ളതാണ്.)', W / 2, discY + 16);
+            tCtx.font = '12px "Noto Sans Malayalam", Arial, sans-serif';
+            tCtx.fillText('സർട്ടിഫിക്കറ്റ് നൽകുന്ന തീയതി : ........................', 52, mapBot + 28);
+            tCtx.fillText('സർട്ടിഫിക്കറ്റ് നൽകുന്ന ഉദ്യോഗസ്ഥന്റെ സ്ഥാനപ്പേര് : ........................', 52, mapBot + 52);
+            tCtx.fillText('സർട്ടിഫിക്കറ്റ് എന്താവശ്യത്തിനാണോ ആവശ്യപ്പെട്ടിട്ടുള്ളത്, ആ ആവശ്യത്തിന് മാത്രം', 52, mapBot + 80);
+            tCtx.fillText('അനുവദിച്ചിട്ടുള്ളതാണ്.', 52, mapBot + 98);
 
-                tCtx.font = '12.5px "' + ml + '", ' + ar;
-                tCtx.textAlign = 'left';
-                tCtx.fillStyle = '#111';
-                field('സ്ഥലം :', mapX + 4, H - 48, 280);
-                field('തീയതി :', mapX + 4, H - 30, 280);
-                tCtx.textAlign = 'right';
-                tCtx.fillText('വില്ലേജ് ഓഫീസറുടെ ഒപ്പ്', W - 52, H - 36);
-            } else {
-                // ===== LANDSCAPE — match the supplied Kerala Location Map model =====
-                // Header: three columns, followed by one horizontal divider.
-                titleBlock(W / 2, 52);
+            tCtx.textAlign = 'right';
+            tCtx.fillText('വില്ലേജ് ഓഫീസറുടെ ഒപ്പ്', W - 52, H - 55);
 
-                const leftX = 48, middleX = 390, rightX = 720;
-                const row1 = 82, row2 = 108, row3 = 134;
-
-                field('ജില്ല :', leftX, row1, 360);
-                field('റി. സ. :', leftX, row2, 360);
-                field('കൈവശം:', leftX, row3, 360);
-
-                field('തണ്ടപ്പേർ :', middleX, row1, 690);
-                field('വില്ലേജ് :', middleX, row2, 690);
-
-                field('താലൂക്ക് :', rightX, row1, W - 52);
-                field('വിസ്തീർണ്ണം :', rightX, row2, W - 52);
-                field('Doc No & SRO .', rightX, row3, W - 52);
-
-                // Header separator, as shown in the reference model.
-                tCtx.strokeStyle = '#111';
-                tCtx.lineWidth = 0.8;
-                tCtx.beginPath();
-                tCtx.moveTo(42, 148);
-                tCtx.lineTo(W - 42, 148);
-                tCtx.stroke();
-
-                // The map occupies the large open central area.
-                // Do not draw a separate map rectangle or a right-side panel.
-                // The page's outer frame is the only enclosing border.
-
-                // Four boundaries appear vertically at the lower-left of the map area.
-                const boundaryX = 48;
-                let boundaryY = 520;
-                tCtx.fillStyle = '#111';
-                tCtx.font = 'bold 14px "' + ml + '", ' + ar;
-                tCtx.textAlign = 'left';
-                tCtx.fillText('നാലതിരുകൾ', boundaryX, boundaryY);
-
-                const boundaryTitleWidth = tCtx.measureText('നാലതിരുകൾ').width;
-                tCtx.beginPath();
-                tCtx.lineWidth = 1;
-                tCtx.moveTo(boundaryX, boundaryY + 4);
-                tCtx.lineTo(boundaryX + boundaryTitleWidth, boundaryY + 4);
-                tCtx.stroke();
-
-                tCtx.font = '13px "' + ml + '", ' + ar;
-                boundaryY += 40;
-                ['കിഴക്ക് :', 'വടക്ക് :', 'പടിഞ്ഞാറ് :', 'തെക്ക് :'].forEach(function(label) {
-                    field(label, boundaryX, boundaryY, 340);
-                    boundaryY += 29;
-                });
-
-                // Footer arrangement follows the supplied model:
-                // location at left, disclaimer centered, signature at right, date below.
-                tCtx.font = '11.5px "' + ml + '", ' + ar;
-                tCtx.fillStyle = '#222';
-                tCtx.textAlign = 'center';
-                tCtx.fillText(
-                    '(സർട്ടിഫിക്കറ്റ് എന്താവശ്യത്തിനാണോ ആവശ്യപ്പെട്ടിട്ടുള്ളത്, ആ ആവശ്യത്തിന്',
-                    W / 2, 704
-                );
-                tCtx.fillText('മാത്രം അനുവദിച്ചിട്ടുള്ളതാണ്.)', W / 2, 722);
-
-                tCtx.font = '12.5px "' + ml + '", ' + ar;
-                tCtx.fillStyle = '#111';
-                tCtx.textAlign = 'left';
-                field('സ്ഥലം :', 48, 704, 250);
-                field('തീയതി:', 48, 742, 250);
-
-                tCtx.textAlign = 'right';
-                tCtx.fillText('വില്ലേജ് ഓഫീസറുടെ ഒപ്പ്', W - 52, 742);
-            }
-
-            // Mark as orientation-matched generated template
-            tCanvas.dataset.orientation = isLand ? 'landscape' : 'portrait';
             return tCanvas.toDataURL('image/png');
         }
 
-        let officialTemplateActive = false;
-
         function applyKeralaRevenueTemplate() {
-            // Always generate orientation-matched form (full page, no letterboxing)
-            const ori = document.getElementById('pageOrientation')
-                ? document.getElementById('pageOrientation').value : 'portrait';
             bgImage = new Image();
             bgImage.onload = function() {
-                officialTemplateActive = true;
                 const wm = document.getElementById('bgWatermark');
                 if (wm) wm.style.display = 'none';
                 redrawAll();
-                showToast(ori === 'landscape'
-                    ? 'ലൊക്കേഷൻ മാപ്പ് — Landscape A4 template'
-                    : 'ലൊക്കേഷൻ മാപ്പ് — Portrait A4 template');
+                showToast('ലൊക്കേഷൻ മാപ്പ് template loaded');
             };
             bgImage.onerror = function() {
-                showToast('Template failed to load');
+                bgImage = new Image();
+                bgImage.onload = function() {
+                    const wm = document.getElementById('bgWatermark');
+                    if (wm) wm.style.display = 'none';
+                    redrawAll();
+                };
+                bgImage.src = createOfficialTemplateDataURL();
             };
-            bgImage.src = createOfficialTemplateDataURL(ori);
+            bgImage.src = 'template_form.png';
         }
 
         function loadKeralaRevenueTemplate() {
@@ -770,29 +645,16 @@
 
         function buildSymbolsMegaGrid() {
             const grid = document.getElementById('symbolsGridContainer');
-            if (!grid) {
-                console.warn('Built-in symbol grid container #symbolsGridContainer was not found.');
-                return;
-            }
             grid.innerHTML = '';
-            if (!Array.isArray(SYMBOL_LABELS) || !SYMBOL_LABELS.length) {
-                grid.innerHTML = '<div style="padding:10px;color:#b3261e;grid-column:1/-1;">No built-in symbols are registered.</div>';
-                return;
-            }
             SYMBOL_LABELS.forEach(([code, label]) => {
-                const card = document.createElement('button');
-                card.type = 'button';
+                const card = document.createElement('div');
                 card.className = 'symbol-card';
                 card.dataset.search = (code + ' ' + label).toLowerCase();
-                card.title = 'Add ' + label;
                 card.innerHTML = `${makeMapSymbolSvg(code, 28)}<span>${label}</span>`;
-                card.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); });
-                card.addEventListener('click', e => {
-                    e.preventDefault();
-                    e.stopPropagation();
+                card.onclick = () => {
                     addQuickSymbol(code, label);
                     closeAllDropdowns();
-                });
+                };
                 grid.appendChild(card);
             });
         }
@@ -1102,7 +964,7 @@
             grid.innerHTML = '<div style="padding:12px;color:#5f6368;font-size:12px;grid-column:1/-1;">Loading…</div>';
             try {
                 const results = await Promise.all(tr.terms.map(function(term) {
-                    return iconifyJson('/search?query=' + encodeURIComponent(term) + '&limit=64', ctrl.signal);
+                    return iconifyJson('/search?query=' + encodeURIComponent(term) + '&limit=64&palette=false', ctrl.signal);
                 }));
                 if (seq !== onlineSearchSeq) return;
                 // merge (interleave if several words), de-duplicate, put clean map-friendly icon sets first
@@ -1327,10 +1189,8 @@
 
         function addQuickSymbol(code, defaultLabel) {
             activateSelectTool();
-            const sizeEl = document.getElementById('iconSizeSelect');
-            const labelEl = document.getElementById('labelFontSize');
-            const sizeVal = sizeEl ? sizeEl.value : 'medium';
-            const labelFs = labelEl ? labelEl.value : '11px';
+            const sizeVal = document.getElementById('iconSizeSelect').value;
+            const labelFs = document.getElementById('labelFontSize').value;
             const svgSize = sizeVal === 'large' ? 60 : sizeVal === 'small' ? 30 : 45;
             const el = document.createElement('div');
             el.className = 'draggable-item';
@@ -1381,11 +1241,13 @@
             if (orientation === 'landscape') {
                 pageTargetWidth = 1123;
                 pageTargetHeight = 794;
-                if (thumbCanvas) { thumbCanvas.width = 180; thumbCanvas.height = 127; }
+                thumbCanvas.width = 180;
+                thumbCanvas.height = 127;
             } else {
                 pageTargetWidth = 794;
                 pageTargetHeight = 1123;
-                if (thumbCanvas) { thumbCanvas.width = 150; thumbCanvas.height = 212; }
+                thumbCanvas.width = 150;
+                thumbCanvas.height = 212;
             }
             container.style.width = pageTargetWidth + 'px';
             container.style.height = pageTargetHeight + 'px';
@@ -1393,18 +1255,6 @@
             a4Page.style.height = pageTargetHeight + 'px';
             canvas.width = pageTargetWidth;
             canvas.height = pageTargetHeight;
-
-            // Auto-rebuild official form so layout fills the new page
-            if (officialTemplateActive) {
-                bgImage = new Image();
-                bgImage.onload = function() {
-                    redrawAll();
-                    showToast(orientation === 'landscape'
-                        ? 'Landscape A4 — full-page layout applied'
-                        : 'Portrait A4 — full-page layout applied');
-                };
-                bgImage.src = createOfficialTemplateDataURL(orientation);
-            }
 
             resetZoomAndPan();
             redrawAll();
@@ -2852,21 +2702,15 @@
         function performRedraw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             if (bgImage) {
+                // Contain fit — preserve PDF form aspect (no stretch distortion)
                 const cw = canvas.width, ch = canvas.height;
                 const iw = bgImage.naturalWidth || bgImage.width;
                 const ih = bgImage.naturalHeight || bgImage.height;
                 if (iw > 0 && ih > 0) {
-                    // Official template is generated at exact page size → fill
-                    // Uploaded PDF/image may differ → contain (letterbox) to avoid stretch
-                    const exact = (iw === cw && ih === ch) || officialTemplateActive;
-                    if (exact) {
-                        ctx.drawImage(bgImage, 0, 0, cw, ch);
-                    } else {
-                        const scale = Math.min(cw / iw, ch / ih);
-                        const dw = iw * scale, dh = ih * scale;
-                        const dx = (cw - dw) / 2, dy = (ch - dh) / 2;
-                        ctx.drawImage(bgImage, dx, dy, dw, dh);
-                    }
+                    const scale = Math.min(cw / iw, ch / ih);
+                    const dw = iw * scale, dh = ih * scale;
+                    const dx = (cw - dw) / 2, dy = (ch - dh) / 2;
+                    ctx.drawImage(bgImage, dx, dy, dw, dh);
                 } else {
                     ctx.drawImage(bgImage, 0, 0, cw, ch);
                 }
@@ -4347,7 +4191,6 @@
                             page.render({ canvasContext: rCtx, viewport: viewport }).promise.then(function() {
                                 bgImage = new Image();
                                 bgImage.onload = function() {
-                                    officialTemplateActive = false;
                                     const wm = document.getElementById('bgWatermark');
                                     if (wm) wm.style.display = 'none';
                                     redrawAll();
@@ -4363,7 +4206,6 @@
                 reader.onload = function(event) {
                     bgImage = new Image();
                     bgImage.onload = function() {
-                        officialTemplateActive = false;
                         const wm = document.getElementById('bgWatermark');
                         if (wm) wm.style.display = 'none';
                         redrawAll();
@@ -5221,7 +5063,6 @@
                     e.preventDefault();
                     e.stopPropagation();
                     const which = this.getAttribute('data-symbol-tab');
-                    ensureSymbolUIReady();
                     document.querySelectorAll('[data-symbol-tab]').forEach(x => x.classList.toggle('active', x === this));
                     const built = document.getElementById('builtInSymbolsSection');
                     const onl = document.getElementById('onlineSymbolsSection');
@@ -5235,42 +5076,8 @@
             });
         }
 
-
-        // Reliable symbol-panel initialization: also works when script.js is loaded
-        // after the browser's load event (for example from a hosted/mobile wrapper).
-        let symbolGridReady = false;
-        function ensureSymbolUIReady() {
-            const grid = document.getElementById('symbolsGridContainer');
-            if (grid && !symbolGridReady) {
-                try {
-                    buildSymbolsMegaGrid();
-                    symbolGridReady = true;
-                } catch (err) {
-                    console.error('Built-in symbol grid initialization failed:', err);
-                    grid.innerHTML = '<div style="padding:10px;color:#b3261e;grid-column:1/-1;">Built-in symbols could not be loaded. Reload the application.</div>';
-                }
-            }
-            try { wireSymbolSearchUI(); } catch (err) {
-                console.error('Symbol search UI initialization failed:', err);
-            }
-            return !!grid;
-        }
-
-        // Build the grid on DOM ready and again on first menu open as a safe fallback.
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', ensureSymbolUIReady, { once: true });
-        } else {
-            ensureSymbolUIReady();
-        }
-        document.addEventListener('click', function(e) {
-            const trigger = e.target && e.target.closest
-                ? e.target.closest('#shapeDropdownBtn, [onclick*="shapeSymbolsMenu"]')
-                : null;
-            if (trigger) setTimeout(ensureSymbolUIReady, 0);
-        }, true);
-
         window.addEventListener('load', async () => {
-            ensureSymbolUIReady();
+            buildSymbolsMegaGrid();
             autoDetectDeviceMode();
             wireSymbolSearchUI();
             initCustomRoadUI();
@@ -5316,14 +5123,3 @@
 
         window.toggleDeviceMode = toggleDeviceMode;
         window.setDeviceMode = setDeviceMode;
-
-
-// Public symbol controls for reliable hosted-app diagnostics.
-window.refreshBuiltInSymbols = function() {
-    symbolGridReady = false;
-    return ensureSymbolUIReady();
-};
-window.searchOnlineMapSymbols = function(query) {
-    ensureSymbolUIReady();
-    return searchOnlineSymbols(query);
-};
