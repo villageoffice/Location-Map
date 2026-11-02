@@ -4256,7 +4256,101 @@
         }
 
         async function buildMergedExportCanvas() {
-            // Wait for any online <img> symbols to finish loading
+            // ========== WYSIWYG: capture #a4Page exactly as on screen ==========
+            // Prefer html2canvas (same fonts, text boxes, symbols, roads, template)
+            if (typeof html2canvas === 'function') {
+                showToast('Preparing PDF (exact page layout)…');
+                const page = document.getElementById('a4Page');
+                const cont = document.getElementById('container');
+                const wrap = document.getElementById('wrapper');
+
+                // Hide selection / edit chrome
+                const savedPathSel = (selectedPathIndices || []).slice();
+                selectedPathIndices = [];
+                const hiddenSel = [];
+                document.querySelectorAll('.draggable-item.selected-item').forEach(el => {
+                    el.classList.remove('selected-item');
+                    hiddenSel.push(el);
+                });
+                const hideSel = [];
+                document.querySelectorAll('.item-resize-handle, .delete-btn, .rotation-slider').forEach(h => {
+                    hideSel.push([h, h.style.visibility]);
+                    h.style.visibility = 'hidden';
+                });
+                document.querySelectorAll('.draggable-text-style.is-selected, .draggable-text-style.is-editing').forEach(el => {
+                    el.classList.remove('is-selected');
+                    el.classList.remove('is-editing');
+                    el.blur && el.blur();
+                });
+                if (typeof performRedraw === 'function') performRedraw();
+
+                // Capture at 1:1 page pixels (ignore workspace zoom/pan)
+                const prevTransform = cont ? cont.style.transform : '';
+                const prevWrapOverflow = wrap ? wrap.style.overflow : '';
+                if (cont) cont.style.transform = 'none';
+                if (wrap) wrap.style.overflow = 'visible';
+
+                // Ensure page is laid out at logical size
+                await new Promise(function(r) { requestAnimationFrame(function() { requestAnimationFrame(r); }); });
+
+                let shot;
+                try {
+                    shot = await html2canvas(page, {
+                        scale: 2,
+                        useCORS: true,
+                        allowTaint: true,
+                        backgroundColor: '#ffffff',
+                        width: pageTargetWidth,
+                        height: pageTargetHeight,
+                        windowWidth: pageTargetWidth,
+                        windowHeight: pageTargetHeight,
+                        scrollX: 0,
+                        scrollY: 0,
+                        logging: false,
+                        imageTimeout: 8000,
+                        onclone: function(doc) {
+                            const p = doc.getElementById('a4Page');
+                            if (p) {
+                                p.style.transform = 'none';
+                                p.style.width = pageTargetWidth + 'px';
+                                p.style.height = pageTargetHeight + 'px';
+                            }
+                            doc.querySelectorAll('.item-resize-handle, .delete-btn, .rotation-slider').forEach(function(n) {
+                                n.style.display = 'none';
+                            });
+                            doc.querySelectorAll('.draggable-item').forEach(function(n) {
+                                n.style.outline = 'none';
+                                n.classList.remove('selected-item');
+                            });
+                        }
+                    });
+                } catch (err) {
+                    console.error('html2canvas failed, fallback export', err);
+                    shot = null;
+                }
+
+                if (cont) cont.style.transform = prevTransform;
+                if (wrap) wrap.style.overflow = prevWrapOverflow;
+                hideSel.forEach(function(pair) { pair[0].style.visibility = pair[1] || ''; });
+                hiddenSel.forEach(function(el) { el.classList.add('selected-item'); });
+                selectedPathIndices = savedPathSel;
+                if (typeof redrawAll === 'function') redrawAll();
+
+                if (shot) {
+                    // Normalize to pageTarget resolution for jsPDF
+                    const out = document.createElement('canvas');
+                    out.width = pageTargetWidth * 2;
+                    out.height = pageTargetHeight * 2;
+                    const octx = out.getContext('2d');
+                    octx.fillStyle = '#ffffff';
+                    octx.fillRect(0, 0, out.width, out.height);
+                    octx.drawImage(shot, 0, 0, out.width, out.height);
+                    return out;
+                }
+                // else fall through to legacy compositor
+            }
+
+            // ========== Legacy fallback (manual canvas + DOM items) ==========
             const pendingSymbols = Array.from(document.querySelectorAll('.vector-map-symbol')).map(node => {
                 if (node.tagName === 'IMG' || node.tagName === 'img') {
                     if (node.complete && node.naturalWidth) return Promise.resolve();
@@ -4272,8 +4366,6 @@
             });
             await Promise.all(pendingSymbols);
 
-            // CRITICAL (Chrome): read rotation WHILE elements are still visible.
-            // Chrome often returns transform:none for visibility:hidden nodes; Edge does not.
             const items = Array.from(document.querySelectorAll('.draggable-item')).sort((a, b) => {
                 const za = parseInt(a.style.zIndex || '50', 10) || 50;
                 const zb = parseInt(b.style.zIndex || '50', 10) || 50;
@@ -4283,55 +4375,27 @@
                 if (pos & Node.DOCUMENT_POSITION_PRECEDING) return 1;
                 return 0;
             });
-            // Drop selection chrome first so rects are not inflated by blue outline
-            const savedPathSel = (selectedPathIndices || []).slice();
+
+            const savedPathSel2 = (selectedPathIndices || []).slice();
             selectedPathIndices = [];
-            const hiddenSel = [];
+            const hiddenSel2 = [];
             document.querySelectorAll('.draggable-item.selected-item').forEach(el => {
                 el.classList.remove('selected-item');
-                hiddenSel.push(el);
+                hiddenSel2.push(el);
             });
-            document.querySelectorAll('.item-resize-handle').forEach(h => { h.style.visibility = 'hidden'; });
-            document.querySelectorAll('.delete-btn').forEach(h => { h.style.visibility = 'hidden'; });
-            document.querySelectorAll('.rotation-slider').forEach(h => { h.style.visibility = 'hidden'; });
+            document.querySelectorAll('.item-resize-handle, .delete-btn, .rotation-slider').forEach(h => {
+                h.style.visibility = 'hidden';
+            });
             document.querySelectorAll('.draggable-text-style.is-selected').forEach(el => el.classList.remove('is-selected'));
 
             const itemExportMeta = items.map(function(item) {
-                const textNode = item.querySelector('.draggable-text-style');
-                const angleDeg = getItemRotationDeg(item);
-                const itemPos = getItemPagePos(item);
-                // Live centre only used when angle ≈ 0 (see draw loop)
-                let textCenter = null;
-                if (textNode && !textNode.classList.contains('is-placeholder') && Math.abs(angleDeg) < 0.5) {
-                    try {
-                        const r = textNode.getBoundingClientRect();
-                        if (r.width > 0 || r.height > 0) {
-                            textCenter = clientToPage(r.left + r.width / 2, r.top + r.height / 2);
-                        }
-                    } catch (err) {}
-                }
-                let symbolCenter = null;
-                const sym = item.querySelector('.vector-map-symbol');
-                if (sym && Math.abs(angleDeg) < 0.5) {
-                    try {
-                        const r = sym.getBoundingClientRect();
-                        if (r.width > 0 || r.height > 0) {
-                            symbolCenter = clientToPage(r.left + r.width / 2, r.top + r.height / 2);
-                        }
-                    } catch (err) {}
-                }
                 return {
                     item: item,
-                    angleDeg: angleDeg,
-                    itemPos: itemPos,
-                    textCenter: textCenter,
-                    symbolCenter: symbolCenter
+                    angleDeg: getItemRotationDeg(item),
+                    itemPos: getItemPagePos(item)
                 };
             });
 
-            // Selection already cleared above (before geometry snapshot)
-
-            // Sync canvas redraw without selection chrome
             if (typeof performRedraw === 'function') performRedraw();
 
             const outCanvas = document.createElement('canvas');
@@ -4342,7 +4406,6 @@
             pCtx.imageSmoothingQuality = 'high';
             pCtx.fillStyle = '#ffffff';
             pCtx.fillRect(0, 0, outCanvas.width, outCanvas.height);
-            // Canvas already at pageTarget resolution — 1:1 copy
             pCtx.drawImage(canvas, 0, 0, pageTargetWidth, pageTargetHeight);
 
             itemExportMeta.forEach(function(meta) {
@@ -4356,20 +4419,7 @@
                 const labelNode = item.querySelector('.icon-label');
 
                 pCtx.save();
-                // IMPORTANT: always anchor at style left/top centre (itemPos).
-                // getBoundingClientRect centre is the AABB of a rotated box — using it
-                // AFTER the last update shifted rotated text in PDF (screen looked OK).
-                // Only for nearly-unrotated items may we nudge to live centre.
-                let anchor = itemPos;
-                if (Math.abs(angleDeg) < 0.5) {
-                    if (textNode && meta.textCenter && isFinite(meta.textCenter.x) && isFinite(meta.textCenter.y)) {
-                        anchor = meta.textCenter;
-                    } else if (mapSymbolNode && meta.symbolCenter && isFinite(meta.symbolCenter.x)) {
-                        anchor = meta.symbolCenter;
-                    }
-                }
-                pCtx.translate(anchor.x, anchor.y);
-                // Text rotates as a whole; symbols rotate glyph only (see branch below)
+                pCtx.translate(itemPos.x, itemPos.y);
 
                 if (textNode && !textNode.classList.contains('is-placeholder')) {
                     if (angleDeg) pCtx.rotate((angleDeg * Math.PI) / 180);
@@ -4396,7 +4446,6 @@
                         pCtx.fillStyle = fColor;
                         pCtx.textBaseline = 'middle';
                         pCtx.textAlign = (tAlign === 'left' || tAlign === 'right') ? tAlign : 'center';
-                        // Draw relative to item centre (0,0) — matches CSS translate(-50%,-50%)
                         let tx = 0;
                         if (tAlign === 'left') {
                             const w = parseFloat(textNode.style.width) || textNode.offsetWidth || 170;
@@ -4410,8 +4459,6 @@
                     }
                 } else if (mapSymbolNode) {
                     const symbolSize = parseFloat(mapSymbolNode.getAttribute('width')) || mapSymbolNode.width || 45;
-                    // On screen only the glyph rotates (label outside rotate-wrapper stays upright).
-                    // Match that: rotate symbol drawing only, then draw label unrotated.
                     pCtx.save();
                     if (angleDeg) pCtx.rotate((angleDeg * Math.PI) / 180);
                     drawSvgSymbolOnCanvas(pCtx, mapSymbolNode, 0, northLabel ? -6 : 0, symbolSize, symbolSize);
@@ -4450,60 +4497,15 @@
                 pCtx.restore();
             });
 
-            // Restore UI
-            document.querySelectorAll('.item-resize-handle').forEach(h => { h.style.visibility = ''; });
-            document.querySelectorAll('.delete-btn').forEach(h => { h.style.visibility = ''; });
-            document.querySelectorAll('.rotation-slider').forEach(h => { h.style.visibility = ''; });
-            hiddenSel.forEach(el => el.classList.add('selected-item'));
-            selectedPathIndices = savedPathSel;
+            document.querySelectorAll('.item-resize-handle, .delete-btn, .rotation-slider').forEach(h => {
+                h.style.visibility = '';
+            });
+            hiddenSel2.forEach(el => el.classList.add('selected-item'));
+            selectedPathIndices = savedPathSel2;
             if (typeof redrawAll === 'function') redrawAll();
-
             return outCanvas;
         }
 
-
-        /** Browser Print / Save as PDF — prints the A4 page exactly as on screen */
-        function printMapPage() {
-            try {
-                // Clear selection chrome
-                const savedPathSel = (selectedPathIndices || []).slice();
-                selectedPathIndices = [];
-                document.querySelectorAll('.draggable-item.selected-item').forEach(el => el.classList.remove('selected-item'));
-                document.querySelectorAll('.item-resize-handle, .delete-btn, .rotation-slider').forEach(h => {
-                    h.dataset._prevVis = h.style.visibility;
-                    h.style.visibility = 'hidden';
-                });
-                if (typeof performRedraw === 'function') performRedraw();
-
-                // Reset zoom/pan so page is 1:1 for print
-                const cont = document.getElementById('container');
-                const prevTransform = cont ? cont.style.transform : '';
-                const prevZoom = typeof zoomScale !== 'undefined' ? zoomScale : 1;
-                if (cont) cont.style.transform = 'none';
-                document.body.classList.add('printing-map');
-
-                const restore = function() {
-                    document.body.classList.remove('printing-map');
-                    if (cont) cont.style.transform = prevTransform;
-                    document.querySelectorAll('.item-resize-handle, .delete-btn, .rotation-slider').forEach(h => {
-                        h.style.visibility = h.dataset._prevVis || '';
-                        delete h.dataset._prevVis;
-                    });
-                    selectedPathIndices = savedPathSel;
-                    if (typeof redrawAll === 'function') redrawAll();
-                    window.removeEventListener('afterprint', restore);
-                };
-                window.addEventListener('afterprint', restore);
-                // Fallback restore if afterprint doesn't fire
-                setTimeout(restore, 60000);
-
-                showToast('Print dialog — choose "Save as PDF" for exact page');
-                setTimeout(function() { window.print(); }, 80);
-            } catch (err) {
-                console.error(err);
-                showToast('Print failed');
-            }
-        }
         window.printMapPage = printMapPage;
 
         async function compileAndSavePDF() {
