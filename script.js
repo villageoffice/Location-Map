@@ -212,61 +212,77 @@
                 tCtx.textAlign = 'right';
                 tCtx.fillText('വില്ലേജ് ഓഫീസറുടെ ഒപ്പ്', W - 52, H - 36);
             } else {
-                // ===== LANDSCAPE — full-width map with boundaries below =====
+                // ===== LANDSCAPE — match the supplied Kerala Location Map model =====
+                // Header: three columns, followed by one horizontal divider.
                 titleBlock(W / 2, 52);
-                // Compact header fields in three columns
-                const cols = [48, 400, 760];
-                const y1 = 78, y2 = 100, y3 = 122;
-                field('ജില്ല :', cols[0], y1, 360);
-                field('താലൂക്ക് :', cols[0], y2, 360);
-                field('വില്ലേജ് :', cols[0], y3, 360);
-                field('തണ്ടപ്പേർ :', cols[1], y1, 720);
-                field('റി. സ. :', cols[1], y2, 720);
-                field('വിസ്തീർണ്ണം :', cols[1], y3, 720);
-                field('ദേശം :', cols[2], y1, W - 52);
-                field('Doc No & SRO .', cols[2], y2, W - 52);
 
-                // Full-width landscape map area. No separate boundary box.
-                const mapTop = 140;
-                const mapBot = 575;
-                const mapX = 48;
-                const mapW = W - 96;
+                const leftX = 48, middleX = 390, rightX = 720;
+                const row1 = 82, row2 = 108, row3 = 134;
 
+                field('ജില്ല :', leftX, row1, 360);
+                field('റി. സ. :', leftX, row2, 360);
+                field('കൈവശം:', leftX, row3, 360);
+
+                field('തണ്ടപ്പേർ :', middleX, row1, 690);
+                field('വില്ലേജ് :', middleX, row2, 690);
+
+                field('താലൂക്ക് :', rightX, row1, W - 52);
+                field('വിസ്തീർണ്ണം :', rightX, row2, W - 52);
+                field('Doc No & SRO .', rightX, row3, W - 52);
+
+                // Header separator, as shown in the reference model.
                 tCtx.strokeStyle = '#111';
-                tCtx.lineWidth = 1.75;
-                tCtx.strokeRect(mapX, mapTop, mapW, mapBot - mapTop);
-
-                // Four boundaries are placed directly below the map frame.
-                tCtx.fillStyle = '#111';
-                tCtx.font = 'bold 13px "' + ml + '", ' + ar;
-                tCtx.textAlign = 'left';
-                const boundaryTitleY = 603;
-                tCtx.fillText('നാലതിരുകൾ', mapX + 4, boundaryTitleY);
-                const ntw = tCtx.measureText('നാലതിരുകൾ').width;
+                tCtx.lineWidth = 0.8;
                 tCtx.beginPath();
-                tCtx.lineWidth = 1;
-                tCtx.moveTo(mapX + 4, boundaryTitleY + 3);
-                tCtx.lineTo(mapX + 4 + ntw, boundaryTitleY + 3);
+                tCtx.moveTo(42, 148);
+                tCtx.lineTo(W - 42, 148);
                 tCtx.stroke();
 
-                tCtx.font = '12.5px "' + ml + '", ' + ar;
-                const boundaryY = 635;
-                const boundaryCols = [48, 315, 580, 845];
-                ['കിഴക്ക് :', 'പടിഞ്ഞാറ് :', 'വടക്ക് :', 'തെക്ക് :'].forEach(function(lab, i) {
-                    field(lab, boundaryCols[i], boundaryY, 250);
+                // The map occupies the large open central area.
+                // Do not draw a separate map rectangle or a right-side panel.
+                // The page's outer frame is the only enclosing border.
+
+                // Four boundaries appear vertically at the lower-left of the map area.
+                const boundaryX = 48;
+                let boundaryY = 520;
+                tCtx.fillStyle = '#111';
+                tCtx.font = 'bold 14px "' + ml + '", ' + ar;
+                tCtx.textAlign = 'left';
+                tCtx.fillText('നാലതിരുകൾ', boundaryX, boundaryY);
+
+                const boundaryTitleWidth = tCtx.measureText('നാലതിരുകൾ').width;
+                tCtx.beginPath();
+                tCtx.lineWidth = 1;
+                tCtx.moveTo(boundaryX, boundaryY + 4);
+                tCtx.lineTo(boundaryX + boundaryTitleWidth, boundaryY + 4);
+                tCtx.stroke();
+
+                tCtx.font = '13px "' + ml + '", ' + ar;
+                boundaryY += 40;
+                ['കിഴക്ക് :', 'വടക്ക് :', 'പടിഞ്ഞാറ് :', 'തെക്ക് :'].forEach(function(label) {
+                    field(label, boundaryX, boundaryY, 340);
+                    boundaryY += 29;
                 });
 
-                // Footer band
-                tCtx.font = '11px "' + ml + '", ' + ar;
-                tCtx.textAlign = 'left';
+                // Footer arrangement follows the supplied model:
+                // location at left, disclaimer centered, signature at right, date below.
+                tCtx.font = '11.5px "' + ml + '", ' + ar;
                 tCtx.fillStyle = '#222';
-                tCtx.fillText('(സർട്ടിഫിക്കറ്റ് എന്താവശ്യത്തിനാണോ ആവശ്യപ്പെട്ടിട്ടുള്ളത്, ആ ആവശ്യത്തിന് മാത്രം അനുവദിച്ചിട്ടുള്ളതാണ്.)', 48, H - 58);
+                tCtx.textAlign = 'center';
+                tCtx.fillText(
+                    '(സർട്ടിഫിക്കറ്റ് എന്താവശ്യത്തിനാണോ ആവശ്യപ്പെട്ടിട്ടുള്ളത്, ആ ആവശ്യത്തിന്',
+                    W / 2, 704
+                );
+                tCtx.fillText('മാത്രം അനുവദിച്ചിട്ടുള്ളതാണ്.)', W / 2, 722);
+
                 tCtx.font = '12.5px "' + ml + '", ' + ar;
                 tCtx.fillStyle = '#111';
-                field('സ്ഥലം :', 48, H - 36, 280);
-                field('തീയതി :', 320, H - 36, 520);
+                tCtx.textAlign = 'left';
+                field('സ്ഥലം :', 48, 704, 250);
+                field('തീയതി:', 48, 742, 250);
+
                 tCtx.textAlign = 'right';
-                tCtx.fillText('വില്ലേജ് ഓഫീസറുടെ ഒപ്പ്', W - 52, H - 36);
+                tCtx.fillText('വില്ലേജ് ഓഫീസറുടെ ഒപ്പ്', W - 52, 742);
             }
 
             // Mark as orientation-matched generated template
