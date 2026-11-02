@@ -770,16 +770,29 @@
 
         function buildSymbolsMegaGrid() {
             const grid = document.getElementById('symbolsGridContainer');
+            if (!grid) {
+                console.warn('Built-in symbol grid container #symbolsGridContainer was not found.');
+                return;
+            }
             grid.innerHTML = '';
+            if (!Array.isArray(SYMBOL_LABELS) || !SYMBOL_LABELS.length) {
+                grid.innerHTML = '<div style="padding:10px;color:#b3261e;grid-column:1/-1;">No built-in symbols are registered.</div>';
+                return;
+            }
             SYMBOL_LABELS.forEach(([code, label]) => {
-                const card = document.createElement('div');
+                const card = document.createElement('button');
+                card.type = 'button';
                 card.className = 'symbol-card';
                 card.dataset.search = (code + ' ' + label).toLowerCase();
+                card.title = 'Add ' + label;
                 card.innerHTML = `${makeMapSymbolSvg(code, 28)}<span>${label}</span>`;
-                card.onclick = () => {
+                card.addEventListener('mousedown', e => { e.preventDefault(); e.stopPropagation(); });
+                card.addEventListener('click', e => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     addQuickSymbol(code, label);
                     closeAllDropdowns();
-                };
+                });
                 grid.appendChild(card);
             });
         }
@@ -1089,7 +1102,7 @@
             grid.innerHTML = '<div style="padding:12px;color:#5f6368;font-size:12px;grid-column:1/-1;">Loading…</div>';
             try {
                 const results = await Promise.all(tr.terms.map(function(term) {
-                    return iconifyJson('/search?query=' + encodeURIComponent(term) + '&limit=64&palette=false', ctrl.signal);
+                    return iconifyJson('/search?query=' + encodeURIComponent(term) + '&limit=64', ctrl.signal);
                 }));
                 if (seq !== onlineSearchSeq) return;
                 // merge (interleave if several words), de-duplicate, put clean map-friendly icon sets first
@@ -1314,8 +1327,10 @@
 
         function addQuickSymbol(code, defaultLabel) {
             activateSelectTool();
-            const sizeVal = document.getElementById('iconSizeSelect').value;
-            const labelFs = document.getElementById('labelFontSize').value;
+            const sizeEl = document.getElementById('iconSizeSelect');
+            const labelEl = document.getElementById('labelFontSize');
+            const sizeVal = sizeEl ? sizeEl.value : 'medium';
+            const labelFs = labelEl ? labelEl.value : '11px';
             const svgSize = sizeVal === 'large' ? 60 : sizeVal === 'small' ? 30 : 45;
             const el = document.createElement('div');
             el.className = 'draggable-item';
@@ -5206,6 +5221,7 @@
                     e.preventDefault();
                     e.stopPropagation();
                     const which = this.getAttribute('data-symbol-tab');
+                    ensureSymbolUIReady();
                     document.querySelectorAll('[data-symbol-tab]').forEach(x => x.classList.toggle('active', x === this));
                     const built = document.getElementById('builtInSymbolsSection');
                     const onl = document.getElementById('onlineSymbolsSection');
@@ -5219,8 +5235,42 @@
             });
         }
 
+
+        // Reliable symbol-panel initialization: also works when script.js is loaded
+        // after the browser's load event (for example from a hosted/mobile wrapper).
+        let symbolGridReady = false;
+        function ensureSymbolUIReady() {
+            const grid = document.getElementById('symbolsGridContainer');
+            if (grid && !symbolGridReady) {
+                try {
+                    buildSymbolsMegaGrid();
+                    symbolGridReady = true;
+                } catch (err) {
+                    console.error('Built-in symbol grid initialization failed:', err);
+                    grid.innerHTML = '<div style="padding:10px;color:#b3261e;grid-column:1/-1;">Built-in symbols could not be loaded. Reload the application.</div>';
+                }
+            }
+            try { wireSymbolSearchUI(); } catch (err) {
+                console.error('Symbol search UI initialization failed:', err);
+            }
+            return !!grid;
+        }
+
+        // Build the grid on DOM ready and again on first menu open as a safe fallback.
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', ensureSymbolUIReady, { once: true });
+        } else {
+            ensureSymbolUIReady();
+        }
+        document.addEventListener('click', function(e) {
+            const trigger = e.target && e.target.closest
+                ? e.target.closest('#shapeDropdownBtn, [onclick*="shapeSymbolsMenu"]')
+                : null;
+            if (trigger) setTimeout(ensureSymbolUIReady, 0);
+        }, true);
+
         window.addEventListener('load', async () => {
-            buildSymbolsMegaGrid();
+            ensureSymbolUIReady();
             autoDetectDeviceMode();
             wireSymbolSearchUI();
             initCustomRoadUI();
@@ -5266,3 +5316,14 @@
 
         window.toggleDeviceMode = toggleDeviceMode;
         window.setDeviceMode = setDeviceMode;
+
+
+// Public symbol controls for reliable hosted-app diagnostics.
+window.refreshBuiltInSymbols = function() {
+    symbolGridReady = false;
+    return ensureSymbolUIReady();
+};
+window.searchOnlineMapSymbols = function(query) {
+    ensureSymbolUIReady();
+    return searchOnlineSymbols(query);
+};
