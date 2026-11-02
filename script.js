@@ -103,88 +103,199 @@
         }
 
         // ================= OFFICIAL KERALA LOCATION SKETCH FORM GENERATOR =================
-        function createOfficialTemplateDataURL() {
-            // Fallback form matching official "ലൊക്കേഷൻ മാപ്പ്" PDF (no watermark text)
-            const W = 794, H = 1123;
+        /** Official ലൊക്കേഷൻ മാപ്പ് form — A4 Portrait (default) or Landscape full-page */
+        function createOfficialTemplateDataURL(orientation) {
+            const ori = orientation || (document.getElementById('pageOrientation')
+                ? document.getElementById('pageOrientation').value : 'portrait');
+            const isLand = ori === 'landscape';
+            const W = isLand ? 1123 : 794;
+            const H = isLand ? 794 : 1123;
             const tCanvas = document.createElement('canvas');
             tCanvas.width = W;
             tCanvas.height = H;
             const tCtx = tCanvas.getContext('2d');
+            const ml = 'Noto Sans Malayalam', ar = 'Arial, sans-serif';
+
+            function strokeOuter() {
+                tCtx.strokeStyle = '#111';
+                tCtx.lineWidth = 2.25;
+                tCtx.strokeRect(28, 28, W - 56, H - 56);
+                tCtx.lineWidth = 0.75;
+                tCtx.strokeRect(34, 34, W - 68, H - 68);
+            }
+            function titleBlock(cx, y) {
+                tCtx.fillStyle = '#111';
+                tCtx.font = 'bold 22px "' + ml + '", ' + ar;
+                tCtx.textAlign = 'center';
+                tCtx.fillText('ലൊക്കേഷൻ മാപ്പ്', cx, y);
+                const tw = tCtx.measureText('ലൊക്കേഷൻ മാപ്പ്').width;
+                tCtx.beginPath();
+                tCtx.lineWidth = 1.4;
+                tCtx.moveTo(cx - tw / 2, y + 5);
+                tCtx.lineTo(cx + tw / 2, y + 5);
+                tCtx.stroke();
+            }
+            function field(label, x, y, lineW) {
+                tCtx.fillStyle = '#111';
+                tCtx.font = '13px "' + ml + '", ' + ar;
+                tCtx.textAlign = 'left';
+                tCtx.fillText(label, x, y);
+                // underline guide for writing
+                const lw = tCtx.measureText(label).width;
+                tCtx.strokeStyle = '#bbb';
+                tCtx.lineWidth = 0.6;
+                tCtx.beginPath();
+                tCtx.moveTo(x + lw + 6, y + 2);
+                tCtx.lineTo(x + (lineW || 220), y + 2);
+                tCtx.stroke();
+                tCtx.strokeStyle = '#111';
+            }
 
             tCtx.fillStyle = '#ffffff';
             tCtx.fillRect(0, 0, W, H);
+            strokeOuter();
 
-            tCtx.strokeStyle = '#111111';
-            tCtx.lineWidth = 2;
-            tCtx.strokeRect(36, 36, W - 72, H - 72);
+            if (!isLand) {
+                // ===== PORTRAIT (default) =====
+                titleBlock(W / 2, 58);
+                const leftX = 52, rightX = 420, row0 = 92, gap = 24;
+                field('ജില്ല :', leftX, row0, 360);
+                field('താലൂക്ക് :', leftX, row0 + gap, 360);
+                field('വില്ലേജ് :', leftX, row0 + gap * 2, 360);
+                field('ദേശം :', leftX, row0 + gap * 3, 360);
+                field('Doc No & SRO .', leftX, row0 + gap * 4, 360);
+                field('തണ്ടപ്പേർ :', rightX, row0, W - 60);
+                field('റി. സ. :', rightX, row0 + gap, W - 60);
+                field('വിസ്തീർണ്ണം :', rightX, row0 + gap * 2, W - 60);
 
-            // Title underlined
-            tCtx.fillStyle = '#111';
-            tCtx.font = 'bold 20px "Noto Sans Malayalam", Arial, sans-serif';
-            tCtx.textAlign = 'center';
-            tCtx.fillText('ലൊക്കേഷൻ മാപ്പ്', W / 2, 62);
-            const tw = tCtx.measureText('ലൊക്കേഷൻ മാപ്പ്').width;
-            tCtx.beginPath();
-            tCtx.moveTo(W / 2 - tw / 2, 66);
-            tCtx.lineTo(W / 2 + tw / 2, 66);
-            tCtx.stroke();
+                const mapTop = 220;
+                const mapBot = H - 200;
+                const mapX = 48, mapW = W - 96;
+                tCtx.strokeStyle = '#111';
+                tCtx.lineWidth = 1.75;
+                tCtx.strokeRect(mapX, mapTop, mapW, mapBot - mapTop);
 
-            tCtx.font = '13px "Noto Sans Malayalam", Arial, sans-serif';
-            tCtx.textAlign = 'left';
-            tCtx.fillText('ജില്ല :', 52, 95);
-            tCtx.fillText('താലൂക്ക് :', 52, 118);
-            tCtx.fillText('വില്ലേജ് :', 52, 141);
-            tCtx.fillText('കൈവശം:', 52, 164);
-            tCtx.fillText('Doc No & SRO .', 52, 187);
-
-            tCtx.fillText('തണ്ടപ്പേർ :', 420, 95);
-            tCtx.fillText('റി. സ. :', 420, 118);
-            tCtx.fillText('വിസ്തീർണ്ണം :', 420, 141);
-
-            // Map box (നാലതിരുകൾ inside bottom)
-            const mapTop = 205, mapBot = 880;
-            tCtx.strokeRect(52, mapTop, W - 104, mapBot - mapTop);
-
-            tCtx.font = 'bold 13px "Noto Sans Malayalam", Arial, sans-serif';
-            let fy = mapBot - 110;
-            tCtx.fillText('നാലതിരുകൾ', 68, fy);
-            tCtx.font = '12px "Noto Sans Malayalam", Arial, sans-serif';
-            fy += 22;
-            ['കിഴക്ക് :', 'വടക്ക് :', 'പടിഞ്ഞാറ് :', 'തെക്ക് :'].forEach(lab => {
-                tCtx.fillText(lab + ' ....................................................', 68, fy);
+                // Boundaries block bottom-left inside map frame area (below drawing space)
+                // Keep map drawing area clean — boundaries BELOW map box
+                let fy = mapBot + 22;
+                tCtx.fillStyle = '#111';
+                tCtx.font = 'bold 13px "' + ml + '", ' + ar;
+                tCtx.textAlign = 'left';
+                tCtx.fillText('നാലതിരുകൾ', mapX + 4, fy);
+                // underline title
+                const ntw = tCtx.measureText('നാലതിരുകൾ').width;
+                tCtx.beginPath();
+                tCtx.lineWidth = 1;
+                tCtx.moveTo(mapX + 4, fy + 3);
+                tCtx.lineTo(mapX + 4 + ntw, fy + 3);
+                tCtx.stroke();
+                tCtx.font = '12.5px "' + ml + '", ' + ar;
                 fy += 20;
-            });
+                ['കിഴക്ക് :', 'വടക്ക് :', 'പടിഞ്ഞാറ് :', 'തെക്ക് :'].forEach(function(lab) {
+                    field(lab, mapX + 4, fy, 300);
+                    fy += 18;
+                });
 
-            tCtx.font = '12px "Noto Sans Malayalam", Arial, sans-serif';
-            tCtx.fillText('സർട്ടിഫിക്കറ്റ് നൽകുന്ന തീയതി : ........................', 52, mapBot + 28);
-            tCtx.fillText('സർട്ടിഫിക്കറ്റ് നൽകുന്ന ഉദ്യോഗസ്ഥന്റെ സ്ഥാനപ്പേര് : ........................', 52, mapBot + 52);
-            tCtx.fillText('സർട്ടിഫിക്കറ്റ് എന്താവശ്യത്തിനാണോ ആവശ്യപ്പെട്ടിട്ടുള്ളത്, ആ ആവശ്യത്തിന് മാത്രം', 52, mapBot + 80);
-            tCtx.fillText('അനുവദിച്ചിട്ടുള്ളതാണ്.', 52, mapBot + 98);
+                // Disclaimer centered under map
+                tCtx.font = '11.5px "' + ml + '", ' + ar;
+                tCtx.textAlign = 'center';
+                tCtx.fillStyle = '#222';
+                const discY = H - 88;
+                tCtx.fillText('(സർട്ടിഫിക്കറ്റ് എന്താവശ്യത്തിനാണോ ആവശ്യപ്പെട്ടിട്ടുള്ളത്, ആ ആവശ്യത്തിന് മാത്രം', W / 2, discY);
+                tCtx.fillText('അനുവദിച്ചിട്ടുള്ളതാണ്.)', W / 2, discY + 16);
 
-            tCtx.textAlign = 'right';
-            tCtx.fillText('വില്ലേജ് ഓഫീസറുടെ ഒപ്പ്', W - 52, H - 55);
+                tCtx.font = '12.5px "' + ml + '", ' + ar;
+                tCtx.textAlign = 'left';
+                tCtx.fillStyle = '#111';
+                field('സ്ഥലം :', mapX + 4, H - 48, 280);
+                field('തീയതി :', mapX + 4, H - 30, 280);
+                tCtx.textAlign = 'right';
+                tCtx.fillText('വില്ലേജ് ഓഫീസറുടെ ഒപ്പ്', W - 52, H - 36);
+            } else {
+                // ===== LANDSCAPE — full-page redesign =====
+                titleBlock(W / 2, 52);
+                // Compact header fields in 3 columns
+                const cols = [48, 400, 760];
+                const y1 = 78, y2 = 100, y3 = 122;
+                field('ജില്ല :', cols[0], y1, 360);
+                field('താലൂക്ക് :', cols[0], y2, 360);
+                field('വില്ലേജ് :', cols[0], y3, 360);
+                field('തണ്ടപ്പേർ :', cols[1], y1, 720);
+                field('റി. സ. :', cols[1], y2, 720);
+                field('വിസ്തീർണ്ണം :', cols[1], y3, 720);
+                field('ദേശം :', cols[2], y1, W - 52);
+                field('Doc No & SRO .', cols[2], y2, W - 52);
 
+                // Large map — left 72% ; boundaries panel right
+                const mapTop = 140;
+                const mapBot = H - 100;
+                const mapX = 48;
+                const mapW = Math.floor((W - 96) * 0.72);
+                const sideX = mapX + mapW + 12;
+                const sideW = W - 52 - sideX;
+
+                tCtx.strokeStyle = '#111';
+                tCtx.lineWidth = 1.75;
+                tCtx.strokeRect(mapX, mapTop, mapW, mapBot - mapTop);
+
+                // Right side panel for നാലതിരുകൾ
+                tCtx.strokeRect(sideX, mapTop, sideW, mapBot - mapTop);
+                tCtx.fillStyle = '#111';
+                tCtx.font = 'bold 14px "' + ml + '", ' + ar;
+                tCtx.textAlign = 'left';
+                let sy = mapTop + 28;
+                tCtx.fillText('നാലതിരുകൾ', sideX + 14, sy);
+                const ntw2 = tCtx.measureText('നാലതിരുകൾ').width;
+                tCtx.beginPath();
+                tCtx.lineWidth = 1.1;
+                tCtx.moveTo(sideX + 14, sy + 4);
+                tCtx.lineTo(sideX + 14 + ntw2, sy + 4);
+                tCtx.stroke();
+                tCtx.font = '13px "' + ml + '", ' + ar;
+                sy += 36;
+                ['കിഴക്ക് :', 'വടക്ക് :', 'പടിഞ്ഞാറ് :', 'തെക്ക് :'].forEach(function(lab) {
+                    field(lab, sideX + 14, sy, sideX + sideW - 16);
+                    sy += 42;
+                });
+
+                // Footer band
+                tCtx.font = '11px "' + ml + '", ' + ar;
+                tCtx.textAlign = 'left';
+                tCtx.fillStyle = '#222';
+                tCtx.fillText('(സർട്ടിഫിക്കറ്റ് എന്താവശ്യത്തിനാണോ ആവശ്യപ്പെട്ടിട്ടുള്ളത്, ആ ആവശ്യത്തിന് മാത്രം അനുവദിച്ചിട്ടുള്ളതാണ്.)', 48, H - 58);
+                tCtx.font = '12.5px "' + ml + '", ' + ar;
+                tCtx.fillStyle = '#111';
+                field('സ്ഥലം :', 48, H - 36, 280);
+                field('തീയതി :', 320, H - 36, 520);
+                tCtx.textAlign = 'right';
+                tCtx.fillText('വില്ലേജ് ഓഫീസറുടെ ഒപ്പ്', W - 52, H - 36);
+            }
+
+            // Mark as orientation-matched generated template
+            tCanvas.dataset.orientation = isLand ? 'landscape' : 'portrait';
             return tCanvas.toDataURL('image/png');
         }
 
+        let officialTemplateActive = false;
+
         function applyKeralaRevenueTemplate() {
+            // Always generate orientation-matched form (full page, no letterboxing)
+            const ori = document.getElementById('pageOrientation')
+                ? document.getElementById('pageOrientation').value : 'portrait';
             bgImage = new Image();
             bgImage.onload = function() {
+                officialTemplateActive = true;
                 const wm = document.getElementById('bgWatermark');
                 if (wm) wm.style.display = 'none';
                 redrawAll();
-                showToast('ലൊക്കേഷൻ മാപ്പ് template loaded');
+                showToast(ori === 'landscape'
+                    ? 'ലൊക്കേഷൻ മാപ്പ് — Landscape A4 template'
+                    : 'ലൊക്കേഷൻ മാപ്പ് — Portrait A4 template');
             };
             bgImage.onerror = function() {
-                bgImage = new Image();
-                bgImage.onload = function() {
-                    const wm = document.getElementById('bgWatermark');
-                    if (wm) wm.style.display = 'none';
-                    redrawAll();
-                };
-                bgImage.src = createOfficialTemplateDataURL();
+                showToast('Template failed to load');
             };
-            bgImage.src = 'template_form.png';
+            bgImage.src = createOfficialTemplateDataURL(ori);
         }
 
         function loadKeralaRevenueTemplate() {
@@ -1241,13 +1352,11 @@
             if (orientation === 'landscape') {
                 pageTargetWidth = 1123;
                 pageTargetHeight = 794;
-                thumbCanvas.width = 180;
-                thumbCanvas.height = 127;
+                if (thumbCanvas) { thumbCanvas.width = 180; thumbCanvas.height = 127; }
             } else {
                 pageTargetWidth = 794;
                 pageTargetHeight = 1123;
-                thumbCanvas.width = 150;
-                thumbCanvas.height = 212;
+                if (thumbCanvas) { thumbCanvas.width = 150; thumbCanvas.height = 212; }
             }
             container.style.width = pageTargetWidth + 'px';
             container.style.height = pageTargetHeight + 'px';
@@ -1255,6 +1364,18 @@
             a4Page.style.height = pageTargetHeight + 'px';
             canvas.width = pageTargetWidth;
             canvas.height = pageTargetHeight;
+
+            // Auto-rebuild official form so layout fills the new page
+            if (officialTemplateActive) {
+                bgImage = new Image();
+                bgImage.onload = function() {
+                    redrawAll();
+                    showToast(orientation === 'landscape'
+                        ? 'Landscape A4 — full-page layout applied'
+                        : 'Portrait A4 — full-page layout applied');
+                };
+                bgImage.src = createOfficialTemplateDataURL(orientation);
+            }
 
             resetZoomAndPan();
             redrawAll();
@@ -2702,15 +2823,21 @@
         function performRedraw() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             if (bgImage) {
-                // Contain fit — preserve PDF form aspect (no stretch distortion)
                 const cw = canvas.width, ch = canvas.height;
                 const iw = bgImage.naturalWidth || bgImage.width;
                 const ih = bgImage.naturalHeight || bgImage.height;
                 if (iw > 0 && ih > 0) {
-                    const scale = Math.min(cw / iw, ch / ih);
-                    const dw = iw * scale, dh = ih * scale;
-                    const dx = (cw - dw) / 2, dy = (ch - dh) / 2;
-                    ctx.drawImage(bgImage, dx, dy, dw, dh);
+                    // Official template is generated at exact page size → fill
+                    // Uploaded PDF/image may differ → contain (letterbox) to avoid stretch
+                    const exact = (iw === cw && ih === ch) || officialTemplateActive;
+                    if (exact) {
+                        ctx.drawImage(bgImage, 0, 0, cw, ch);
+                    } else {
+                        const scale = Math.min(cw / iw, ch / ih);
+                        const dw = iw * scale, dh = ih * scale;
+                        const dx = (cw - dw) / 2, dy = (ch - dh) / 2;
+                        ctx.drawImage(bgImage, dx, dy, dw, dh);
+                    }
                 } else {
                     ctx.drawImage(bgImage, 0, 0, cw, ch);
                 }
@@ -4191,6 +4318,7 @@
                             page.render({ canvasContext: rCtx, viewport: viewport }).promise.then(function() {
                                 bgImage = new Image();
                                 bgImage.onload = function() {
+                                    officialTemplateActive = false;
                                     const wm = document.getElementById('bgWatermark');
                                     if (wm) wm.style.display = 'none';
                                     redrawAll();
@@ -4206,6 +4334,7 @@
                 reader.onload = function(event) {
                     bgImage = new Image();
                     bgImage.onload = function() {
+                        officialTemplateActive = false;
                         const wm = document.getElementById('bgWatermark');
                         if (wm) wm.style.display = 'none';
                         redrawAll();
