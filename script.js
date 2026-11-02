@@ -212,9 +212,9 @@
                 tCtx.textAlign = 'right';
                 tCtx.fillText('വില്ലേജ് ഓഫീസറുടെ ഒപ്പ്', W - 52, H - 36);
             } else {
-                // ===== LANDSCAPE — full-page redesign =====
+                // ===== LANDSCAPE — full-width map with boundaries below =====
                 titleBlock(W / 2, 52);
-                // Compact header fields in 3 columns
+                // Compact header fields in three columns
                 const cols = [48, 400, 760];
                 const y1 = 78, y2 = 100, y3 = 122;
                 field('ജില്ല :', cols[0], y1, 360);
@@ -226,36 +226,34 @@
                 field('ദേശം :', cols[2], y1, W - 52);
                 field('Doc No & SRO .', cols[2], y2, W - 52);
 
-                // Large map — left 72% ; boundaries panel right
+                // Full-width landscape map area. No separate boundary box.
                 const mapTop = 140;
-                const mapBot = H - 100;
+                const mapBot = 575;
                 const mapX = 48;
-                const mapW = Math.floor((W - 96) * 0.72);
-                const sideX = mapX + mapW + 12;
-                const sideW = W - 52 - sideX;
+                const mapW = W - 96;
 
                 tCtx.strokeStyle = '#111';
                 tCtx.lineWidth = 1.75;
                 tCtx.strokeRect(mapX, mapTop, mapW, mapBot - mapTop);
 
-                // Right side panel for നാലതിരുകൾ
-                tCtx.strokeRect(sideX, mapTop, sideW, mapBot - mapTop);
+                // Four boundaries are placed directly below the map frame.
                 tCtx.fillStyle = '#111';
-                tCtx.font = 'bold 14px "' + ml + '", ' + ar;
+                tCtx.font = 'bold 13px "' + ml + '", ' + ar;
                 tCtx.textAlign = 'left';
-                let sy = mapTop + 28;
-                tCtx.fillText('നാലതിരുകൾ', sideX + 14, sy);
-                const ntw2 = tCtx.measureText('നാലതിരുകൾ').width;
+                const boundaryTitleY = 603;
+                tCtx.fillText('നാലതിരുകൾ', mapX + 4, boundaryTitleY);
+                const ntw = tCtx.measureText('നാലതിരുകൾ').width;
                 tCtx.beginPath();
-                tCtx.lineWidth = 1.1;
-                tCtx.moveTo(sideX + 14, sy + 4);
-                tCtx.lineTo(sideX + 14 + ntw2, sy + 4);
+                tCtx.lineWidth = 1;
+                tCtx.moveTo(mapX + 4, boundaryTitleY + 3);
+                tCtx.lineTo(mapX + 4 + ntw, boundaryTitleY + 3);
                 tCtx.stroke();
-                tCtx.font = '13px "' + ml + '", ' + ar;
-                sy += 36;
-                ['കിഴക്ക് :', 'വടക്ക് :', 'പടിഞ്ഞാറ് :', 'തെക്ക് :'].forEach(function(lab) {
-                    field(lab, sideX + 14, sy, sideX + sideW - 16);
-                    sy += 42;
+
+                tCtx.font = '12.5px "' + ml + '", ' + ar;
+                const boundaryY = 635;
+                const boundaryCols = [48, 315, 580, 845];
+                ['കിഴക്ക് :', 'പടിഞ്ഞാറ് :', 'വടക്ക് :', 'തെക്ക് :'].forEach(function(lab, i) {
+                    field(lab, boundaryCols[i], boundaryY, 250);
                 });
 
                 // Footer band
