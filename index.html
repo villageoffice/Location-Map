@@ -7,7 +7,6 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1a73e8">
     <title>Location Map - Master Location Sketch Studio V4.4</title>
-    <link rel="manifest" href="manifest.webmanifest">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&display=swap">
 
@@ -410,14 +409,12 @@
         <div class="g-dd-item" onclick="loadKeralaRevenueTemplate();closeAllDropdowns()"><span>📋 Load ലൊക്കേഷൻ മാപ്പ് Template</span></div>
         <div class="g-dd-item" onclick="document.getElementById('bgUploader').click();closeAllDropdowns()"><span>🖼️ Upload Background (Image / PDF)</span></div>
         <div class="g-dd-sep"></div>
-        <div class="g-dd-item" onclick="window.saveToLocationMapFolder();closeAllDropdowns()"><span>💾 Save to Location Map folder</span><span class="dd-shortcut">Ctrl+S</span></div>
-        <div class="g-dd-item" onclick="window.exportOpenableLauncherFile();closeAllDropdowns()"><span>🌐 Export openable file (.lsm.html → opens website)</span></div>
+        <div class="g-dd-item" onclick="window.saveToLocationMapFolder();closeAllDropdowns()"><span>💾 Save to Location Map folder (.lsm.json)</span><span class="dd-shortcut">Ctrl+S</span></div>
         <div class="g-dd-item" onclick="window.openFromLocationMapFolder();closeAllDropdowns()"><span>📂 Open from Location Map folder</span></div>
-        <div class="g-dd-item" onclick="window.openMapProjectFilePicker();closeAllDropdowns()"><span>📂 Open any .lsm.json / .lsm.html</span></div>
-        <div class="g-dd-sep"></div>
-        <div class="g-dd-item" onclick="saveNamedMapToIDB();closeAllDropdowns()"><span>💾 Save to My Maps (this browser)</span></div>
-        <div class="g-dd-item" onclick="saveAsNewMapToIDB();closeAllDropdowns()"><span>💾 Save As new name in My Maps</span></div>
-        <div class="g-dd-item" onclick="openSavedMapsPanel();closeAllDropdowns()"><span>📁 My Maps</span></div>
+        <div class="g-dd-item" onclick="window.downloadMapProjectFile();closeAllDropdowns()"><span>⬇️ Download .lsm.json (browser download)</span></div>
+        <div class="g-dd-item" onclick="window.openMapProjectFilePicker();closeAllDropdowns()"><span>📂 Open any .lsm.json file</span></div>
+        <div class="g-dd-item" onclick="saveNamedMapToIDB();closeAllDropdowns()"><span>💾 Save to this Browser only</span></div>
+        <div class="g-dd-item" onclick="openSavedMapsPanel();closeAllDropdowns()"><span>📁 My Maps (this browser)</span></div>
         <div class="g-dd-item" onclick="restoreLastWork();closeAllDropdowns()"><span>↩ Restore last work</span></div>
         <div class="g-dd-sep"></div>
         <div class="g-dd-item" onclick="compileAndSavePDF();closeAllDropdowns()"><span>📥 Download as PDF (A4)</span></div>
@@ -551,7 +548,7 @@
     </div>
 
     <!-- Hidden File Input for Background Image / PDF -->
-    <input type="file" id="mapProjectUploader" accept=".lsm.json,.lsm.html,.json,.html,application/json,text/json,text/html" style="display:none;">
+    <input type="file" id="mapProjectUploader" accept=".lsm.json,.json,application/json,text/json" style="display:none;">
     <input type="file" id="bgUploader" accept="image/*,application/pdf" style="display:none;">
     <!-- Hidden Road Type Select for compatibility -->
     <select id="roadType" style="display:none;">
@@ -735,7 +732,7 @@
     <div id="savedMapsOverlay" class="modal-overlay" onclick="if(event.target===this)closeSavedMapsPanel()">
         <div class="modal-card">
             <div class="modal-header">
-                <h3>📁 My Maps (this browser)</h3>
+                <h3>📂 Saved Location Maps (IndexedDB)</h3>
                 <button class="tb-btn" onclick="closeSavedMapsPanel()">✕</button>
             </div>
             <div class="modal-body" id="savedMapsList">

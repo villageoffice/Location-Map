@@ -4986,15 +4986,10 @@
         }
 
         // ================= INDEXED-DB SAVED MAPS =================
-        // v2: meta + data split so listing many maps stays fast (data loaded only on open)
 
         const LSM_IDB_NAME = 'LocationSketchMakerDB';
-        const LSM_IDB_VERSION = 2;
-        const LSM_STORE = 'maps';          // legacy v1 (kept for migration)
-        const LSM_META_STORE = 'mapsMeta'; // { id, name, folder, updatedAt, createdAt, pathCount, itemCount }
-        const LSM_DATA_STORE = 'mapsData'; // { id, data }
-        const LSM_DEFAULT_FOLDER = 'My Maps';
-        const LSM_SITE_URL = 'https://villageoffice.github.io/Location-Map/';
+        const LSM_IDB_VERSION = 1;
+        const LSM_STORE = 'maps';
         let currentLoadedMapId = null;
 
         function openLSMDB() {
@@ -5002,161 +4997,14 @@
                 const req = indexedDB.open(LSM_IDB_NAME, LSM_IDB_VERSION);
                 req.onupgradeneeded = function(e) {
                     const db = e.target.result;
-                    const oldV = e.oldVersion || 0;
                     if (!db.objectStoreNames.contains(LSM_STORE)) {
                         const store = db.createObjectStore(LSM_STORE, { keyPath: 'id', autoIncrement: true });
                         store.createIndex('name', 'name', { unique: false });
                         store.createIndex('updatedAt', 'updatedAt', { unique: false });
                     }
-                    if (!db.objectStoreNames.contains(LSM_META_STORE)) {
-                        const meta = db.createObjectStore(LSM_META_STORE, { keyPath: 'id', autoIncrement: true });
-                        meta.createIndex('name', 'name', { unique: false });
-                        meta.createIndex('folder', 'folder', { unique: false });
-                        meta.createIndex('updatedAt', 'updatedAt', { unique: false });
-                    }
-                    if (!db.objectStoreNames.contains(LSM_DATA_STORE)) {
-                        db.createObjectStore(LSM_DATA_STORE, { keyPath: 'id' });
-                    }
-                    // Migrate v1 combined records → meta+data (runs inside upgrade transaction)
-                    if (oldV < 2 && db.objectStoreNames.contains(LSM_STORE)) {
-                        const tx = e.target.transaction;
-                        const oldStore = tx.objectStore(LSM_STORE);
-                        const metaStore = tx.objectStore(LSM_META_STORE);
-                        const dataStore = tx.objectStore(LSM_DATA_STORE);
-                        oldStore.openCursor().onsuccess = function(ev) {
-                            const cursor = ev.target.result;
-                            if (!cursor) return;
-                            const m = cursor.value;
-                            if (m && m.id !== LSM_DIR_IDB_KEY && m.name !== '__dir_handle__') {
-                                const metaRec = {
-                                    id: m.id,
-                                    name: m.name || 'Untitled',
-                                    folder: m.folder || LSM_DEFAULT_FOLDER,
-                                    updatedAt: m.updatedAt || Date.now(),
-                                    createdAt: m.createdAt || m.updatedAt || Date.now(),
-                                    pathCount: (m.data && m.data.paths) ? m.data.paths.length : 0,
-                                    itemCount: (m.data && m.data.items) ? m.data.items.length : 0
-                                };
-                                try { metaStore.put(metaRec); } catch (err) {}
-                                if (m.data) {
-                                    try { dataStore.put({ id: m.id, data: m.data }); } catch (err) {}
-                                }
-                            }
-                            cursor.continue();
-                        };
-                    }
                 };
                 req.onsuccess = e => resolve(e.target.result);
                 req.onerror = e => reject(e.target.error);
-            });
-        }
-
-        function sketchSummaryFromState(state) {
-            return {
-                pathCount: (state && state.paths) ? state.paths.length : 0,
-                itemCount: (state && state.items) ? state.items.length : 0
-            };
-        }
-
-        async function idbPutMapRecord(name, folder, state, existingId) {
-            const db = await openLSMDB();
-            const summary = sketchSummaryFromState(state);
-            const now = Date.now();
-            let createdAt = now;
-            if (existingId != null && existingId !== LSM_DIR_IDB_KEY) {
-                try {
-                    const prev = await new Promise((resolve) => {
-                        const tx = db.transaction(LSM_META_STORE, 'readonly');
-                        const req = tx.objectStore(LSM_META_STORE).get(existingId);
-                        req.onsuccess = function() { resolve(req.result || null); };
-                        req.onerror = function() { resolve(null); };
-                    });
-                    if (prev && prev.createdAt) createdAt = prev.createdAt;
-                } catch (e) {}
-            }
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction([LSM_META_STORE, LSM_DATA_STORE], 'readwrite');
-                const metaStore = tx.objectStore(LSM_META_STORE);
-                const dataStore = tx.objectStore(LSM_DATA_STORE);
-                const meta = {
-                    name: name,
-                    folder: folder || LSM_DEFAULT_FOLDER,
-                    updatedAt: now,
-                    createdAt: createdAt,
-                    pathCount: summary.pathCount,
-                    itemCount: summary.itemCount
-                };
-                let resolvedId = existingId;
-                if (existingId != null && existingId !== LSM_DIR_IDB_KEY) {
-                    meta.id = existingId;
-                    const putMeta = metaStore.put(meta);
-                    putMeta.onsuccess = function() {
-                        resolvedId = putMeta.result;
-                        dataStore.put({ id: resolvedId, data: state });
-                    };
-                } else {
-                    const addMeta = metaStore.add(meta);
-                    addMeta.onsuccess = function() {
-                        resolvedId = addMeta.result;
-                        dataStore.put({ id: resolvedId, data: state });
-                    };
-                }
-                tx.oncomplete = function() { resolve(resolvedId); };
-                tx.onerror = function() { reject(tx.error); };
-            });
-        }
-
-        async function idbGetMapData(id) {
-            const db = await openLSMDB();
-            return new Promise((resolve) => {
-                const tx = db.transaction(LSM_DATA_STORE, 'readonly');
-                const req = tx.objectStore(LSM_DATA_STORE).get(id);
-                req.onsuccess = function() {
-                    resolve(req.result ? req.result.data : null);
-                };
-                req.onerror = function() { resolve(null); };
-            });
-        }
-
-        async function idbListMapMeta() {
-            const db = await openLSMDB();
-            return new Promise((resolve) => {
-                const out = [];
-                const tx = db.transaction(LSM_META_STORE, 'readonly');
-                const req = tx.objectStore(LSM_META_STORE).openCursor();
-                req.onsuccess = function() {
-                    const cursor = req.result;
-                    if (!cursor) {
-                        resolve(out);
-                        return;
-                    }
-                    const v = cursor.value;
-                    if (v && v.name !== LSM_RECOVERY_NAME && v.id !== LSM_DIR_IDB_KEY) {
-                        out.push({
-                            id: v.id,
-                            name: v.name,
-                            folder: v.folder || LSM_DEFAULT_FOLDER,
-                            updatedAt: v.updatedAt,
-                            createdAt: v.createdAt,
-                            pathCount: v.pathCount || 0,
-                            itemCount: v.itemCount || 0
-                        });
-                    }
-                    cursor.continue();
-                };
-                req.onerror = function() { resolve(out); };
-            });
-        }
-
-        async function idbDeleteMap(id) {
-            const db = await openLSMDB();
-            return new Promise((resolve) => {
-                const tx = db.transaction([LSM_META_STORE, LSM_DATA_STORE, LSM_STORE], 'readwrite');
-                try { tx.objectStore(LSM_META_STORE).delete(id); } catch (e) {}
-                try { tx.objectStore(LSM_DATA_STORE).delete(id); } catch (e) {}
-                try { tx.objectStore(LSM_STORE).delete(id); } catch (e) {}
-                tx.oncomplete = function() { resolve(true); };
-                tx.onerror = function() { resolve(false); };
             });
         }
 
@@ -5321,23 +5169,23 @@
                             const writable = await fileHandle.createWritable();
                             await writable.write(json);
                             await writable.close();
-                            // Openable launcher — double-click opens the online studio with this map
-                            try {
-                                const project = JSON.parse(json);
-                                const htmlName = fname.replace(/\.lsm\.json$/i, '.lsm.html');
-                                const html = buildOpenableLauncherHtml(fileBase, project);
-                                const fh2 = await dir.getFileHandle(htmlName, { create: true });
-                                const w2 = await fh2.createWritable();
-                                await w2.write(html);
-                                await w2.close();
-                            } catch (e) {}
                             try { captureRecoverySnapshot('folder-save'); } catch (e) {}
-                            // Mirror to My Maps (IndexedDB) — metadata split so many files stay fast
+                            // Also mirror to IndexedDB under same name
                             try {
-                                const id = await idbPutMapRecord(fileBase, LSM_DEFAULT_FOLDER, serializeSketchState(), currentLoadedMapId);
-                                if (id != null && id !== true) currentLoadedMapId = id;
+                                const db = await openLSMDB();
+                                const tx = db.transaction(LSM_STORE, 'readwrite');
+                                const store = tx.objectStore(LSM_STORE);
+                                const record = {
+                                    name: fileBase,
+                                    data: serializeSketchState(),
+                                    updatedAt: Date.now(),
+                                    createdAt: Date.now()
+                                };
+                                if (currentLoadedMapId) record.id = currentLoadedMapId;
+                                const req = store.put(record);
+                                req.onsuccess = () => { currentLoadedMapId = req.result; };
                             } catch (e) {}
-                            showToast('✅ Folder: ' + fname + ' + .lsm.html (open HTML → site loads map)');
+                            showToast('✅ Saved to folder: ' + (dir.name || 'Location Map') + '/' + fname);
                             return;
                         }
                     } catch (fsErr) {
@@ -5411,17 +5259,12 @@
             }
         }
 
-        async function saveNamedMapToIDB(forceNew) {
+        async function saveNamedMapToIDB() {
             const titleEl = document.getElementById('docTitleInput');
             const suggested = (titleEl.value || 'Location Map').trim();
             let name;
             try {
-                name = window.prompt(
-                    forceNew
-                        ? 'Save As — new name in My Maps (this browser):'
-                        : 'Save to My Maps — name (this browser):',
-                    suggested
-                );
+                name = window.prompt('Browser save name (this PC only):', suggested);
             } catch (e) {
                 name = suggested;
             }
@@ -5429,19 +5272,24 @@
             const finalName = String(name).trim() || suggested || 'Location Map';
             if (titleEl) titleEl.value = finalName;
             try {
-                const state = serializeSketchState();
-                const existingId = forceNew ? null : currentLoadedMapId;
-                const id = await idbPutMapRecord(finalName, LSM_DEFAULT_FOLDER, state, existingId);
-                if (id != null && id !== true) currentLoadedMapId = id;
-                showToast('✅ Saved in My Maps: "' + finalName + '"');
+                const db = await openLSMDB();
+                const tx = db.transaction(LSM_STORE, 'readwrite');
+                const store = tx.objectStore(LSM_STORE);
+                const record = {
+                    name: finalName,
+                    data: serializeSketchState(),
+                    updatedAt: Date.now(),
+                    createdAt: Date.now()
+                };
+                if (currentLoadedMapId) record.id = currentLoadedMapId;
+                const req = store.put(record);
+                req.onsuccess = () => {
+                    currentLoadedMapId = req.result;
+                    showToast('✅ Saved "' + finalName + '" in this browser');
+                };
             } catch (err) {
-                console.error(err);
                 showToast('Error saving map');
             }
-        }
-
-        async function saveAsNewMapToIDB() {
-            return saveNamedMapToIDB(true);
         }
 
         function downloadMapProjectFile() {
@@ -5483,7 +5331,7 @@
                     input = document.createElement('input');
                     input.type = 'file';
                     input.id = 'mapProjectUploader';
-                    input.accept = '.lsm.json,.lsm.html,.json,.html,application/json,text/json,text/html';
+                    input.accept = '.lsm.json,.json,application/json,text/json';
                     input.style.display = 'none';
                     document.body.appendChild(input);
                     input.addEventListener('change', function(e) {
@@ -5500,44 +5348,29 @@
             }
         }
 
-        function parseProjectFromText(text, fileName) {
-            let data = null;
-            const trimmed = (text || '').trim();
-            if (!trimmed) return null;
-            if (trimmed.charAt(0) === '{' || trimmed.charAt(0) === '[') {
-                data = JSON.parse(trimmed);
-            } else {
-                // .lsm.html launcher: extract LSM_PAYLOAD = {...};
-                const m = trimmed.match(/LSM_PAYLOAD\s*=\s*(\{[\s\S]*?\});/);
-                if (m) data = JSON.parse(m[1]);
-            }
-            if (!data || typeof data !== 'object') return null;
-            if (data.format && data.format !== 'LocationSketchStudio') {
-                if (!data.paths && !data.items) return null;
-            }
-            if (!data.name && fileName) {
-                data.name = String(fileName).replace(/\.lsm\.(json|html)$/i, '').replace(/\.(json|html)$/i, '');
-            }
-            return data;
-        }
-
         function handleMapProjectFile(file) {
             if (!file) return;
             const reader = new FileReader();
             reader.onerror = function() { showToast('Could not read file'); };
             reader.onload = function(ev) {
                 try {
-                    const data = parseProjectFromText(ev.target.result, file.name);
-                    if (!data) {
-                        showToast('Not a Location Map file (.lsm.json / .lsm.html)');
+                    const data = JSON.parse(ev.target.result);
+                    if (!data || (typeof data !== 'object')) {
+                        showToast('Invalid project file');
                         return;
+                    }
+                    if (data.format && data.format !== 'LocationSketchStudio') {
+                        if (!data.paths && !data.items) {
+                            showToast('Not a Location Map project file (.lsm.json)');
+                            return;
+                        }
                     }
                     const doLoad = function() {
                         restoreFromSnapshot(data);
                         const titleEl = document.getElementById('docTitleInput');
                         if (titleEl && data.name) titleEl.value = data.name;
                         currentLoadedMapId = null;
-                        showToast('📂 Opened "' + (data.name || file.name) + '" — edit & add freely');
+                        showToast('📂 Opened "' + (data.name || file.name) + '"');
                     };
                     if (typeof confirmBeforeReplaceWork === 'function') {
                         confirmBeforeReplaceWork('Open project: ' + (data.name || file.name), doLoad);
@@ -5546,7 +5379,7 @@
                     }
                 } catch (err) {
                     console.error(err);
-                    showToast('Invalid project file (need .lsm.json or .lsm.html)');
+                    showToast('Invalid project file (need .lsm.json)');
                 }
             };
             reader.readAsText(file, 'utf-8');
@@ -5556,14 +5389,11 @@
         window.openMapProjectFilePicker = openMapProjectFilePicker;
         window.handleMapProjectFile = handleMapProjectFile;
         window.saveNamedMapToIDB = saveNamedMapToIDB;
-        window.saveAsNewMapToIDB = saveAsNewMapToIDB;
         window.saveToLocationMapFolder = saveToLocationMapFolder;
         window.openFromLocationMapFolder = openFromLocationMapFolder;
-        window.exportOpenableLauncherFile = exportOpenableLauncherFile;
         window.duplicateSelectedPaths = duplicateSelectedPaths;
         window.rotateSelectedPathsByDegrees = rotateSelectedPathsByDegrees;
         window.refreshLayerList = refreshLayerList;
-        wireLsmImportReceiver();
 
         function openSavedMapsPanel() {
             openModal('savedMapsOverlay');
@@ -5575,300 +5405,58 @@
 
         async function refreshSavedMapsList() {
             const listEl = document.getElementById('savedMapsList');
-            if (!listEl) return;
-            listEl.innerHTML = '<div style="text-align:center;color:#80868b;padding:16px;">Loading…</div>';
             try {
-                // Metadata only — full map data is NOT loaded until user clicks Load
-                let maps = await idbListMapMeta();
-                maps = maps.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-
-                // Also surface legacy v1 records not yet migrated (best-effort)
-                try {
-                    const db = await openLSMDB();
-                    const legacy = await new Promise((resolve) => {
-                        if (!db.objectStoreNames.contains(LSM_STORE)) { resolve([]); return; }
-                        const tx = db.transaction(LSM_STORE, 'readonly');
-                        const req = tx.objectStore(LSM_STORE).getAll();
-                        req.onsuccess = () => resolve(req.result || []);
-                        req.onerror = () => resolve([]);
-                    });
-                    const known = new Set(maps.map(m => m.id));
-                    legacy.forEach(m => {
-                        if (!m || m.name === LSM_RECOVERY_NAME || m.id === LSM_DIR_IDB_KEY || m.name === '__dir_handle__') return;
-                        if (known.has(m.id)) return;
-                        maps.push({
-                            id: m.id,
-                            name: m.name || 'Untitled',
-                            folder: m.folder || LSM_DEFAULT_FOLDER,
-                            updatedAt: m.updatedAt,
-                            pathCount: (m.data && m.data.paths) ? m.data.paths.length : 0,
-                            itemCount: (m.data && m.data.items) ? m.data.items.length : 0,
-                            _legacy: true
-                        });
-                    });
-                    maps.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
-                } catch (e) {}
-
-                if (!maps.length) {
-                    listEl.innerHTML =
-                        '<div style="text-align:center;color:#80868b;padding:24px;">' +
-                        'No maps in <b>My Maps</b> yet.<br><br>' +
-                        'Use <b>💾 Save to My Maps</b> or <b>Save As</b> with any name.<br>' +
-                        'Many maps stay fast — data loads only when you open one.' +
-                        '</div>';
-                    return;
-                }
-
-                // Group by folder
-                const folders = {};
-                maps.forEach(m => {
-                    const f = m.folder || LSM_DEFAULT_FOLDER;
-                    if (!folders[f]) folders[f] = [];
-                    folders[f].push(m);
-                });
-
-                listEl.innerHTML = '';
-                const toolbar = document.createElement('div');
-                toolbar.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;';
-                toolbar.innerHTML =
-                    '<button class="g-pill-btn primary" type="button" id="mymapsSaveBtn">💾 Save current</button>' +
-                    '<button class="g-pill-btn" type="button" id="mymapsSaveAsBtn">💾 Save As (new name)</button>' +
-                    '<button class="g-pill-btn" type="button" id="mymapsExportBtn">⬇️ Export openable file</button>';
-                listEl.appendChild(toolbar);
-                toolbar.querySelector('#mymapsSaveBtn').onclick = function() { saveNamedMapToIDB(false); };
-                toolbar.querySelector('#mymapsSaveAsBtn').onclick = function() { saveNamedMapToIDB(true); };
-                toolbar.querySelector('#mymapsExportBtn').onclick = function() { exportOpenableLauncherFile(); };
-
-                Object.keys(folders).sort().forEach(folderName => {
-                    const head = document.createElement('div');
-                    head.style.cssText = 'font-size:12px;font-weight:700;color:#1a73e8;margin:10px 0 6px;';
-                    head.textContent = '📁 ' + folderName + ' (' + folders[folderName].length + ')';
-                    listEl.appendChild(head);
-
-                    folders[folderName].forEach(m => {
+                const db = await openLSMDB();
+                const tx = db.transaction(LSM_STORE, 'readonly');
+                const req = tx.objectStore(LSM_STORE).getAll();
+                req.onsuccess = () => {
+                    const maps = (req.result || []).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+                    if (!maps.length) {
+                        listEl.innerHTML = '<div style="text-align:center;color:#80868b;padding:24px;">No saved maps yet. Click <b>💾 Save Map</b> to save your work.</div>';
+                        return;
+                    }
+                    listEl.innerHTML = '';
+                    maps.forEach(m => {
                         const row = document.createElement('div');
                         row.className = 'saved-map-row';
-                        const dateStr = m.updatedAt ? new Date(m.updatedAt).toLocaleString() : '';
-                        const stats = (m.pathCount || 0) + ' lines · ' + (m.itemCount || 0) + ' items';
-                        row.innerHTML =
-                            '<div style="min-width:0;flex:1;">' +
-                            '<div style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;">' + (m.name || 'Untitled') + '</div>' +
-                            '<div style="font-size:11px;color:#5f6368;">' + dateStr + ' · ' + stats + '</div>' +
-                            '</div>' +
-                            '<div style="display:flex;gap:6px;flex-shrink:0;">' +
-                            '<button class="g-pill-btn primary" type="button" data-load>📂</button>' +
-                            '<button class="g-pill-btn" type="button" data-export title="Export openable file">⬇️</button>' +
-                            '<button class="g-pill-btn danger" type="button" data-del>🗑️</button>' +
-                            '</div>';
-                        row.querySelector('[data-load]').onclick = async function() {
-                            const doLoad = async function() {
-                                let data = null;
-                                if (m._legacy) {
-                                    const db = await openLSMDB();
-                                    data = await new Promise((resolve) => {
-                                        const tx = db.transaction(LSM_STORE, 'readonly');
-                                        const req = tx.objectStore(LSM_STORE).get(m.id);
-                                        req.onsuccess = function() { resolve(req.result && req.result.data); };
-                                        req.onerror = function() { resolve(null); };
-                                    });
-                                } else {
-                                    data = await idbGetMapData(m.id);
-                                }
-                                if (!data) {
-                                    showToast('Could not load map data');
-                                    return;
-                                }
-                                restoreFromSnapshot(data);
+                        const dateStr = new Date(m.updatedAt).toLocaleString();
+                        const isRec = m.name === LSM_RECOVERY_NAME;
+                        const title = isRec ? '↩ Auto-saved recovery' : m.name;
+                        row.innerHTML = `
+                            <div>
+                                <div style="font-weight:700;font-size:14px;">${title}</div>
+                                <div style="font-size:11px;color:#5f6368;">${dateStr}</div>
+                            </div>
+                            <div style="display:flex;gap:6px;">
+                                <button class="g-pill-btn primary" data-load="${m.id}">📂 Load</button>
+                                <button class="g-pill-btn danger" data-del="${m.id}">🗑️</button>
+                            </div>
+                        `;
+                        row.querySelector('[data-load]').onclick = () => {
+                            const doLoad = () => {
+                                restoreFromSnapshot(m.data);
                                 currentLoadedMapId = m.id;
-                                document.getElementById('docTitleInput').value = m.name || 'Location Map';
+                                document.getElementById('docTitleInput').value = m.name;
                                 closeSavedMapsPanel();
-                                showToast('Loaded "' + m.name + '" — edit & add freely');
+                                showToast('Loaded "' + m.name + '"');
                             };
+                            if (m.name === LSM_RECOVERY_NAME) {
+                                doLoad();
+                                return;
+                            }
                             confirmBeforeReplaceWork('Load saved map: ' + m.name, doLoad);
                         };
-                        row.querySelector('[data-export]').onclick = async function() {
-                            let data = m._legacy ? null : await idbGetMapData(m.id);
-                            if (!data && m._legacy) {
-                                const db = await openLSMDB();
-                                data = await new Promise((resolve) => {
-                                    const tx = db.transaction(LSM_STORE, 'readonly');
-                                    const req = tx.objectStore(LSM_STORE).get(m.id);
-                                    req.onsuccess = function() { resolve(req.result && req.result.data); };
-                                    req.onerror = function() { resolve(null); };
-                                });
-                            }
-                            if (!data) { showToast('No data to export'); return; }
-                            exportOpenableLauncherFile(m.name, data);
-                        };
-                        row.querySelector('[data-del]').onclick = async function() {
-                            if (!window.confirm('Delete "' + m.name + '" from My Maps?')) return;
-                            await idbDeleteMap(m.id);
-                            refreshSavedMapsList();
+                        row.querySelector('[data-del]').onclick = async () => {
+                            const d2 = await openLSMDB();
+                            const t2 = d2.transaction(LSM_STORE, 'readwrite');
+                            t2.objectStore(LSM_STORE).delete(Number(m.id));
+                            t2.oncomplete = () => refreshSavedMapsList();
                         };
                         listEl.appendChild(row);
                     });
-                });
+                };
             } catch (e) {
-                console.error(e);
                 listEl.innerHTML = 'Unable to load saved maps.';
-            }
-        }
-
-        // ================= OPENABLE LAUNCHER (.lsm.html) =================
-        // Double-click / open this file → opens https://villageoffice.github.io/Location-Map/
-        // and loads the map for edit. Also works via postMessage.
-
-        function buildOpenableLauncherHtml(fileBase, projectObj) {
-            const payload = JSON.stringify(projectObj);
-            const safeName = String(fileBase || 'Location_Map').replace(/[\\/:*?"<>|]/g, '_');
-            const site = LSM_SITE_URL;
-            return '<!DOCTYPE html>\n<html lang="ml"><head><meta charset="UTF-8">' +
-                '<meta name="viewport" content="width=device-width,initial-scale=1">' +
-                '<title>' + safeName + ' — Location Map</title>' +
-                '<style>body{font-family:system-ui,sans-serif;max-width:480px;margin:40px auto;padding:16px;line-height:1.5}' +
-                'button{background:#1a73e8;color:#fff;border:0;border-radius:8px;padding:12px 18px;font-size:15px;cursor:pointer;width:100%}' +
-                'button:hover{background:#1557b0}.hint{color:#5f6368;font-size:13px;margin-top:14px}</style></head><body>' +
-                '<h2 style="margin:0 0 8px">📍 ' + safeName + '</h2>' +
-                '<p style="margin:0 0 16px;color:#3c4043">Location Sketch Map — open in studio to edit.</p>' +
-                '<button type="button" id="openBtn">Open in Location Map Studio</button>' +
-                '<p class="hint">Opens <b>villageoffice.github.io/Location-Map</b> and loads this map. You can edit, add roads/symbols, and save again.</p>' +
-                '<script>\n' +
-                'var LSM_PAYLOAD = ' + payload + ';\n' +
-                'var SITE = ' + JSON.stringify(site) + ';\n' +
-                'function sendToStudio(w){\n' +
-                '  try { w.postMessage({ type: "LSM_IMPORT", format: "LocationSketchStudio", data: LSM_PAYLOAD }, "*"); } catch(e) {}\n' +
-                '}\n' +
-                'function openStudio(){\n' +
-                '  var w = window.open(SITE + (SITE.indexOf("?")>=0?"&":"?") + "import=1", "_blank");\n' +
-                '  if (!w) { alert("Please allow pop-ups, then click again."); return; }\n' +
-                '  var n = 0;\n' +
-                '  var t = setInterval(function(){\n' +
-                '    n++; sendToStudio(w);\n' +
-                '    if (n >= 25) clearInterval(t);\n' +
-                '  }, 400);\n' +
-                '}\n' +
-                'document.getElementById("openBtn").onclick = openStudio;\n' +
-                'setTimeout(openStudio, 600);\n' +
-                '<\/script></body></html>';
-        }
-
-        function exportOpenableLauncherFile(nameOverride, dataOverride) {
-            try {
-                const titleEl = document.getElementById('docTitleInput');
-                const fileBase = promptMapFileName(nameOverride || (titleEl && titleEl.value) || 'Location_Map');
-                if (!fileBase) return;
-                if (titleEl && !nameOverride) titleEl.value = fileBase;
-
-                let project;
-                if (dataOverride) {
-                    project = {
-                        format: 'LocationSketchStudio',
-                        version: 1,
-                        name: fileBase,
-                        exportedAt: new Date().toISOString(),
-                        paths: dataOverride.paths,
-                        items: dataOverride.items,
-                        bgImageSrc: dataOverride.bgImageSrc,
-                        pageOrientation: dataOverride.pageOrientation,
-                        globalDrawingTranslateX: dataOverride.globalDrawingTranslateX,
-                        globalDrawingTranslateY: dataOverride.globalDrawingTranslateY,
-                        savedAt: dataOverride.savedAt || Date.now()
-                    };
-                } else {
-                    project = buildProjectPayload(fileBase).project;
-                }
-
-                // Prefer folder write as .lsm.html + .lsm.json
-                const html = buildOpenableLauncherHtml(fileBase, project);
-                const fnameHtml = fileBase.replace(/\.lsm\.html$/i, '').replace(/\.html$/i, '').replace(/\.lsm\.json$/i, '') + '.lsm.html';
-                const fnameJson = fileBase.replace(/\.lsm\.json$/i, '').replace(/\.json$/i, '').replace(/\.lsm\.html$/i, '') + '.lsm.json';
-
-                const writeBlobDownload = function(name, text, mime) {
-                    const blob = new Blob([text], { type: mime });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = name;
-                    a.style.display = 'none';
-                    document.body.appendChild(a);
-                    a.click();
-                    setTimeout(function() {
-                        try { document.body.removeChild(a); } catch (e) {}
-                        URL.revokeObjectURL(url);
-                    }, 300);
-                };
-
-                const doFolder = async function() {
-                    if (typeof window.showDirectoryPicker !== 'function') return false;
-                    try {
-                        const dir = await ensureLocationMapFolder();
-                        if (!dir) return false;
-                        const fh = await dir.getFileHandle(fnameHtml, { create: true });
-                        const w = await fh.createWritable();
-                        await w.write(html);
-                        await w.close();
-                        try {
-                            const fj = await dir.getFileHandle(fnameJson, { create: true });
-                            const wj = await fj.createWritable();
-                            await wj.write(JSON.stringify(project));
-                            await wj.close();
-                        } catch (e) {}
-                        showToast('✅ Saved in folder: ' + fnameHtml + ' (double-click to open site)');
-                        return true;
-                    } catch (e) {
-                        if (e && e.name === 'AbortError') return true;
-                        return false;
-                    }
-                };
-
-                doFolder().then(function(ok) {
-                    if (ok) return;
-                    writeBlobDownload(fnameHtml, html, 'text/html;charset=utf-8');
-                    try {
-                        writeBlobDownload(fnameJson, JSON.stringify(project), 'application/json;charset=utf-8');
-                    } catch (e) {}
-                    showToast('✅ Downloaded ' + fnameHtml + ' — open it to launch the studio');
-                });
-            } catch (err) {
-                console.error(err);
-                showToast('Export failed');
-            }
-        }
-
-        function wireLsmImportReceiver() {
-            window.addEventListener('message', function(ev) {
-                try {
-                    const msg = ev.data;
-                    if (!msg || msg.type !== 'LSM_IMPORT') return;
-                    const data = msg.data || msg;
-                    if (!data || (!data.paths && !data.items && !data.format)) return;
-                    const doLoad = function() {
-                        restoreFromSnapshot(data);
-                        const titleEl = document.getElementById('docTitleInput');
-                        if (titleEl && data.name) titleEl.value = data.name;
-                        currentLoadedMapId = null;
-                        showToast('📂 Opened "' + (data.name || 'map') + '" — edit & add freely');
-                    };
-                    if (typeof confirmBeforeReplaceWork === 'function' && hasUserWork()) {
-                        confirmBeforeReplaceWork('Import map from file', doLoad);
-                    } else {
-                        doLoad();
-                    }
-                } catch (e) {
-                    console.error(e);
-                }
-            });
-
-            // File Handling API / launchQueue (when installed as PWA)
-            if ('launchQueue' in window) {
-                try {
-                    window.launchQueue.setConsumer(async function(launchParams) {
-                        if (!launchParams || !launchParams.files || !launchParams.files.length) return;
-                        const fh = launchParams.files[0];
-                        const file = await fh.getFile();
-                        handleMapProjectFile(file);
-                    });
-                } catch (e) {}
             }
         }
 
