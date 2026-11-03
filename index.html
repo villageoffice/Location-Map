@@ -6,7 +6,8 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#1a73e8">
-    <title>Location Map - Master Location Sketch Studio V4.3</title>
+    <title>Location Map - Master Location Sketch Studio V4.4</title>
+    <link rel="manifest" href="manifest.webmanifest">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+Malayalam:wght@400;600;700&display=swap">
 
@@ -20,7 +21,6 @@
     <script src="lib/pdf.min.js"></script>
     <script src="lib/jspdf.umd.min.js"></script>
     <script src="lib/qrcode.min.js"></script>
-    <script src="lib/html2canvas.min.js"></script>
 
     <!-- B) CDN (uncomment these 3 and comment LOCAL block above)
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -68,8 +68,8 @@
             <div class="g-header-right">
                 <button class="g-pill-btn" id="deviceModeBtn" onclick="toggleDeviceMode()">🖥️ PC Mode</button>
                 <button class="g-pill-btn" onclick="openModal('qrModal')">📍 Map QR</button>
-                <button class="g-pill-btn purple" onclick="window.downloadMapProjectFile()" title="Download .lsm.json — share & open on another PC">💾 Save File</button>
-                <button class="g-pill-btn" onclick="window.openMapProjectFilePicker()" title="Open .lsm.json from another computer">📂 Open File</button>
+                <button class="g-pill-btn purple" onclick="window.saveToLocationMapFolder()" title="Save into Downloads/Location Map folder (or pick folder)">💾 Save File</button>
+                <button class="g-pill-btn" onclick="window.openFromLocationMapFolder()" title="Open .lsm.json from Location Map folder">📂 Open File</button>
                 <button class="g-pill-btn" onclick="openSavedMapsPanel()">📁 My Maps</button>
                 <button class="g-pill-btn" onclick="restoreLastWork()" title="Restore work before accidental file load">↩ Restore</button>
                 <button class="g-pill-btn success" onclick="compileAndSavePDF()">📥 PDF</button>
@@ -410,10 +410,14 @@
         <div class="g-dd-item" onclick="loadKeralaRevenueTemplate();closeAllDropdowns()"><span>📋 Load ലൊക്കേഷൻ മാപ്പ് Template</span></div>
         <div class="g-dd-item" onclick="document.getElementById('bgUploader').click();closeAllDropdowns()"><span>🖼️ Upload Background (Image / PDF)</span></div>
         <div class="g-dd-sep"></div>
-        <div class="g-dd-item" onclick="window.downloadMapProjectFile();closeAllDropdowns()"><span>💾 Save as File (.lsm.json) — share to another PC</span></div>
-        <div class="g-dd-item" onclick="window.openMapProjectFilePicker();closeAllDropdowns()"><span>📂 Open File (.lsm.json)</span></div>
-        <div class="g-dd-item" onclick="saveNamedMapToIDB();closeAllDropdowns()"><span>💾 Save to this Browser only</span></div>
-        <div class="g-dd-item" onclick="openSavedMapsPanel();closeAllDropdowns()"><span>📁 My Maps (this browser)</span></div>
+        <div class="g-dd-item" onclick="window.saveToLocationMapFolder();closeAllDropdowns()"><span>💾 Save to Location Map folder</span><span class="dd-shortcut">Ctrl+S</span></div>
+        <div class="g-dd-item" onclick="window.exportOpenableLauncherFile();closeAllDropdowns()"><span>🌐 Export openable file (.lsm.html → opens website)</span></div>
+        <div class="g-dd-item" onclick="window.openFromLocationMapFolder();closeAllDropdowns()"><span>📂 Open from Location Map folder</span></div>
+        <div class="g-dd-item" onclick="window.openMapProjectFilePicker();closeAllDropdowns()"><span>📂 Open any .lsm.json / .lsm.html</span></div>
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-item" onclick="saveNamedMapToIDB();closeAllDropdowns()"><span>💾 Save to My Maps (this browser)</span></div>
+        <div class="g-dd-item" onclick="saveAsNewMapToIDB();closeAllDropdowns()"><span>💾 Save As new name in My Maps</span></div>
+        <div class="g-dd-item" onclick="openSavedMapsPanel();closeAllDropdowns()"><span>📁 My Maps</span></div>
         <div class="g-dd-item" onclick="restoreLastWork();closeAllDropdowns()"><span>↩ Restore last work</span></div>
         <div class="g-dd-sep"></div>
         <div class="g-dd-item" onclick="compileAndSavePDF();closeAllDropdowns()"><span>📥 Download as PDF (A4)</span></div>
@@ -428,8 +432,11 @@
         <div class="g-dd-item" onclick="undoLastItem();closeAllDropdowns()"><span>↩️ Undo Last Added Symbol/Item</span></div>
         <div class="g-dd-item" onclick="redoLastItem();closeAllDropdowns()"><span>↪️ Redo Last Symbol/Item</span></div>
         <div class="g-dd-sep"></div>
+        <div class="g-dd-item" onclick="duplicateSelectedPaths();closeAllDropdowns()"><span>📄 Duplicate selection</span><span class="dd-shortcut">Ctrl+D</span></div>
         <div class="g-dd-item" onclick="pasteTextFromClipboard();closeAllDropdowns()"><span>📋 Paste Text with Formatting</span><span class="dd-shortcut">Ctrl+V</span></div>
         <div class="g-dd-item" onclick="deleteSelectedItem();closeAllDropdowns()"><span>🗑️ Delete Selected Item</span><span class="dd-shortcut">Del</span></div>
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-item" style="font-size:11px;color:#5f6368;cursor:default;"><span>V Select · H Pan · T Text · E Eraser · R Rotate 90°</span></div>
     </div>
 
     <div id="viewMenu" class="g-dropdown">
@@ -544,7 +551,7 @@
     </div>
 
     <!-- Hidden File Input for Background Image / PDF -->
-    <input type="file" id="mapProjectUploader" accept=".lsm.json,.json,application/json,text/json" style="display:none;">
+    <input type="file" id="mapProjectUploader" accept=".lsm.json,.lsm.html,.json,.html,application/json,text/json,text/html" style="display:none;">
     <input type="file" id="bgUploader" accept="image/*,application/pdf" style="display:none;">
     <!-- Hidden Road Type Select for compatibility -->
     <select id="roadType" style="display:none;">
@@ -601,6 +608,13 @@
                 <button class="g-pill-btn" style="width:100%;justify-content:center;" onclick="addQuickSymbol('HOUSE','House')">🏠 House</button>
                 <button class="g-pill-btn" style="width:100%;justify-content:center;" onclick="activateTextTool()">📝 Text Box</button>
             </div>
+
+            <div class="sidebar-section layer-section">
+                <span class="sidebar-label">Layers</span>
+                <div id="layerListPanel" class="layer-list-panel">
+                    <div class="layer-empty">No layers yet</div>
+                </div>
+            </div>
         </aside>
 
         <!-- Rulers + Canvas Stage -->
@@ -645,17 +659,24 @@
 
     <!-- Path right-click context menu (Group / Ungroup / Move / Nodes) -->
     <div id="pathContextMenu">
-        <div class="g-dd-item" id="ctxGroupBtn" onclick="groupSelectedPaths()">🔗 Group (move together)</div>
-        <div class="g-dd-item" id="ctxUngroupBtn" onclick="ungroupSelectedPaths()">🔓 Ungroup</div>
+        <div class="g-dd-item" id="ctxGroupBtn" onclick="groupSelectedPaths()">🔗 Group (move together) <span class="dd-shortcut">Ctrl+G</span></div>
+        <div class="g-dd-item" id="ctxUngroupBtn" onclick="ungroupSelectedPaths()">🔓 Ungroup <span class="dd-shortcut">Ctrl+Shift+G</span></div>
         <div class="g-dd-sep"></div>
+        <div class="g-dd-item" onclick="duplicateSelectedPaths()">📄 Duplicate <span class="dd-shortcut">Ctrl+D</span></div>
         <div class="g-dd-item" onclick="startMoveSelectedPaths()">✥ Move all selected</div>
         <div class="g-dd-item" onclick="fitSelectionToPage()">📐 Fit to page width</div>
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-header" style="font-size:11px;color:#5f6368;padding:4px 12px;">Rotate selection</div>
+        <div class="g-dd-item" onclick="rotateSelectedPathsByDegrees(90)">🔄 Rotate 90° clockwise <span class="dd-shortcut">R</span></div>
+        <div class="g-dd-item" onclick="rotateSelectedPathsByDegrees(-90)">🔄 Rotate 90° counter-clockwise</div>
+        <div class="g-dd-item" onclick="rotateSelectedPathsByDegrees(180)">🔄 Rotate 180°</div>
+        <div class="g-dd-sep"></div>
         <div class="g-dd-item" onclick="enableNodeEditMode()">◉ Edit nodes (drag vertices)</div>
         <div class="g-dd-item" onclick="applyFillToSelectedPaths()">🎨 Apply fill colour</div>
         <div class="g-dd-item" onclick="clearFillOnSelectedPaths()">⬜ Remove fill</div>
         <div class="g-dd-item" onclick="applyCenterLineToSelected(true)">− − − Add road center line</div>
         <div class="g-dd-item" onclick="applyCenterLineToSelected(false)">✕ Remove center line</div>
-        <div class="g-dd-item" onclick="deleteSelectedPaths()">🗑️ Delete selected</div>
+        <div class="g-dd-item" onclick="deleteSelectedPaths()">🗑️ Delete selected <span class="dd-shortcut">Del</span></div>
         <div class="g-dd-sep"></div>
         <div class="g-dd-header" style="font-size:11px;color:#5f6368;padding:4px 12px;">Layer order (above / below road)</div>
         <div class="g-dd-item" onclick="event.stopPropagation();window.bringSelectedPathsToFront()">⬆️ Bring to front (above everything)</div>
@@ -664,7 +685,7 @@
         <div class="g-dd-item" onclick="event.stopPropagation();window.sendSelectedPathsToBack()">⬇️ Send to back (under roads)</div>
         <div class="g-dd-sep"></div>
         <div class="g-dd-item" onclick="clearPathSelection()">✕ Deselect</div>
-        <div class="g-dd-item" style="font-size:11px;color:#5f6368;cursor:default;">Tip: drag blue box corners to resize</div>
+        <div class="g-dd-item" style="font-size:11px;color:#5f6368;cursor:default;">Tip: blue handles = resize · top circle = rotate</div>
     </div>
 
     <!-- Item (symbol / text) right-click context menu — Google Slides style -->
@@ -714,7 +735,7 @@
     <div id="savedMapsOverlay" class="modal-overlay" onclick="if(event.target===this)closeSavedMapsPanel()">
         <div class="modal-card">
             <div class="modal-header">
-                <h3>📂 Saved Location Maps (IndexedDB)</h3>
+                <h3>📁 My Maps (this browser)</h3>
                 <button class="tb-btn" onclick="closeSavedMapsPanel()">✕</button>
             </div>
             <div class="modal-body" id="savedMapsList">
@@ -811,7 +832,7 @@
                     <li><b>Ctrl+Z</b> / <b>Ctrl+Y</b> — undo / redo</li>
                     <li><b>Enter</b> — finish multi-point line · <b>Esc</b> — cancel</li>
                 </ul>
-                <p style="margin:12px 0 0;font-size:12px;color:#80868b;">Muraleedharan P | Location Sketch Map Studio V4.3</p>
+                <p style="margin:12px 0 0;font-size:12px;color:#80868b;">Muraleedharan P | Location Sketch Map Studio V4.4</p>
             </div>
             <div class="modal-footer">
                 <button class="g-pill-btn primary" onclick="closeModal('helpModal')">Got it</button>
