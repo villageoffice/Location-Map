@@ -1,8 +1,16 @@
-# Location Sketch Map Studio V4.3
+# Location Sketch Map Studio V4.4
 
 Kerala village-office style location sketch tool.
 
-## New in this build
+## New in this build (V4.4)
+
+- **Duplicate** selection (Ctrl+D) — paths and symbols
+- **Path group rotate** — drag the top circle handle, or R / right-click 90°·−90°·180°
+- **Keyboard shortcuts**: V Select · H Pan · T Text · E Eraser · R Rotate · Ctrl+G/Shift+G Group · Ctrl+S Save · Arrows nudge
+- **Simple layer list** (left sidebar) — select, show/hide, delete
+- **Location Map folder save** — Chrome/Edge picks a folder once (e.g. Downloads/Location Map); saves/restores `.lsm.json` by preferred or default name (falls back to normal download)
+
+## From V4.3
 
 - **Help** tab (toolbar) — full usage guide (ML + EN)
 - **Select all** (⬚ All / Ctrl+A)
