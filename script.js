@@ -2624,8 +2624,9 @@
 
             if (style.isFreehand) {
                 currentPath.push(targetModelCoord);
-            } else if (style.isBox || style.isElbow || style.isCurvedConn || document.getElementById('straightMode').checked) {
-                // Base point currentPath[0] stays fixed; only end moves
+            } else if (style.isBox || style.isElbow || style.isCurvedConn || (document.getElementById('forceStraightMode') && document.getElementById('forceStraightMode').checked)) {
+                // Base point currentPath[0] stays fixed; only end moves → perfect straight segment (hand-shake free)
+                // Controlled by separate "Straight" checkbox (independent of Snap 12px magnetic)
                 currentPath = [currentPath[0], targetModelCoord];
             } else {
                 currentPath.push(targetModelCoord);
