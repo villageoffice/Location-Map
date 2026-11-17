@@ -78,7 +78,10 @@
         const LSM_DIR_IDB_KEY = 'locationMapDirHandle';
 
         // 12px magnetic snap + node (vertex) editing
+        // MAGNETIC_SNAP_PX is in SCREEN pixels (zoom-aware) — zoom in to place lines very close without snapping.
         const MAGNETIC_SNAP_PX = 12;
+        let snapIndicator = null;        // {x, y} model coords of the vertex the pointer will snap to (green ring)
+        let snapIndicatorKey = '';
         let nodeEditMode = false;
         let activeNode = null;
         let isDraggingNode = false;
@@ -369,8 +372,7 @@
             updateToolButtonsUI();
             closeAllDropdowns();
 
-            const st = roadStyles[typeKey];
-            document.getElementById('polyHintBanner').style.display = (st && st.isMultiVertex) ? 'block' : 'none';
+            updatePolyHintBanner();
         }
 
         function toggleDrawingLock() {
@@ -1429,7 +1431,7 @@
             let bestDist = pathHitTolerance;
             for (let i = paths.length - 1; i >= 0; i--) {
                 if (paths[i].hidden) continue;
-                const pts = paths[i].points;
+                const pts = getRenderPoints(paths[i]);
                 if (!pts || pts.length < 2) continue;
                 for (let j = 0; j < pts.length - 1; j++) {
                     const d = distPointToSeg(mx, my, pts[j].x, pts[j].y, pts[j + 1].x, pts[j + 1].y);
@@ -1442,14 +1444,35 @@
             return bestIdx;
         }
 
-        // 12px magnetic snap to any existing vertex / endpoint
-        function magneticSnapPoint(x, y, excludePathIdx, excludePointIdx) {
-            const snapOn = document.getElementById('straightMode') && document.getElementById('straightMode').checked;
+        // Screen pixels per model pixel (page zoom / device scale) — used to keep snap radius = 12 SCREEN px
+        function getScreenPerModel() {
+            try {
+                const r = canvas.getBoundingClientRect();
+                const sc = r.width / (canvas.width || 1);
+                if (isFinite(sc) && sc > 0.01) return sc;
+            } catch (e) {}
+            return 1;
+        }
+
+        function getSnapRadiusModel() {
+            return Math.max(2, Math.min(60, MAGNETIC_SNAP_PX / getScreenPerModel()));
+        }
+
+        // true when the user holds Alt or Ctrl for this stroke = skip snap just once (no need to untick Snap 12px)
+        function isSnapBypassEvent(e) {
+            return !!(e && (e.altKey || e.ctrlKey));
+        }
+
+        // 12px magnetic snap to any existing vertex / endpoint (only when "Snap 12px" ticked; Alt/Ctrl = skip once)
+        function magneticSnapPoint(x, y, excludePathIdx, excludePointIdx, bypass) {
+            const snapEl = document.getElementById('straightMode');
+            const snapOn = !!(snapEl && snapEl.checked) && !bypass;
             if (!snapOn) return { x, y, snapped: false };
             let best = null;
-            let bestD = MAGNETIC_SNAP_PX;
+            const radius = getSnapRadiusModel();
+            let bestD = radius;
             paths.forEach((p, pi) => {
-                if (!p.points) return;
+                if (!p.points || p.hidden) return;
                 p.points.forEach((pt, pti) => {
                     if (pi === excludePathIdx && pti === excludePointIdx) return;
                     const d = Math.hypot(pt.x - x, pt.y - y);
@@ -1459,19 +1482,39 @@
                     }
                 });
             });
-            // Also snap current multi-vertex path points
-            if (currentPath && currentPath.length) {
-                currentPath.forEach((pt, pti) => {
-                    if (pti === excludePointIdx && excludePathIdx === -1) return;
+            // Also snap to the earlier points of the line being drawn now — but never to its own moving tip
+            // (the last point just follows the pointer; snapping to it made the line end stick / jump)
+            if (currentPath && currentPath.length > 1) {
+                for (let pti = 0; pti < currentPath.length - 1; pti++) {
+                    if (pti === excludePointIdx && excludePathIdx === -1) continue;
+                    const pt = currentPath[pti];
                     const d = Math.hypot(pt.x - x, pt.y - y);
                     if (d < bestD) {
                         bestD = d;
                         best = { x: pt.x, y: pt.y };
                     }
-                });
+                }
             }
             if (best) return { x: best.x, y: best.y, snapped: true };
             return { x, y, snapped: false };
+        }
+
+        // Green ring that shows where the pointer will snap BEFORE you click / release
+        function setSnapIndicator(pt) {
+            const key = pt ? (Math.round(pt.x * 10) + ',' + Math.round(pt.y * 10)) : '';
+            if (key === snapIndicatorKey) return false;
+            snapIndicatorKey = key;
+            snapIndicator = pt ? { x: pt.x, y: pt.y } : null;
+            return true;
+        }
+
+        function updateSnapHover(e) {
+            if (e.touches || !drawModeOn || eraseModeOn || drawingLockOn || isDrawing) return;
+            const style = roadStyles[document.getElementById('roadType').value];
+            if (!style || style.isFreehand) { if (setSnapIndicator(null)) redrawAll(); return; }
+            const coord = getCoordinates(e);
+            const sn = magneticSnapPoint(coord.x - globalDrawingTranslateX, coord.y - globalDrawingTranslateY, -1, -1, isSnapBypassEvent(e));
+            if (setSnapIndicator(sn.snapped ? sn : null)) redrawAll();
         }
 
         // Hit-test a vertex (node) within 12px
@@ -2028,6 +2071,7 @@
                     x: newX + (pt.x - b0.x) * sx,
                     y: newY + (pt.y - b0.y) * sy
                 }));
+                if (src.bend > 0) paths[i].bend = Math.max(1, src.bend * (Math.abs(sx) + Math.abs(sy)) / 2);
             });
         }
 
@@ -2069,6 +2113,7 @@
                     x: newX + (pt.x - b.x) * scale,
                     y: newY + (pt.y - b.y) * scale
                 }));
+                if (src.bend > 0) paths[i].bend = Math.max(1, src.bend * scale);
             });
             lastActionType = 'draw';
             hidePathContextMenu();
@@ -2104,6 +2149,7 @@
                 if (src.closed) clone.closed = true;
                 if (typeof src.zIndex === 'number') clone.zIndex = src.zIndex;
                 if (src.hidden) clone.hidden = true;
+                if (src.bend > 0) clone.bend = src.bend;
                 if (src.groupId != null) {
                     if (!groupMap[src.groupId]) groupMap[src.groupId] = nextGroupId++;
                     clone.groupId = groupMap[src.groupId];
@@ -2395,17 +2441,18 @@
             if (multiPointPolyActive && currentPath.length >= 2) {
                 const activeType = document.getElementById('roadType').value;
                 const style = roadStyles[activeType];
+                const nativeMulti = isNativeMultiVertex(style);
                 let pts = currentPath.slice();
                 // Drop trailing duplicate tip used while drawing
                 if (pts.length >= 2) {
                     const a = pts[pts.length - 1], b = pts[pts.length - 2];
                     if (Math.hypot(a.x - b.x, a.y - b.y) < 0.5) pts.pop();
                 }
-                // Close polygon if first≈last or tool is polygon
+                // Close polygon if first≈last or tool is polygon (only Polyline / Polygon tools — not Bend-mode roads)
                 let closed = false;
-                if (pts.length >= 3) {
+                if (nativeMulti && pts.length >= 3) {
                     const first = pts[0], last = pts[pts.length - 1];
-                    if (Math.hypot(first.x - last.x, first.y - last.y) <= MAGNETIC_SNAP_PX + 2) {
+                    if (Math.hypot(first.x - last.x, first.y - last.y) <= getSnapRadiusModel() + 2) {
                         pts[pts.length - 1] = { x: first.x, y: first.y };
                         closed = true;
                     } else if (style && style.isPolygon) {
@@ -2416,19 +2463,25 @@
                 const fill = (closed || (style && style.isPolygon) || (style && style.isBox))
                     ? getActivePolygonFill()
                     : null;
-                paths.push({
+                const newEntry = {
                     type: activeType,
                     points: pts,
                     fillColor: fill,
                     closed: closed,
                     centerLine: isRoadCenterLineEnabled()
-                });
+                };
+                // Bend mode: remember the corner radius so roads / lines keep their smooth valavu
+                if (isBendModeOn() && isBendEligibleStyle(style) && !closed && pts.length >= 3) {
+                    newEntry.bend = getBendRadiusSetting();
+                }
+                paths.push(newEntry);
                 lastActionType = 'draw';
             }
             multiPointPolyActive = false;
             isDrawing = false;
             currentPath = [];
             activePathIndex = null;
+            setSnapIndicator(null);
             magnifier.style.display = 'none';
             redrawAll();
         }
@@ -2454,24 +2507,25 @@
                 x: coord.x - globalDrawingTranslateX,
                 y: coord.y - globalDrawingTranslateY
             };
-            // 12px magnetic snap — base/start point locks when snapped
-            const snapped = magneticSnapPoint(targetModelCoord.x, targetModelCoord.y, -1, -1);
-            targetModelCoord = { x: snapped.x, y: snapped.y };
-
             const activeType = document.getElementById('roadType').value;
             const style = roadStyles[activeType];
 
-            // Multi-point Polyline / Curve / Polygon click mode
-            if (style && style.isMultiVertex) {
+            // 12px magnetic snap — base/start point locks when snapped (Alt / Ctrl = skip snap for this stroke; Scribble never snaps)
+            const snapBypass = isSnapBypassEvent(e) || !!(style && style.isFreehand);
+            const snapped = magneticSnapPoint(targetModelCoord.x, targetModelCoord.y, -1, -1, snapBypass);
+            targetModelCoord = { x: snapped.x, y: snapped.y };
+
+            // Multi-point Polyline / Curve / Polygon click mode (+ any road / line while "Bend" mode is ON)
+            if (style && isMultiVertexStyle(style)) {
                 if (!multiPointPolyActive) {
                     multiPointPolyActive = true;
                     isDrawing = true;
                     currentPath = [targetModelCoord, { x: targetModelCoord.x, y: targetModelCoord.y }];
                 } else {
                     // Close polygon if near first point (12px)
-                    if (currentPath.length >= 3) {
+                    if (currentPath.length >= 3 && isNativeMultiVertex(style)) {
                         const first = currentPath[0];
-                        if (Math.hypot(targetModelCoord.x - first.x, targetModelCoord.y - first.y) <= MAGNETIC_SNAP_PX) {
+                        if (Math.hypot(targetModelCoord.x - first.x, targetModelCoord.y - first.y) <= getSnapRadiusModel()) {
                             targetModelCoord = { x: first.x, y: first.y };
                             currentPath[currentPath.length - 1] = targetModelCoord;
                             finishActiveMultiVertexPath();
@@ -2489,13 +2543,14 @@
             isDrawing = true;
             activePathIndex = null;
 
-            // Snap to end of previous road segment of same type (legacy + 12px magnetic)
-            if (document.getElementById('straightMode').checked && paths.length > 0 && !style.isBox && !style.isFreehand) {
+            // Snap to end of previous road segment of same type (12 screen-px magnetic; Alt / Ctrl = start a separate line)
+            if (document.getElementById('straightMode').checked && !snapBypass && paths.length > 0 && !style.isBox && !style.isFreehand) {
+                const chainRadius = getSnapRadiusModel();
                 for (let i = paths.length - 1; i >= 0; i--) {
-                    if (paths[i].type === activeType) {
+                    if (paths[i].type === activeType && !paths[i].hidden && !paths[i].closed && paths[i].points && paths[i].points.length) {
                         let pts = paths[i].points;
                         let lastPt = pts[pts.length - 1];
-                        if (Math.hypot(targetModelCoord.x - lastPt.x, targetModelCoord.y - lastPt.y) < Math.max(34, MAGNETIC_SNAP_PX)) {
+                        if (Math.hypot(targetModelCoord.x - lastPt.x, targetModelCoord.y - lastPt.y) < chainRadius) {
                             targetModelCoord = { x: lastPt.x, y: lastPt.y };
                             activePathIndex = i;
                             break;
@@ -2591,7 +2646,9 @@
 
         function draw(e) {
             if (eraseModeOn) { eraseMove(e); return; }
-            if (!isDrawing || !drawModeOn) return;
+            if (!drawModeOn) return;
+            // Not drawing yet: only show the green snap ring where the pointer would snap
+            if (!isDrawing) { updateSnapHover(e); return; }
             if (e.touches && e.touches.length > 1) return;
 
             e.preventDefault();
@@ -2600,36 +2657,40 @@
                 x: coord.x - globalDrawingTranslateX,
                 y: coord.y - globalDrawingTranslateY
             };
-            // Live 12px magnetic snap while moving end point; base (index 0) stays fixed
-            const snapped = magneticSnapPoint(targetModelCoord.x, targetModelCoord.y, -1, 0);
-            targetModelCoord = { x: snapped.x, y: snapped.y };
-
             const activeType = document.getElementById('roadType').value;
             const style = roadStyles[activeType];
+            const multiMode = !!(multiPointPolyActive && style && isMultiVertexStyle(style));
+
+            // Live 12px magnetic snap while moving end point; the moving tip never snaps to itself,
+            // base (index 0) stays fixed. Alt / Ctrl = no snap for this stroke. Scribble never snaps.
+            const snapBypass = isSnapBypassEvent(e) || !!(style && style.isFreehand);
+            const excludeBase = (multiMode && currentPath.length > 2) ? -1 : 0;
+            const snapped = magneticSnapPoint(targetModelCoord.x, targetModelCoord.y, -1, excludeBase, snapBypass);
+            targetModelCoord = { x: snapped.x, y: snapped.y };
+            let showRing = snapped.snapped;
 
             // Shift = constrain angle to 15° steps (smooth Google Slides-like straight lines)
             if (e.shiftKey && currentPath.length >= 1) {
                 const base = multiPointPolyActive
                     ? currentPath[Math.max(0, currentPath.length - 2)]
                     : currentPath[0];
-                if (base) targetModelCoord = constrainAnglePoint(base, targetModelCoord, 15);
+                if (base) { targetModelCoord = constrainAnglePoint(base, targetModelCoord, 15); showRing = false; }
             }
+            setSnapIndicator(showRing ? targetModelCoord : null);
 
-            if (multiPointPolyActive && style && style.isMultiVertex) {
+            if (multiMode) {
                 // Only the moving tip updates; earlier vertices stay steady
                 currentPath[currentPath.length - 1] = targetModelCoord;
                 redrawAll();
                 return;
             }
 
-            if (style.isFreehand) {
+            if (style && style.isFreehand) {
                 currentPath.push(targetModelCoord);
-            } else if (style.isBox || style.isElbow || style.isCurvedConn || (document.getElementById('forceStraightMode') && document.getElementById('forceStraightMode').checked)) {
-                // Base point currentPath[0] stays fixed; only end moves → perfect straight segment (hand-shake free)
-                // Controlled by separate "Straight" checkbox (independent of Snap 12px magnetic)
-                currentPath = [currentPath[0], targetModelCoord];
             } else {
-                currentPath.push(targetModelCoord);
+                // PERMANENT STRAIGHT: base point currentPath[0] stays fixed; only the end moves
+                // → perfect straight segment, hand vibration can never bend the line.
+                currentPath = [currentPath[0], targetModelCoord];
             }
 
             redrawAll();
@@ -2642,28 +2703,37 @@
             if (eraseModeOn) { stopErasing(); return; }
             const activeType = document.getElementById('roadType').value;
             const style = roadStyles[activeType];
-            if (style && style.isMultiVertex && multiPointPolyActive) {
+            if (style && isMultiVertexStyle(style) && multiPointPolyActive) {
                 return; // Wait for double-click or Enter
             }
 
             if (isDrawing && currentPath.length > 1) {
-                if (activePathIndex !== null) {
-                    paths[activePathIndex].points.push(currentPath[1]);
-                } else {
-                    const entry = { type: activeType, points: currentPath };
-                    if (style && style.isBox) {
-                        entry.fillColor = getActivePolygonFill();
-                    }
-                    if (style && style.isRoad && isRoadCenterLineEnabled()) {
-                        entry.centerLine = true;
-                    }
-                    paths.push(entry);
+                // Ignore accidental taps / tiny hand-shake strokes (< 3 screen px) — straight tools only
+                let tooShort = false;
+                if (style && !style.isFreehand && currentPath.length === 2) {
+                    const minLen = 3 / getScreenPerModel();
+                    tooShort = Math.hypot(currentPath[1].x - currentPath[0].x, currentPath[1].y - currentPath[0].y) < minLen;
                 }
-                lastActionType = 'draw';
+                if (!tooShort) {
+                    if (activePathIndex !== null) {
+                        paths[activePathIndex].points.push(currentPath[1]);
+                    } else {
+                        const entry = { type: activeType, points: currentPath };
+                        if (style && style.isBox) {
+                            entry.fillColor = getActivePolygonFill();
+                        }
+                        if (style && style.isRoad && isRoadCenterLineEnabled()) {
+                            entry.centerLine = true;
+                        }
+                        paths.push(entry);
+                    }
+                    lastActionType = 'draw';
+                }
             }
             isDrawing = false;
             currentPath = [];
             activePathIndex = null;
+            setSnapIndicator(null);
             magnifier.style.display = 'none';
             redrawAll();
         }
@@ -2734,6 +2804,8 @@
                 else if (k === 'h') { activatePanTool(); showToast('Pan tool (H)'); }
                 else if (k === 't') { activateTextTool(); showToast('Text tool (T)'); }
                 else if (k === 'e') { toggleEraserMode(); }
+                else if (k === 's') { toggleSnapQuick(); }
+                else if (k === 'b') { toggleBendMode(); }
                 else if (k === 'r' && selectedPathIndices.length) { rotateSelectedPathsByDegrees(90); }
                 else if ((k === 'arrowleft' || k === 'arrowright' || k === 'arrowup' || k === 'arrowdown') && selectedPathIndices.length) {
                     e.preventDefault();
@@ -2752,6 +2824,19 @@
 
         canvas.addEventListener('mousedown', startDrawing);
         canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('mouseleave', () => { if (setSnapIndicator(null)) redrawAll(); });
+        // Tune the radius live: change the Bend px box while bent roads / lines are selected
+        (function () {
+            const br = document.getElementById('bendRadius');
+            if (!br) return;
+            br.addEventListener('input', () => {
+                if (drawModeOn || !selectedPathIndices.length) return;
+                const hasBend = selectedPathIndices.some(i => paths[i] && paths[i].bend > 0);
+                if (hasBend) applyBendToSelectedPaths(getBendRadiusSetting());
+            });
+            const bm = document.getElementById('bendMode');
+            if (bm) bm.addEventListener('change', () => { finishActiveMultiVertexPath(); updatePolyHintBanner(); });
+        })();
         window.addEventListener('mouseup', stopDrawing);
         canvas.addEventListener('touchstart', startDrawing, { passive: false });
         canvas.addEventListener('touchmove', draw, { passive: false });
@@ -2862,6 +2947,169 @@
         }
 
 
+        // ================= BEND (valavu) — rounded corners for roads / lines / hairpin bends =================
+        // A path keeps its normal corner points (blue node handles); `bend` = corner radius in model px.
+        // Rendering turns every corner into a true circular arc (fillet), so
+        //   • roads / lines get smooth curves,   • a sharp V of 3 points becomes a hairpin U-turn,
+        //   • double-line roads stay parallel (both edges follow the same centre-line arc).
+        function isBendModeOn() {
+            const el = document.getElementById('bendMode');
+            return !!(el && el.checked);
+        }
+
+        function getBendRadiusSetting() {
+            const el = document.getElementById('bendRadius');
+            let v = el ? parseFloat(el.value) : 40;
+            if (!isFinite(v)) v = 40;
+            return Math.max(2, Math.min(600, Math.round(v * 10) / 10));
+        }
+
+        // Tools that can have bends: roads, lines, stream, railway, electric, arrow, polyline …
+        // (not box / elbow / curved connector / scribble / smooth Curve / polygon)
+        function isBendEligibleStyle(st) {
+            return !!(st && !st.isBox && !st.isElbow && !st.isCurvedConn && !st.isFreehand && !st.isSmoothCurve && !st.isPolygon);
+        }
+
+        function isNativeMultiVertex(st) {
+            return !!(st && st.isMultiVertex);
+        }
+
+        // Click-point drawing: Polyline / Curve / Polygon always, and every road / line while Bend mode is ON
+        function isMultiVertexStyle(st) {
+            return !!(st && (st.isMultiVertex || (isBendModeOn() && isBendEligibleStyle(st))));
+        }
+
+        function pushDistinct(arr, pt, replaceLastIfSame) {
+            const q = arr[arr.length - 1];
+            if (q && Math.hypot(q.x - pt.x, q.y - pt.y) < 0.05) {
+                if (replaceLastIfSame) arr[arr.length - 1] = pt;
+                return;
+            }
+            arr.push(pt);
+        }
+
+        function buildBentPoints(pts, radius) {
+            if (!pts || pts.length < 3 || !(radius > 0)) return pts;
+            // remove consecutive duplicate points
+            const P = [pts[0]];
+            for (let i = 1; i < pts.length; i++) {
+                const a = P[P.length - 1], b = pts[i];
+                if (Math.hypot(a.x - b.x, a.y - b.y) > 0.01) P.push(b);
+            }
+            if (P.length < 3) return pts;
+            const last = P.length - 1;
+            const out = [{ x: P[0].x, y: P[0].y }];
+            for (let i = 1; i < last; i++) {
+                const A = P[i - 1], B = P[i], C = P[i + 1];
+                const v1x = A.x - B.x, v1y = A.y - B.y;
+                const v2x = C.x - B.x, v2y = C.y - B.y;
+                const l1 = Math.hypot(v1x, v1y), l2 = Math.hypot(v2x, v2y);
+                const u1x = v1x / l1, u1y = v1y / l1, u2x = v2x / l2, u2y = v2y / l2;
+                const cos = Math.max(-1, Math.min(1, u1x * u2x + u1y * u2y));
+                const theta = Math.acos(cos);                 // angle between the two legs: π = straight, small = hairpin
+                if (theta > Math.PI - 0.02 || theta < 0.02) { out.push({ x: B.x, y: B.y }); continue; }
+                const tanHalf = Math.tan(theta / 2);
+                // how much of each leg this corner may use (a leg shared with another rounded corner → half)
+                const avail1 = (i - 1 === 0) ? l1 : l1 / 2;
+                const avail2 = (i + 1 === last) ? l2 : l2 / 2;
+                let r = radius;
+                let t = r / tanHalf;                          // tangent length from the corner
+                const maxT = Math.min(avail1, avail2);
+                if (t > maxT) { t = maxT; r = t * tanHalf; }
+                if (r < 0.3) { out.push({ x: B.x, y: B.y }); continue; }
+                const T1 = { x: B.x + u1x * t, y: B.y + u1y * t };
+                const T2 = { x: B.x + u2x * t, y: B.y + u2y * t };
+                let bx = u1x + u2x, by = u1y + u2y;
+                const bl = Math.hypot(bx, by) || 1;
+                bx /= bl; by /= bl;
+                const cd = r / Math.sin(theta / 2);           // corner → arc centre distance
+                const O = { x: B.x + bx * cd, y: B.y + by * cd };
+                const a1 = Math.atan2(T1.y - O.y, T1.x - O.x);
+                const a2 = Math.atan2(T2.y - O.y, T2.x - O.x);
+                let d = a2 - a1;
+                while (d > Math.PI) d -= Math.PI * 2;
+                while (d < -Math.PI) d += Math.PI * 2;
+                const steps = Math.max(3, Math.min(120, Math.ceil(Math.abs(d) / 0.07), Math.ceil(r * Math.abs(d) / 2.5)));
+                pushDistinct(out, T1);
+                for (let k = 1; k < steps; k++) {
+                    const a = a1 + d * (k / steps);
+                    pushDistinct(out, { x: O.x + Math.cos(a) * r, y: O.y + Math.sin(a) * r });
+                }
+                pushDistinct(out, T2);
+            }
+            pushDistinct(out, { x: P[last].x, y: P[last].y }, true);
+            return out;
+        }
+
+        // Points actually drawn / hit-tested / erased for a path (rounded if the path has a bend radius)
+        function getRenderPoints(p) {
+            if (!p || !p.points) return p ? p.points : null;
+            const b = p.bend;
+            if (!(b > 0) || p.points.length < 3 || p.closed) return p.points;
+            if (!isBendEligibleStyle(roadStyles[p.type])) return p.points;
+            return buildBentPoints(p.points, b);
+        }
+
+        function applyBendToSelectedPaths(radius) {
+            if (!selectedPathIndices.length) {
+                showToast('Select a road / line first');
+                hidePathContextMenu();
+                return;
+            }
+            const r = (radius === undefined || radius === null) ? getBendRadiusSetting() : radius;
+            let n = 0;
+            selectedPathIndices.forEach(i => {
+                const pth = paths[i];
+                if (!pth || !pth.points || pth.points.length < 3 || pth.closed) return;
+                if (!isBendEligibleStyle(roadStyles[pth.type])) return;
+                if (r > 0) pth.bend = r; else delete pth.bend;
+                n++;
+            });
+            hidePathContextMenu();
+            lastActionType = 'draw';
+            redrawAll();
+            if (!n) showToast('Bends need a line / road with 3 or more points (corner)');
+            else showToast(r > 0 ? ('Bend radius ' + r + ' px applied — change the radius box to tune') : 'Sharp corners restored');
+        }
+
+        function clearBendOnSelectedPaths() {
+            applyBendToSelectedPaths(0);
+        }
+
+        function updatePolyHintBanner() {
+            const banner = document.getElementById('polyHintBanner');
+            if (!banner) return;
+            const st = roadStyles[document.getElementById('roadType').value];
+            const show = drawModeOn && isMultiVertexStyle(st);
+            const doneBtn = ' <button type="button" onclick="finishActiveMultiVertexPath()" style="margin-left:8px;border:0;border-radius:12px;padding:2px 10px;font-weight:700;cursor:pointer;background:#fff;color:#1a73e8;">✔ Done</button>';
+            if (isNativeMultiVertex(st)) {
+                banner.innerHTML = '✏️ Click points • near start = close polygon with fill • <b>Double-Click</b> / <b>Enter</b> to finish • Fill colour from toolbar 🎨' + (isBendModeOn() && isBendEligibleStyle(st) ? ' • Bend ON' : '') + doneBtn;
+            } else {
+                banner.innerHTML = '🛣️ Bend mode: click every corner point — corners become smooth valavu (radius from toolbar) • <b>Double-Click</b> / <b>Enter</b> to finish • Alt = no snap' + doneBtn;
+            }
+            banner.style.display = show ? 'block' : 'none';
+        }
+
+        function toggleBendMode(force) {
+            finishActiveMultiVertexPath();
+            const el = document.getElementById('bendMode');
+            if (!el) return;
+            el.checked = (typeof force === 'boolean') ? force : !el.checked;
+            updatePolyHintBanner();
+            showToast(el.checked
+                ? 'Bend mode ON — click each corner point, double-click / Enter to finish (radius ' + getBendRadiusSetting() + ' px)'
+                : 'Bend mode OFF — drag = perfect straight line');
+        }
+
+        function toggleSnapQuick() {
+            const el = document.getElementById('straightMode');
+            if (!el) return;
+            el.checked = !el.checked;
+            setSnapIndicator(null);
+            redrawAll();
+            showToast(el.checked ? 'Snap 12px ON  (hold Alt / Ctrl to skip once)' : 'Snap 12px OFF');
+        }
+
         function isRoadCenterLineEnabled() {
             const el = document.getElementById('roadCenterLine');
             return !!(el && el.checked);
@@ -2886,7 +3134,7 @@
             showToast(n ? (on ? 'Center dashed line added' : 'Center line removed') : 'Select a double-line road (NH/SH/PWD…)');
         }
 
-        function drawPassOnCtx(pCtx, points, type, layer, fillColor, centerLine) {
+        function drawPassOnCtx(pCtx, points, type, layer, fillColor, centerLine, ctrlPoints) {
             if (!points || points.length < 2) return;
             const style = roadStyles[type];
             if (!style) return;
@@ -2926,8 +3174,9 @@
                     pCtx.fillStyle = '#e67e22';
                     pCtx.textAlign = 'center';
                     pCtx.textBaseline = 'middle';
-                    for (let i = 0; i < points.length - 1; i++) {
-                        let p1 = points[i], p2 = points[i + 1];
+                    const markPts = ctrlPoints || points;   // one ⚡ per original segment, even on rounded bends
+                    for (let i = 0; i < markPts.length - 1; i++) {
+                        let p1 = markPts[i], p2 = markPts[i + 1];
                         pCtx.fillText('⚡', (p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
                     }
                 }
@@ -2981,7 +3230,8 @@
                         centerLine: p.centerLine,
                         groupId: p.groupId,
                         closed: p.closed,
-                        zIndex: p.zIndex
+                        zIndex: p.zIndex,
+                        bend: p.bend
                     });
                 } else {
                     allPaths.push(p);
@@ -2993,6 +3243,10 @@
                 const liveEntry = { type: liveType, points: currentPath, centerLine: isRoadCenterLineEnabled() };
                 if (liveStyle && (liveStyle.isBox || liveStyle.isPolygon || liveStyle.isMultiVertex)) {
                     liveEntry.fillColor = getActivePolygonFill();
+                }
+                // live preview of the bend while clicking points
+                if (multiPointPolyActive && isBendModeOn() && isBendEligibleStyle(liveStyle)) {
+                    liveEntry.bend = getBendRadiusSetting();
                 }
                 allPaths.push(liveEntry);
             }
@@ -3038,11 +3292,12 @@
                 const group = allPaths.filter(p => pathZ(p) === z);
                 const roadPaths = group.filter(isDualLineRoad);
                 const overlayPaths = group.filter(p => !isDualLineRoad(p));
-                roadPaths.forEach(p => drawPassOnCtx(ctx, p.points, p.type, 'outer', p.fillColor, p.centerLine));
-                roadPaths.forEach(p => drawPassOnCtx(ctx, p.points, p.type, 'inner', p.fillColor, p.centerLine));
+                roadPaths.forEach(p => drawPassOnCtx(ctx, getRenderPoints(p), p.type, 'outer', p.fillColor, p.centerLine, p.points));
+                roadPaths.forEach(p => drawPassOnCtx(ctx, getRenderPoints(p), p.type, 'inner', p.fillColor, p.centerLine, p.points));
                 overlayPaths.forEach(p => {
-                    drawPassOnCtx(ctx, p.points, p.type, 'outer', p.fillColor, p.centerLine);
-                    drawPassOnCtx(ctx, p.points, p.type, 'inner', p.fillColor, p.centerLine);
+                    const rp = getRenderPoints(p);
+                    drawPassOnCtx(ctx, rp, p.type, 'outer', p.fillColor, p.centerLine, p.points);
+                    drawPassOnCtx(ctx, rp, p.type, 'inner', p.fillColor, p.centerLine, p.points);
                 });
             });
 
@@ -3058,10 +3313,11 @@
                     ctx.setLineDash([6, 4]);
                     ctx.lineCap = 'round';
                     ctx.lineJoin = 'round';
+                    const hp = getRenderPoints(p);
                     ctx.beginPath();
-                    ctx.moveTo(p.points[0].x, p.points[0].y);
-                    for (let k = 1; k < p.points.length; k++) {
-                        ctx.lineTo(p.points[k].x, p.points[k].y);
+                    ctx.moveTo(hp[0].x, hp[0].y);
+                    for (let k = 1; k < hp.length; k++) {
+                        ctx.lineTo(hp[k].x, hp[k].y);
                     }
                     ctx.stroke();
                     ctx.restore();
@@ -3089,6 +3345,21 @@
                         ctx.restore();
                     });
                 });
+            }
+
+            // Green ring = the pointer will snap to this vertex (hold Alt / Ctrl to skip)
+            if (snapIndicator && drawModeOn && !eraseModeOn) {
+                const sc = getScreenPerModel();
+                ctx.save();
+                ctx.setLineDash([]);
+                ctx.lineWidth = 2 / sc;
+                ctx.strokeStyle = '#188038';
+                ctx.fillStyle = 'rgba(24,128,56,0.20)';
+                ctx.beginPath();
+                ctx.arc(snapIndicator.x, snapIndicator.y, 7 / sc, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
             }
 
             if (eraseModeOn && eraserPointerModel) {
@@ -3129,6 +3400,7 @@
                 if (p.closed) out.closed = true;
                 if (typeof p.zIndex === 'number' && isFinite(p.zIndex)) out.zIndex = p.zIndex;
                 if (p.hidden) out.hidden = true;
+                if (p.bend > 0) out.bend = p.bend;
                 return out;
             });
         }
@@ -3179,7 +3451,7 @@
                     return;
                 }
 
-                const dense = densifyPoints(path.points, 6);
+                const dense = densifyPoints(getRenderPoints(path), 6);
                 let chain = [];
                 dense.forEach(pt => {
                     if (ptDist(pt, { x: mx, y: my }) <= radius) {
@@ -3765,7 +4037,7 @@
                 const coord = getCoordinates(e);
                 let mx = coord.x - globalDrawingTranslateX;
                 let my = coord.y - globalDrawingTranslateY;
-                const sn = magneticSnapPoint(mx, my, activeNode.pathIndex, activeNode.pointIndex);
+                const sn = magneticSnapPoint(mx, my, activeNode.pathIndex, activeNode.pointIndex, isSnapBypassEvent(e));
                 mx = sn.x;
                 my = sn.y;
                 // Restore snapshot then move ONLY this node — other nodes steady

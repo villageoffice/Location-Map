@@ -161,18 +161,21 @@
 
             <div class="tb-sep"></div>
 
-            <!-- Line / Polygon Color & Straight Lock -->
+            <!-- Line / Polygon Color, Snap & Bend (valavu) -->
             <label class="tb-btn" title="Polygon / Shape Fill Color">
                 🎨 <input type="color" id="polygonFillColor" value="#90EE90" style="width:20px;height:20px;border:none;padding:0;background:transparent;cursor:pointer;">
             </label>
             <label class="tb-btn" style="font-size:11.5px;" title="Enable Polygon Interior Fill">
                 <input type="checkbox" id="polygonFillEnabled" checked> Fill
             </label>
-            <label class="tb-btn" style="font-size:11.5px;" title="Magnetic snap 12px — endpoints & vertices lock when close (separate from Straight)">
+            <label class="tb-btn" style="font-size:11.5px;" title="Magnetic snap — endpoints &amp; vertices lock within 12 screen-px (green ring shows the target). Hold Alt / Ctrl while drawing to skip snap for that stroke · press S to switch on/off · zoom in to place lines very close. Lines are ALWAYS perfectly straight, with or without snap.">
                 <input type="checkbox" id="straightMode" checked> Snap 12px
             </label>
-            <label class="tb-btn" style="font-size:11.5px;" title="Force perfect straight line segments — hand shake ignored, only start→end (separate from Snap)">
-                <input type="checkbox" id="forceStraightMode" checked> Straight
+            <label class="tb-btn" style="font-size:11.5px;" title="Bend (valavu) mode — click every corner point of a road / line; corners become smooth curves. Hairpin = 3 clicks (V shape) with a small radius. Double-click / Enter to finish · press B to switch. OFF = drag draws a perfect straight line.">
+                <input type="checkbox" id="bendMode"> Bend
+            </label>
+            <label class="tb-btn" style="font-size:11.5px;padding-left:4px;padding-right:6px;" title="Bend radius in px — bigger = wider curve, smaller = tighter hairpin. Select a bent road and change this box to tune it live.">
+                R <input type="number" id="bendRadius" value="40" min="2" max="600" step="2" style="width:50px;font-size:11.5px;border:1px solid #dadce0;border-radius:4px;padding:1px 3px;"> px
             </label>
             <label class="tb-btn" style="font-size:11.5px;" title="Road middle dashed line (− − − −) between the two road edges">
                 <input type="checkbox" id="roadCenterLine"> Center − − −
@@ -245,7 +248,7 @@
     <!-- ================= DROPDOWN 1: LINE & DOUBLE-LINE ROAD MENU (Matches Screenshot + Survey Roads) ================= -->
     <div id="lineToolsMenu" class="g-dropdown" style="width: 295px;">
         <div class="g-dd-header">Google Drawing Lines & Connectors</div>
-        <div class="g-dd-item" data-line="basicLine" onclick="selectDrawingLine('basicLine', 'Straight Line'); var fs=document.getElementById('forceStraightMode'); if(fs) fs.checked=true;">
+        <div class="g-dd-item" data-line="basicLine" onclick="selectDrawingLine('basicLine', 'Straight Line')">
             <span class="dd-icon"><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="5" cy="19" r="2.5"/><circle cx="19" cy="5" r="2.5"/><line x1="5" y1="19" x2="19" y2="5" stroke="#202124" stroke-width="2"/></svg></span>
             <span>Straight Line</span>
             <span class="dd-shortcut">Start→End</span>
@@ -675,6 +678,8 @@
         <div class="g-dd-item" onclick="rotateSelectedPathsByDegrees(180)">🔄 Rotate 180°</div>
         <div class="g-dd-sep"></div>
         <div class="g-dd-item" onclick="enableNodeEditMode()">◉ Edit nodes (drag vertices)</div>
+        <div class="g-dd-item" onclick="applyBendToSelectedPaths()">⌒ Round bends / hairpin (radius from toolbar R)</div>
+        <div class="g-dd-item" onclick="clearBendOnSelectedPaths()">⌐ Sharp corners (remove bend)</div>
         <div class="g-dd-item" onclick="applyFillToSelectedPaths()">🎨 Apply fill colour</div>
         <div class="g-dd-item" onclick="clearFillOnSelectedPaths()">⬜ Remove fill</div>
         <div class="g-dd-item" onclick="applyCenterLineToSelected(true)">− − − Add road center line</div>
@@ -788,8 +793,9 @@
                 <ul style="margin:0 0 14px;padding-left:18px;">
                     <li>Toolbar <b>Line</b> menu → <b>Straight Line</b>, NH, <b>Custom Road (any width)</b>, SH, PWD, Panchayat, Mud, Railway, Polyline, Polygon</li>
                     <li>Map-ൽ click–drag; multi-point: ഓരോ click-ഉം vertex; <b>double-click</b> അല്ലെങ്കിൽ <b>Enter</b> = finish</li>
-                    <li><b>Snap 12px</b> ON → endpoints / vertices അടുത്ത് വന്നാൽ magnetic ആയി ഒട്ടും (continuity)</li>
-                    <li><b>Straight</b> ON → hand shake ഇല്ലാതെ perfect straight segment (start→end only). Snap-നും Straight-നും function വേറെ വേറെ</li>
+                    <li>Drag ചെയ്താൽ എപ്പോഴും <b>perfect straight line</b> (start→end) — hand shake കൊണ്ട് വളയില്ല; Snap ON/OFF ആയാലും ഇതുതന്നെ. (<b>Scribble</b> മാത്രം freehand)</li>
+                    <li><b>Snap 12px</b> ON → endpoints / vertices-ന്റെ 12 screen-px അടുത്ത് വന്നാൽ magnetic ആയി ഒട്ടും; <b>പച്ച വൃത്തം</b> കാണിക്കും. ഒരു line-ന് മാത്രം snap വേണ്ടെങ്കിൽ <b>Alt</b> / <b>Ctrl</b> അമർത്തിപ്പിടിച്ച് വരയ്ക്കുക (tick മാറ്റേണ്ട) · <b>S</b> = Snap on/off · zoom ചെയ്താൽ അടുത്തടുത്ത് വരയ്ക്കാം</li>
+                    <li><b>Bend</b> ON (<b>B</b> key) → ഓരോ corner point-ലും click; corner സ്വയം round ആകും (valavu). Radius = toolbar-ലെ <b>R</b> box. <b>Hairpin bend</b>: 3 click (V shape) + ചെറിയ R. <b>Double-click</b> / Enter / ✔ Done = finish. വരച്ച road select ചെയ്ത് R മാറ്റിയാൽ വളവ് live ആയി മാറും; right-click → <b>Round bends</b> / <b>Sharp corners</b></li>
                     <li><b>Center − − −</b> ON → road-ന്റെ രണ്ട് line-ന് നടുവിൽ dashed center line</li>
                     <li><b>Fill</b> + colour → polygon അടച്ചാൽ അകം നിറയും</li>
                 </ul>
