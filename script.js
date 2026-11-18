@@ -8,9 +8,6 @@
         const itemContainer = document.getElementById('canvasContainer');
         const thumbCanvas = document.getElementById('thumbCanvas');
         const thumbCtx = thumbCanvas.getContext('2d');
-        const magnifier = document.getElementById('magnifier');
-        const magCanvas = document.getElementById('magnifierCanvas');
-        const magCtx = magCanvas.getContext('2d');
 
         let zoomScale = 1;
         let panX = 0;
@@ -21,7 +18,6 @@
         let offSubMode = 'items';
         let rotateTabActive = false;
         let currentDeviceMode = 'pc';
-        let magnifierEnabled = true;
 
         let pageTargetWidth = 794;
         let pageTargetHeight = 1123;
@@ -2482,7 +2478,6 @@
             currentPath = [];
             activePathIndex = null;
             setSnapIndicator(null);
-            magnifier.style.display = 'none';
             redrawAll();
         }
 
@@ -2560,9 +2555,6 @@
             }
 
             currentPath = [targetModelCoord];
-            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            triggerMagnifierRender(clientX, clientY, coord.x, coord.y);
         }
 
 
@@ -2694,9 +2686,6 @@
             }
 
             redrawAll();
-            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            triggerMagnifierRender(clientX, clientY, coord.x, coord.y);
         }
 
         function stopDrawing() {
@@ -2734,7 +2723,6 @@
             currentPath = [];
             activePathIndex = null;
             setSnapIndicator(null);
-            magnifier.style.display = 'none';
             redrawAll();
         }
 
@@ -3493,7 +3481,6 @@
                 isErasing = false;
                 eraseStrokeSnapshot = null;
                 eraserPointerModel = null;
-                magnifier.style.display = 'none';
             }
             updateToolButtonsUI();
             redrawAll();
@@ -3513,9 +3500,6 @@
             eraserPointerModel = { x: mx, y: my };
             eraseAt(mx, my, eraserRadius);
             redrawAll();
-            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            triggerMagnifierRender(clientX, clientY, coord.x, coord.y);
         }
 
         function eraseMove(e) {
@@ -3527,9 +3511,6 @@
             e.preventDefault();
             eraseAt(mx, my, eraserRadius);
             redrawAll();
-            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
-            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            triggerMagnifierRender(clientX, clientY, coord.x, coord.y);
         }
 
         function stopErasing() {
@@ -3542,31 +3523,7 @@
                 lastActionType = 'erase';
             }
             eraseStrokeSnapshot = null;
-            magnifier.style.display = 'none';
             redrawAll();
-        }
-
-        // ================= MAGNIFIER LOUPE =================
-        function toggleMagnifier() {
-            magnifierEnabled = !magnifierEnabled;
-            document.getElementById('magnifierToggleBtn').classList.toggle('active', magnifierEnabled);
-            if (!magnifierEnabled) magnifier.style.display = 'none';
-        }
-
-        function triggerMagnifierRender(screenX, screenY, centerModelX, centerModelY) {
-            if (!magnifierEnabled) return;
-            magnifier.style.display = 'block';
-            magnifier.style.left = (screenX - 70) + 'px';
-            magnifier.style.top = Math.max(10, (screenY - 160)) + 'px';
-
-            magCtx.fillStyle = '#ffffff';
-            magCtx.fillRect(0, 0, 140, 140);
-            magCtx.save();
-            magCtx.translate(70, 70);
-            magCtx.scale(2, 2);
-            magCtx.translate(-centerModelX, -centerModelY);
-            magCtx.drawImage(canvas, 0, 0);
-            magCtx.restore();
         }
 
         // ================= UNDO / REDO =================
@@ -4093,7 +4050,6 @@
                     const modelCoord = getCoordinates(e);
                     draggedElement.style.left = modelCoord.x + 'px';
                     draggedElement.style.top = modelCoord.y + 'px';
-                    triggerMagnifierRender(xy.x, xy.y, modelCoord.x, modelCoord.y);
                 } catch (err) {
                     const containerRect = itemContainer.getBoundingClientRect();
                     draggedElement.style.left = ((xy.x - containerRect.left) / zoomScale) + 'px';
@@ -4184,7 +4140,6 @@
             isResizingItem = false;
             itemResizeHandle = null;
             itemResizeStart = null;
-            magnifier.style.display = 'none';
             updateToolButtonsUI();
         }
         window.addEventListener('mouseup', onPointerUpWindow);

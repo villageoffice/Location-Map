@@ -842,22 +842,6 @@
             display: block;
         }
 
-        /* Magnifier Loupe */
-        #magnifier {
-            position: fixed;
-            width: 140px;
-            height: 140px;
-            border-radius: 50%;
-            border: 3px solid #1a73e8;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.45);
-            display: none;
-            pointer-events: none;
-            z-index: 9999;
-            overflow: hidden;
-            background-color: white;
-        }
-        #magnifierCanvas { width: 140px; height: 140px; }
-
         /* Online Users Badge & Active Tool Pill */
         #onlineUsersBadge {
             position: fixed;
@@ -1154,7 +1138,6 @@ img.vector-map-symbol.online-icon-img {
     body.printing-map .ruler-v,
     body.printing-map #onlineUsersBadge,
     body.printing-map #polyHintBanner,
-    body.printing-map #magnifier,
     body.printing-map .modal-overlay,
     body.printing-map #pathContextMenu,
     body.printing-map #itemContextMenu,

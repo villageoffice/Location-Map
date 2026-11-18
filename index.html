@@ -229,12 +229,9 @@
 
             <div class="tb-sep"></div>
 
-            <!-- Rotate & Zoom Loupe Toggles -->
+            <!-- Rotate Toggle -->
             <button id="rotateToggleBtn" class="tb-btn" onclick="toggleRotateTab()" title="Show Rotation Sliders on Symbols/Text">
                 🔄 Rotate
-            </button>
-            <button id="magnifierToggleBtn" class="tb-btn active" onclick="toggleMagnifier()" title="2x Magnifier Zoom Box while Drawing">
-                🔍 Loupe
             </button>
             <div class="tb-sep"></div>
             <button id="drawingLockBtn" class="tb-btn" onclick="toggleDrawingLock()" title="Lock drawings — only Select, Group, Move, Resize, Delete allowed">
@@ -448,7 +445,6 @@
     <div id="viewMenu" class="g-dropdown">
         <div class="g-dd-item" onclick="resetZoomAndPan();closeAllDropdowns()"><span>🔍 Zoom to Fit Page</span></div>
         <div class="g-dd-item" onclick="toggleGridLines();closeAllDropdowns()"><span>📏 Toggle Drawing Grid</span></div>
-        <div class="g-dd-item" onclick="toggleMagnifier();closeAllDropdowns()"><span>🔎 Toggle 2x Zoom Loupe</span></div>
         <div class="g-dd-item" onclick="toggleSidebar();closeAllDropdowns()"><span>📑 Toggle Left Thumbnail Panel</span></div>
     </div>
 
@@ -646,11 +642,6 @@
     <!-- Polyline / Curve Helper Banner -->
     <div id="polyHintBanner">
         ✏️ Click points • near start = close polygon with fill • <b>Double-Click</b> / <b>Enter</b> to finish • Fill colour from toolbar 🎨
-    </div>
-
-    <!-- Magnifier Loupe -->
-    <div id="magnifier">
-        <canvas id="magnifierCanvas" width="140" height="140"></canvas>
     </div>
 
     <!-- Online / Visit Counter (works when hosted online e.g. GitHub Pages) -->
