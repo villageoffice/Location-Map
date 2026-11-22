@@ -2013,18 +2013,23 @@
             const rh = getRotateHandlePoint(b);
             if (rh) {
                 const topMid = { x: b.x + b.w / 2, y: b.y };
-                pCtx.strokeStyle = '#1a73e8';
-                pCtx.lineWidth = 1.25;
+                pCtx.strokeStyle = '#34a853';
+                pCtx.lineWidth = 1.5;
                 pCtx.beginPath();
                 pCtx.moveTo(topMid.x, topMid.y);
                 pCtx.lineTo(rh.x, rh.y);
                 pCtx.stroke();
-                pCtx.fillStyle = '#ffffff';
+                // green rotate dot
+                pCtx.fillStyle = '#34a853';
+                pCtx.strokeStyle = '#ffffff';
+                pCtx.lineWidth = 2;
                 pCtx.beginPath();
-                pCtx.arc(rh.x, rh.y, RESIZE_HANDLE_SIZE / 2 + 1.5, 0, Math.PI * 2);
+                pCtx.arc(rh.x, rh.y, RESIZE_HANDLE_SIZE / 2 + 3, 0, Math.PI * 2);
                 pCtx.fill();
                 pCtx.stroke();
                 // small arc icon hint
+                pCtx.strokeStyle = '#ffffff';
+                pCtx.lineWidth = 1.5;
                 pCtx.beginPath();
                 pCtx.arc(rh.x, rh.y, 3.2, -Math.PI * 0.7, Math.PI * 0.4);
                 pCtx.stroke();
@@ -3595,6 +3600,8 @@
         let isResizingItem = false;
         let itemResizeHandle = null; // nw,n,ne,e,se,s,sw,w
         let itemResizeStart = null; // {cx,cy,w,h, clientX, clientY, textEl}
+        let isRotatingItem = false;   // green rotate handle on a selected symbol / text
+        let itemRotateStart = null;   // {el, cx, cy, startAngle, startDeg}
 
         function selectItemElement(el) {
             document.querySelectorAll('.draggable-item.selected-item').forEach(n => n.classList.remove('selected-item'));
@@ -3602,6 +3609,11 @@
             if (el) {
                 el.classList.add('selected-item');
                 ensureItemResizeHandles(el);
+                // Only one thing is selected at a time: drop road/drawing selection handles
+                if (typeof selectedPathIndices !== 'undefined' && selectedPathIndices.length) {
+                    selectedPathIndices = [];
+                    try { redrawAll(); } catch (err) {}
+                }
             }
         }
 
@@ -3618,6 +3630,9 @@
                 for (let i = 0; i < stack.length; i++) {
                     const n = stack[i];
                     if (!n || !n.closest) continue;
+                    if (n.classList && n.classList.contains('item-rotate-handle')) {
+                        return { item: n.parentElement, handle: n, rotate: true };
+                    }
                     if (n.classList && n.classList.contains('item-resize-handle')) {
                         return { item: n.parentElement, handle: n };
                     }
@@ -3640,6 +3655,15 @@
             const t0 = e.touches[0];
             const hit = hitDraggableItemAt(t0.clientX, t0.clientY);
             if (!hit || !hit.item) return;
+            // Rotate handle (green dot on top)
+            if (hit.rotate) {
+                e.preventDefault();
+                e.stopPropagation();
+                selectItemElement(hit.item);
+                beginItemRotate(hit.item, t0.clientX, t0.clientY);
+                mobileItemTouchId = t0.identifier;
+                return;
+            }
             // Resize handle
             if (hit.handle) {
                 e.preventDefault();
@@ -3686,12 +3710,19 @@
                 dragPendingEl = null;
                 draggedElement = null;
                 isResizingItem = false;
+                isRotatingItem = false;
+                itemRotateStart = null;
                 mobileItemTouchId = null;
                 return;
             }
             const t0 = e.touches[0];
             if (mobileItemTouchId != null && t0.identifier !== mobileItemTouchId) return;
 
+            if (isRotatingItem) {
+                e.preventDefault();
+                applyItemRotateDrag(e);
+                return;
+            }
             if (isResizingItem) {
                 e.preventDefault();
                 applyItemResize(e);
@@ -3731,7 +3762,7 @@
                 }
             }
             if (!still) {
-                if (draggedElement || isResizingItem) {
+                if (draggedElement || isResizingItem || isRotatingItem) {
                     try { updateThumbnail(); } catch (err) {}
                 }
                 draggedElement = null;
@@ -3739,6 +3770,8 @@
                 isResizingItem = false;
                 itemResizeHandle = null;
                 itemResizeStart = null;
+                isRotatingItem = false;
+                itemRotateStart = null;
                 mobileItemTouchId = null;
             }
         }
@@ -3750,16 +3783,79 @@
 
 
         function ensureItemResizeHandles(el) {
-            if (!el || el.querySelector('.item-resize-handle')) return;
-            // Google Slides-style: 4 corner blue handles (resize width + height)
-            ['nw', 'ne', 'se', 'sw'].forEach(id => {
-                const h = document.createElement('div');
-                h.className = 'item-resize-handle ' + id;
-                h.dataset.handle = id;
-                h.addEventListener('mousedown', onItemResizeHandleDown);
-                h.addEventListener('touchstart', onItemResizeHandleDown, { passive: false });
-                el.appendChild(h);
+            if (!el) return;
+            // Handles copied by cloneNode (Duplicate) have no listeners — drop and rebuild them
+            el.querySelectorAll('.item-resize-handle, .item-rotate-handle').forEach(h => {
+                if (!h._bound) h.remove();
             });
+            if (!el.querySelector('.item-resize-handle')) {
+                // Google Slides-style: 4 corner blue handles (resize width + height)
+                ['nw', 'ne', 'se', 'sw'].forEach(id => {
+                    const h = document.createElement('div');
+                    h.className = 'item-resize-handle ' + id;
+                    h.dataset.handle = id;
+                    h._bound = true;
+                    h.addEventListener('mousedown', onItemResizeHandleDown);
+                    h.addEventListener('touchstart', onItemResizeHandleDown, { passive: false });
+                    el.appendChild(h);
+                });
+            }
+            if (!el.querySelector('.item-rotate-handle')) {
+                // Green rotate handle above the top-centre (rotates ONLY this item)
+                const r = document.createElement('div');
+                r.className = 'item-rotate-handle';
+                r.title = 'Rotate (hold Shift for 15° steps)';
+                r._bound = true;
+                r.addEventListener('mousedown', onItemRotateHandleDown);
+                r.addEventListener('touchstart', onItemRotateHandleDown, { passive: false });
+                el.appendChild(r);
+            }
+        }
+
+        /** The inner glyph / text box that actually turns (its centre = rotation pivot) */
+        function getItemRotateTarget(el) {
+            const wrap = el.querySelector('.rotate-wrapper');
+            if (wrap) {
+                const ch = Array.from(wrap.children).find(c => !c.classList.contains('rotation-slider'));
+                if (ch) return ch;
+            }
+            return el.querySelector('.draggable-text-style') || el;
+        }
+
+        function beginItemRotate(el, clientX, clientY) {
+            const tgt = getItemRotateTarget(el);
+            const r = tgt.getBoundingClientRect();
+            const cx = r.left + r.width / 2;
+            const cy = r.top + r.height / 2;
+            isRotatingItem = true;
+            itemRotateStart = {
+                el: el, cx: cx, cy: cy,
+                startAngle: Math.atan2(clientY - cy, clientX - cx),
+                startDeg: getItemRotationDeg(el)
+            };
+            dragPendingEl = null;
+            draggedElement = null;
+            document.body.style.cursor = 'grabbing';
+        }
+
+        function onItemRotateHandleDown(e) {
+            if (e.cancelable) e.preventDefault();
+            e.stopPropagation();
+            const el = e.currentTarget.parentElement;
+            if (!el || !el.classList.contains('draggable-item')) return;
+            selectItemElement(el);
+            const xy = (typeof eventClientXY === 'function') ? eventClientXY(e) : { x: e.clientX, y: e.clientY };
+            beginItemRotate(el, xy.x, xy.y);
+        }
+
+        function applyItemRotateDrag(e) {
+            if (!isRotatingItem || !itemRotateStart) return;
+            const st = itemRotateStart;
+            const xy = (typeof eventClientXY === 'function') ? eventClientXY(e) : { x: e.clientX, y: e.clientY };
+            const ang = Math.atan2(xy.y - st.cy, xy.x - st.cx);
+            let deg = st.startDeg + (ang - st.startAngle) * 180 / Math.PI;
+            if (e.shiftKey) deg = Math.round(deg / 15) * 15;
+            applyItemRotation(st.el, deg);
         }
 
         function onItemResizeHandleDown(e) {
@@ -3824,7 +3920,7 @@
 
         function startDrag(e) {
             // Resize handle takes priority
-            if (e.target.classList && e.target.classList.contains('item-resize-handle')) return;
+            if (e.target.classList && (e.target.classList.contains('item-resize-handle') || e.target.classList.contains('item-rotate-handle'))) return;
             selectItemElement(this);
             if (drawModeOn || eraseModeOn || offSubMode !== 'items' || e.target.className === 'delete-btn' || e.target.className === 'rotation-slider' || e.button === 2) return;
             if (e.target.isContentEditable || (e.target.classList && e.target.classList.contains('is-editing'))) return;
@@ -3969,7 +4065,9 @@
                 const mx = coord.x - globalDrawingTranslateX;
                 const my = coord.y - globalDrawingTranslateY;
                 const ang = Math.atan2(my - rotateCenter.y, mx - rotateCenter.x);
-                applySelectionRotate(ang - rotateStartAngle);
+                let dAng = ang - rotateStartAngle;
+                if (e.shiftKey) { const stp = Math.PI / 12; dAng = Math.round(dAng / stp) * stp; }
+                applySelectionRotate(dAng);
                 redrawAll();
             } else if (isResizingSelection && resizeStartBounds) {
                 const coord = getCoordinates(e);
@@ -4030,6 +4128,9 @@
                 globalDrawingTranslateX = (e.clientX - rect.left) / zoomScale - blockOffsetX;
                 globalDrawingTranslateY = (e.clientY - rect.top) / zoomScale - blockOffsetY;
                 redrawAll();
+            } else if (isRotatingItem) {
+                if (e.cancelable) e.preventDefault();
+                applyItemRotateDrag(e);
             } else if (isResizingItem) {
                 if (e.cancelable) e.preventDefault();
                 applyItemResize(e);
@@ -4061,6 +4162,13 @@
         window.addEventListener('touchmove', onPointerMoveWindow, { passive: false });
 
         function onPointerUpWindow(e) {
+            if (isRotatingItem) {
+                isRotatingItem = false;
+                itemRotateStart = null;
+                document.body.style.cursor = '';
+                try { updateThumbnail(); } catch (err) {}
+                return;
+            }
             if (isRotatingSelection) {
                 isRotatingSelection = false;
                 rotateCenter = null;
@@ -4847,7 +4955,7 @@
                 el.classList.remove('selected-item');
                 hiddenSel.push(el);
             });
-            document.querySelectorAll('.item-resize-handle').forEach(h => { h.style.visibility = 'hidden'; });
+            document.querySelectorAll('.item-resize-handle, .item-rotate-handle').forEach(h => { h.style.visibility = 'hidden'; });
             document.querySelectorAll('.delete-btn').forEach(h => { h.style.visibility = 'hidden'; });
             document.querySelectorAll('.rotation-slider').forEach(h => { h.style.visibility = 'hidden'; });
             document.querySelectorAll('.draggable-text-style.is-selected').forEach(el => el.classList.remove('is-selected'));
@@ -5007,7 +5115,7 @@
             });
 
             // Restore UI
-            document.querySelectorAll('.item-resize-handle').forEach(h => { h.style.visibility = ''; });
+            document.querySelectorAll('.item-resize-handle, .item-rotate-handle').forEach(h => { h.style.visibility = ''; });
             document.querySelectorAll('.delete-btn').forEach(h => { h.style.visibility = ''; });
             document.querySelectorAll('.rotation-slider').forEach(h => { h.style.visibility = ''; });
             hiddenSel.forEach(el => el.classList.add('selected-item'));
@@ -5025,7 +5133,7 @@
                 const savedPathSel = (selectedPathIndices || []).slice();
                 selectedPathIndices = [];
                 document.querySelectorAll('.draggable-item.selected-item').forEach(el => el.classList.remove('selected-item'));
-                document.querySelectorAll('.item-resize-handle, .delete-btn, .rotation-slider').forEach(h => {
+                document.querySelectorAll('.item-resize-handle, .item-rotate-handle, .delete-btn, .rotation-slider').forEach(h => {
                     h.dataset._prevVis = h.style.visibility;
                     h.style.visibility = 'hidden';
                 });
@@ -5041,7 +5149,7 @@
                 const restore = function() {
                     document.body.classList.remove('printing-map');
                     if (cont) cont.style.transform = prevTransform;
-                    document.querySelectorAll('.item-resize-handle, .delete-btn, .rotation-slider').forEach(h => {
+                    document.querySelectorAll('.item-resize-handle, .item-rotate-handle, .delete-btn, .rotation-slider').forEach(h => {
                         h.style.visibility = h.dataset._prevVis || '';
                         delete h.dataset._prevVis;
                     });
