@@ -3810,7 +3810,51 @@
                 r.addEventListener('touchstart', onItemRotateHandleDown, { passive: false });
                 el.appendChild(r);
             }
+            // Keep the dot glued to the rotated object (also when the box is resized / text grows)
+            const tgt = getItemRotateTarget(el);
+            if (tgt && tgt !== el && !tgt._rotHandleRO && typeof ResizeObserver !== 'undefined') {
+                tgt._rotHandleRO = new ResizeObserver(function() { updateItemRotateHandle(el); });
+                tgt._rotHandleRO.observe(tgt);
+            }
+            updateItemRotateHandle(el);
         }
+
+        /**
+         * Office-style rotate handle: the green dot (and its stem) orbit around the
+         * centre of the glyph / text box, so it always sits "above" the rotated object.
+         * Uses offset* metrics (unaffected by CSS transforms) in the item's local space.
+         */
+        function updateItemRotateHandle(el) {
+            if (!el || !el.querySelector) return;
+            const h = el.querySelector('.item-rotate-handle');
+            if (!h) return;
+            const tgt = getItemRotateTarget(el);
+            // Pivot = centre of the glyph / text box. getBoundingClientRect() centre is rotation-invariant;
+            // dividing by the item's own scale keeps it correct under page zoom. (SVG nodes have no offset* metrics.)
+            const er = el.getBoundingClientRect();
+            const sc = (el.offsetWidth && er.width) ? (er.width / el.offsetWidth) : 1;
+            let px, py, H;
+            if (tgt && tgt !== el) {
+                const tr = tgt.getBoundingClientRect();
+                px = (tr.left + tr.width / 2 - er.left) / sc;
+                py = (tr.top + tr.height / 2 - er.top) / sc;
+                // Unrotated height of the glyph (bounding box would be inflated while rotated)
+                H = tgt.offsetHeight || parseFloat(tgt.style.height) || parseFloat(tgt.getAttribute('height')) || (tr.height / sc);
+            } else {
+                px = el.offsetWidth / 2;
+                py = el.offsetHeight / 2;
+                H = el.offsetHeight;
+            }
+            const size = parseFloat(getComputedStyle(h).width) || 14;
+            const dist = H / 2 + 13 + size;               // centre of dot, measured from the pivot
+            const rad = getItemRotationDeg(el) * Math.PI / 180;
+            h.style.left = (px + dist * Math.sin(rad)) + 'px';
+            h.style.top = (py - dist * Math.cos(rad)) + 'px';
+            h.style.marginLeft = '0';
+            h.style.marginTop = '0';
+            h.style.transform = 'translate(-50%, -50%) rotate(' + (rad * 180 / Math.PI) + 'deg)';
+        }
+        window.updateItemRotateHandle = updateItemRotateHandle;
 
         /** The inner glyph / text box that actually turns (its centre = rotation pivot) */
         function getItemRotateTarget(el) {
@@ -3916,6 +3960,7 @@
                 st.symbol.style.width = Math.round(w) + 'px';
                 st.symbol.style.height = Math.round(h) + 'px';
             }
+            try { updateItemRotateHandle(st.el); } catch (err) {}
         }
 
         function startDrag(e) {
@@ -4424,6 +4469,8 @@
             if (text && (!wrap || !wrap.contains(text))) {
                 text.style.transform = deg ? ('rotate(' + deg + 'deg)') : '';
             }
+            // Green dot follows the rotation (Office-style)
+            try { updateItemRotateHandle(item); } catch (err) {}
         }
 
         function rotateElement(slider) {
