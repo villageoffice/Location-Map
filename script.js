@@ -4833,7 +4833,75 @@
             }
         }
 
+        // ================= ALL SYSTEM FONTS (Local Font Access API: Chrome / Edge) =================
+        const SYS_FONT_TRIGGER = '__load_system_fonts__';
+        let systemFontsLoaded = false;
+        let lastFontSelectValue = 'Arial';
+
+        function addSystemFontTriggerOption() {
+            const sel = document.getElementById('fontFamilySelect');
+            if (!sel || sel.querySelector('option[value="' + SYS_FONT_TRIGGER + '"]')) return;
+            const o = document.createElement('option');
+            o.value = SYS_FONT_TRIGGER;
+            o.textContent = '🔤 Load all system fonts…';
+            sel.appendChild(o);
+        }
+
+        /** Ask the browser for every installed font and add each family to the Font Family list */
+        async function loadSystemFonts() {
+            const sel = document.getElementById('fontFamilySelect');
+            if (!sel || systemFontsLoaded) return;
+            if (typeof window.queryLocalFonts !== 'function') {
+                showToast('System fonts need Chrome or Edge (desktop) on https / localhost');
+                return;
+            }
+            try {
+                const faces = await window.queryLocalFonts();
+                const existing = new Set(Array.from(sel.options).map(o => o.textContent.trim().toLowerCase()));
+                const families = Array.from(new Set(faces.map(f => f.family))).filter(Boolean)
+                    .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+                const grp = document.createElement('optgroup');
+                families.forEach(fam => {
+                    if (existing.has(fam.toLowerCase())) return;
+                    const o = document.createElement('option');
+                    o.value = "'" + fam.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+                    o.textContent = fam;
+                    grp.appendChild(o);
+                });
+                if (!grp.children.length) {
+                    showToast('No system fonts returned — allow "Fonts" access when the browser asks, then try again');
+                    return;   // keep the "Load all system fonts" option available
+                }
+                grp.label = 'System fonts (' + grp.children.length + ')';
+                const trig = sel.querySelector('option[value="' + SYS_FONT_TRIGGER + '"]');
+                if (trig) trig.remove();
+                sel.appendChild(grp);
+                systemFontsLoaded = true;
+                showToast(grp.children.length + ' system fonts loaded');
+            } catch (err) {
+                showToast('System fonts permission denied — allow "Fonts" access in the browser prompt');
+            }
+        }
+
+        // Fonts permission is remembered by the browser: after the first "Allow" load them automatically
+        (function initSystemFonts() {
+            addSystemFontTriggerOption();
+            try {
+                if (navigator.permissions && navigator.permissions.query && typeof window.queryLocalFonts === 'function') {
+                    navigator.permissions.query({ name: 'local-fonts' }).then(function(st) {
+                        if (st.state === 'granted') loadSystemFonts();
+                    }).catch(function() {});
+                }
+            } catch (err) {}
+        })();
+
         document.getElementById('fontFamilySelect').addEventListener('change', function() {
+            if (this.value === SYS_FONT_TRIGGER) {
+                this.value = lastFontSelectValue;   // keep the current font while loading
+                loadSystemFonts();
+                return;
+            }
+            lastFontSelectValue = this.value;
             if (activeTextBox && activeTextBox.isConnected) {
                 activeTextBox.style.fontFamily = this.value;
             }
