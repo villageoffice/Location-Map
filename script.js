@@ -1243,28 +1243,89 @@
             changePageOrientation();
         }
 
+        // ---- Page size (A5 / A4 / A3 / A2 / Letter / Legal / Custom) — 96 dpi: 1 mm = 3.7795 px ----
+        const PAGE_SIZES_MM = {
+            a5: [148, 210], a4: [210, 297], a3: [297, 420], a2: [420, 594],
+            letter: [215.9, 279.4], legal: [215.9, 355.6]
+        };
+        const MM_TO_PX = 96 / 25.4;
+        let pageWidthMm = 210, pageHeightMm = 297;   // current page in mm (after orientation)
+
+        function setPageSizeValue(key) {
+            const sel = document.getElementById('pageSizeSelect');
+            if (sel) sel.value = key;
+            changePageSize();
+            if (key === 'custom') {
+                const w = document.getElementById('customPageW');
+                const side = document.getElementById('slideSidebar');
+                if (side && side.classList.contains('hidden')) toggleSidebar();
+                if (w) { w.focus(); w.select(); }
+            }
+        }
+
+        function changePageSize() { changePageOrientation(); }
+
+        function getPageSizeState() {
+            const sel = document.getElementById('pageSizeSelect');
+            return {
+                pageSize: sel ? sel.value : 'a4',
+                customW: parseFloat((document.getElementById('customPageW') || {}).value) || 210,
+                customH: parseFloat((document.getElementById('customPageH') || {}).value) || 297
+            };
+        }
+
+        function applyPageSizeState(d) {
+            if (!d || !d.pageSize) return;
+            const sel = document.getElementById('pageSizeSelect');
+            if (sel && Array.from(sel.options).some(o => o.value === d.pageSize)) sel.value = d.pageSize;
+            if (d.customW) document.getElementById('customPageW').value = d.customW;
+            if (d.customH) document.getElementById('customPageH').value = d.customH;
+        }
+
         function changePageOrientation() {
             const orientation = document.getElementById('pageOrientation').value;
-            if (orientation === 'landscape') {
-                pageTargetWidth = 1123;
-                pageTargetHeight = 794;
-                thumbCanvas.width = 180;
-                thumbCanvas.height = 127;
-            } else {
-                pageTargetWidth = 794;
-                pageTargetHeight = 1123;
-                thumbCanvas.width = 150;
-                thumbCanvas.height = 212;
+            const st = getPageSizeState();
+            const customRow = document.getElementById('customPageRow');
+            if (customRow) customRow.style.display = (st.pageSize === 'custom') ? 'flex' : 'none';
+            let base = PAGE_SIZES_MM[st.pageSize] || [st.customW, st.customH];
+            // Portrait = short side as width; Landscape = long side as width (same as MS Word)
+            let wMm = Math.min(base[0], base[1]), hMm = Math.max(base[0], base[1]);
+            wMm = Math.min(1500, Math.max(50, wMm));
+            hMm = Math.min(1500, Math.max(50, hMm));
+            if (st.pageSize === 'custom') {
+                // Custom: keep W x H exactly as typed in portrait; landscape swaps them
+                wMm = Math.min(1500, Math.max(50, st.customW));
+                hMm = Math.min(1500, Math.max(50, st.customH));
             }
+            if (orientation === 'landscape') { const t = wMm; wMm = hMm; hMm = t; }
+            pageWidthMm = wMm;
+            pageHeightMm = hMm;
+            pageTargetWidth = Math.round(wMm * MM_TO_PX);
+            pageTargetHeight = Math.round(hMm * MM_TO_PX);
+            // Thumbnail keeps page aspect, fits inside 180 x 212
+            const ts = Math.min(180 / pageTargetWidth, 212 / pageTargetHeight);
+            thumbCanvas.width = Math.max(40, Math.round(pageTargetWidth * ts));
+            thumbCanvas.height = Math.max(40, Math.round(pageTargetHeight * ts));
             container.style.width = pageTargetWidth + 'px';
             container.style.height = pageTargetHeight + 'px';
             a4Page.style.width = pageTargetWidth + 'px';
             a4Page.style.height = pageTargetHeight + 'px';
             canvas.width = pageTargetWidth;
             canvas.height = pageTargetHeight;
+            updatePrintPageStyle();
 
             resetZoomAndPan();
             redrawAll();
+            try { updateThumbnail(); } catch (err) {}
+        }
+
+        /** @page size and print dimensions follow the chosen paper (CSS cannot read variables inside @page) */
+        function updatePrintPageStyle() {
+            let st = document.getElementById('dynPageStyle');
+            if (!st) { st = document.createElement('style'); st.id = 'dynPageStyle'; document.head.appendChild(st); }
+            const w = +pageWidthMm.toFixed(2), h = +pageHeightMm.toFixed(2);
+            st.textContent = ':root{--page-w:' + w + 'mm;--page-h:' + h + 'mm;}' +
+                '@media print{@page{size:' + w + 'mm ' + h + 'mm;margin:0;}}';
         }
 
         function resetZoomAndPan() {
@@ -2736,6 +2797,21 @@
                 e.preventDefault();
                 if (currentPath.length > 2) currentPath.pop();
                 finishActiveMultiVertexPath();
+                return;
+            }
+            // MS Word "click and type": double-click empty page space (Select tool) -> text cursor right there
+            if (e.button === 0 && !drawModeOn && !eraseModeOn && !textToolActive && !drawingLockOn &&
+                offSubMode === 'items' && e.target === canvas) {
+                const coord = getCoordinates(e);
+                const mx = coord.x - globalDrawingTranslateX;
+                const my = coord.y - globalDrawingTranslateY;
+                let overPath = false;
+                try { overPath = pathHitTest(mx, my) >= 0; } catch (err) {}
+                if (overPath) return;                 // double-click on a road / shape keeps its old behaviour
+                e.preventDefault();
+                clearPathSelection();
+                const bw = 180, bh = 36;
+                addCustomText(null, null, coord.x + bw / 2 - 6, coord.y + bh / 2 - 6, bw, bh);
             }
         });
 
@@ -5290,11 +5366,10 @@
             // PNG keeps text/lines sharp so PDF matches on-screen layout
             const imgData = outCanvas.toDataURL('image/png');
             const { jsPDF } = window.jspdf;
-            const currentOrientation = document.getElementById('pageOrientation').value;
-            const doc = new jsPDF({ orientation: currentOrientation, unit: 'mm', format: 'a4', compress: true });
-            const pdfW = currentOrientation === 'landscape' ? 297 : 210;
-            const pdfH = currentOrientation === 'landscape' ? 210 : 297;
-            // Fill entire A4 — same aspect as canvas (794×1123 ≈ A4)
+            const pdfW = +pageWidthMm.toFixed(2);
+            const pdfH = +pageHeightMm.toFixed(2);
+            const doc = new jsPDF({ orientation: pdfW > pdfH ? 'landscape' : 'portrait', unit: 'mm', format: [Math.min(pdfW, pdfH), Math.max(pdfW, pdfH)], compress: true });
+            // Fill the whole page — same aspect as the canvas
             doc.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH, undefined, 'NONE');
             const titleName = (document.getElementById('docTitleInput').value || 'Location_Sketch').replace(/\s+/g, '_');
             doc.save(titleName + '.pdf');
@@ -5622,6 +5697,7 @@
                 bgImageSrc: bgImage ? bgImage.src : null,
                 items: itemsData,
                 pageOrientation: document.getElementById('pageOrientation').value,
+                pageSetup: getPageSizeState(),
                 globalDrawingTranslateX,
                 globalDrawingTranslateY,
                 savedAt: Date.now()
@@ -5632,6 +5708,7 @@
             paths = data.paths || [];
             globalDrawingTranslateX = data.globalDrawingTranslateX || 0;
             globalDrawingTranslateY = data.globalDrawingTranslateY || 0;
+            if (data.pageSetup) applyPageSizeState(data.pageSetup);
             if (data.pageOrientation) {
                 document.getElementById('pageOrientation').value = data.pageOrientation;
                 changePageOrientation();
@@ -5682,6 +5759,7 @@
                 items: state.items,
                 bgImageSrc: state.bgImageSrc,
                 pageOrientation: state.pageOrientation,
+                pageSetup: state.pageSetup,
                 globalDrawingTranslateX: state.globalDrawingTranslateX,
                 globalDrawingTranslateY: state.globalDrawingTranslateY,
                 savedAt: state.savedAt
@@ -6221,6 +6299,7 @@
                         items: dataOverride.items,
                         bgImageSrc: dataOverride.bgImageSrc,
                         pageOrientation: dataOverride.pageOrientation,
+                        pageSetup: dataOverride.pageSetup,
                         globalDrawingTranslateX: dataOverride.globalDrawingTranslateX,
                         globalDrawingTranslateY: dataOverride.globalDrawingTranslateY,
                         savedAt: dataOverride.savedAt || Date.now()

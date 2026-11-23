@@ -101,7 +101,7 @@
             <button class="tb-btn" onclick="redoLast()" title="Redo Line/Erase (Ctrl+Y)">
                 <svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
             </button>
-            <button class="tb-btn" onclick="compileAndSavePDF()" title="Print / Export A4 PDF">
+            <button class="tb-btn" onclick="compileAndSavePDF()" title="Print / Export PDF">
                 <svg viewBox="0 0 24 24"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
             </button>
 
@@ -433,7 +433,7 @@
         <div class="g-dd-item" onclick="openSavedMapsPanel();closeAllDropdowns()"><span>📁 My Maps</span></div>
         <div class="g-dd-item" onclick="restoreLastWork();closeAllDropdowns()"><span>↩ Restore last work</span></div>
         <div class="g-dd-sep"></div>
-        <div class="g-dd-item" onclick="compileAndSavePDF();closeAllDropdowns()"><span>📥 Download as PDF (A4)</span></div>
+        <div class="g-dd-item" onclick="compileAndSavePDF();closeAllDropdowns()"><span>📥 Download as PDF</span></div>
         <div class="g-dd-item" onclick="window.printMapPage();closeAllDropdowns()"><span>🖨️ Print / Save as PDF (exact page)</span></div>
         <div class="g-dd-item" onclick="exportMapAsPNG();closeAllDropdowns()"><span>🖼️ Download as PNG Image</span></div>
     </div>
@@ -503,8 +503,13 @@
     </div>
 
     <div id="slideMenu" class="g-dropdown">
-        <div class="g-dd-item" onclick="setOrientationValue('portrait');closeAllDropdowns()"><span>▯ Portrait Page (A4)</span></div>
-        <div class="g-dd-item" onclick="setOrientationValue('landscape');closeAllDropdowns()"><span>▭ Landscape Page (A4)</span></div>
+        <div class="g-dd-item" onclick="setOrientationValue('portrait');closeAllDropdowns()"><span>▯ Portrait Page</span></div>
+        <div class="g-dd-item" onclick="setOrientationValue('landscape');closeAllDropdowns()"><span>▭ Landscape Page</span></div>
+        <div class="g-dd-sep"></div>
+        <div class="g-dd-item" onclick="setPageSizeValue('a4');closeAllDropdowns()"><span>📄 Page size: A4</span></div>
+        <div class="g-dd-item" onclick="setPageSizeValue('a3');closeAllDropdowns()"><span>📄 Page size: A3</span></div>
+        <div class="g-dd-item" onclick="setPageSizeValue('a5');closeAllDropdowns()"><span>📄 Page size: A5</span></div>
+        <div class="g-dd-item" onclick="setPageSizeValue('custom');closeAllDropdowns()"><span>📐 Page size: Custom…</span></div>
         <div class="g-dd-sep"></div>
         <div class="g-dd-item" onclick="loadKeralaRevenueTemplate();closeAllDropdowns()"><span>📄 Apply ലൊക്കേഷൻ മാപ്പ് Form</span></div>
         <div class="g-dd-item" onclick="removeUploadedBackground();closeAllDropdowns()"><span>❌ Clear Background Template</span></div>
@@ -601,9 +606,22 @@
 
             <div class="sidebar-section">
                 <span class="sidebar-label">Page Setup</span>
+                <select id="pageSizeSelect" class="tb-select" style="border:1px solid #dadce0;width:100%;height:32px;margin-bottom:6px;" onchange="changePageSize()" title="Paper size">
+                    <option value="a5">A5 (148 × 210 mm)</option>
+                    <option value="a4" selected>A4 (210 × 297 mm)</option>
+                    <option value="a3">A3 (297 × 420 mm)</option>
+                    <option value="a2">A2 (420 × 594 mm)</option>
+                    <option value="letter">Letter (216 × 279 mm)</option>
+                    <option value="legal">Legal (216 × 356 mm)</option>
+                    <option value="custom">Custom size…</option>
+                </select>
+                <div id="customPageRow" style="display:none;margin-bottom:6px;font-size:12px;color:#5f6368;align-items:center;gap:4px;">
+                    W <input type="number" id="customPageW" value="210" min="50" max="1500" step="1" style="width:58px;border:1px solid #dadce0;border-radius:4px;padding:3px;" onchange="changePageSize()">
+                    × H <input type="number" id="customPageH" value="297" min="50" max="1500" step="1" style="width:58px;border:1px solid #dadce0;border-radius:4px;padding:3px;" onchange="changePageSize()"> mm
+                </div>
                 <select id="pageOrientation" class="tb-select" style="border:1px solid #dadce0;width:100%;height:32px;" onchange="changePageOrientation()">
-                    <option value="portrait" selected>▯ Portrait (A4)</option>
-                    <option value="landscape">▭ Landscape (A4)</option>
+                    <option value="portrait" selected>▯ Portrait</option>
+                    <option value="landscape">▭ Landscape</option>
                 </select>
             </div>
 
