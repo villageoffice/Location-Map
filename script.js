@@ -4472,7 +4472,7 @@
 
         function toggleRotateTab() {
             rotateTabActive = !rotateTabActive;
-            document.getElementById('rotateToggleBtn').classList.toggle('active', rotateTabActive);
+            const rtb = document.getElementById('rotateToggleBtn'); if (rtb) rtb.classList.toggle('active', rotateTabActive);
             document.querySelectorAll('.rotation-slider').forEach(s => {
                 s.style.display = rotateTabActive ? 'block' : 'none';
             });
@@ -4643,7 +4643,7 @@
                 return;
             }
             rotateTabActive = true;
-            document.getElementById('rotateToggleBtn').classList.add('active');
+            const rtb = document.getElementById('rotateToggleBtn'); if (rtb) rtb.classList.add('active');
             const slider = getSelectedItemSlider();
             if (slider) {
                 slider.style.display = 'block';
