@@ -1053,7 +1053,7 @@
                 if (!rec) throw new Error('Icon data unavailable');
                 const sizeEl = document.getElementById('iconSizeSelect');
                 const sizeVal = (sizeEl && sizeEl.value) ? sizeEl.value : 'medium';
-                const svgSize = sizeVal === 'large' ? 60 : sizeVal === 'small' ? 30 : 45;
+                const svgSize = sizeVal === 'large' ? 60 : sizeVal === 'small' ? 30 : sizeVal === 'tiny' ? 18 : 45;
                 const safeId = 'CUSTOM_' + String(id).replace(/[^a-z0-9]+/gi, '_');
                 const label = String(name).replace(/-/g, ' ');
                 // Fully embedded SVG (data URI): no network needed after this point
@@ -1198,7 +1198,7 @@
             activateSelectTool();
             const sizeVal = document.getElementById('iconSizeSelect').value;
             const labelFs = document.getElementById('labelFontSize').value;
-            const svgSize = sizeVal === 'large' ? 60 : sizeVal === 'small' ? 30 : 45;
+            const svgSize = sizeVal === 'large' ? 60 : sizeVal === 'small' ? 30 : sizeVal === 'tiny' ? 18 : 45;
             const el = document.createElement('div');
             el.className = 'draggable-item';
             el.style.left = '50%';
@@ -4019,10 +4019,13 @@
             const id = itemResizeHandle;
             let w = st.w, h = st.h, cx = st.cx, cy = st.cy;
             // Google Slides: opposite edge stays fixed
-            if (id.includes('e')) { w = Math.max(40, st.w + dx); cx = st.cx - st.w / 2 + w / 2; }
-            if (id.includes('w')) { w = Math.max(40, st.w - dx); cx = st.cx + st.w / 2 - w / 2; }
-            if (id.includes('s')) { h = Math.max(24, st.h + dy); cy = st.cy - st.h / 2 + h / 2; }
-            if (id.includes('n')) { h = Math.max(24, st.h - dy); cy = st.cy + st.h / 2 - h / 2; }
+            // Symbols can shrink very small (6px); text boxes keep their larger minimum
+            const minW = st.symbol ? 6 : 40;
+            const minH = st.symbol ? 6 : 24;
+            if (id.includes('e')) { w = Math.max(minW, st.w + dx); cx = st.cx - st.w / 2 + w / 2; }
+            if (id.includes('w')) { w = Math.max(minW, st.w - dx); cx = st.cx + st.w / 2 - w / 2; }
+            if (id.includes('s')) { h = Math.max(minH, st.h + dy); cy = st.cy - st.h / 2 + h / 2; }
+            if (id.includes('n')) { h = Math.max(minH, st.h - dy); cy = st.cy + st.h / 2 - h / 2; }
             // corners that only have one letter already handled via includes
             st.el.style.left = cx + 'px';
             st.el.style.top = cy + 'px';

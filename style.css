@@ -676,23 +676,23 @@
         /* Google Slides-style 8 resize handles */
         .item-resize-handle {
             position: absolute;
-            width: 9px;
-            height: 9px;
+            width: 6px;
+            height: 6px;
             background: #fff;
-            border: 1.5px solid #1a73e8;
+            border: 1px solid #1a73e8;
             border-radius: 1px;
             z-index: 80;
             box-sizing: border-box;
             pointer-events: auto;
         }
-        .item-resize-handle.nw { top: -6px; left: -6px; cursor: nwse-resize; }
-        .item-resize-handle.n  { top: -6px; left: 50%; margin-left: -4.5px; cursor: ns-resize; }
-        .item-resize-handle.ne { top: -6px; right: -6px; cursor: nesw-resize; }
-        .item-resize-handle.e  { top: 50%; right: -6px; margin-top: -4.5px; cursor: ew-resize; }
-        .item-resize-handle.se { bottom: -6px; right: -6px; cursor: nwse-resize; }
-        .item-resize-handle.s  { bottom: -6px; left: 50%; margin-left: -4.5px; cursor: ns-resize; }
-        .item-resize-handle.sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
-        .item-resize-handle.w  { top: 50%; left: -6px; margin-top: -4.5px; cursor: ew-resize; }
+        .item-resize-handle.nw { top: -4px; left: -4px; cursor: nwse-resize; }
+        .item-resize-handle.n  { top: -4px; left: 50%; margin-left: -3px; cursor: ns-resize; }
+        .item-resize-handle.ne { top: -4px; right: -4px; cursor: nesw-resize; }
+        .item-resize-handle.e  { top: 50%; right: -4px; margin-top: -3px; cursor: ew-resize; }
+        .item-resize-handle.se { bottom: -4px; right: -4px; cursor: nwse-resize; }
+        .item-resize-handle.s  { bottom: -4px; left: 50%; margin-left: -3px; cursor: ns-resize; }
+        .item-resize-handle.sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
+        .item-resize-handle.w  { top: 50%; left: -4px; margin-top: -3px; cursor: ew-resize; }
         .draggable-item:not(.selected-item) .item-resize-handle { display: none; }
         .draggable-item.text-editing-active .item-resize-handle { display: none; }
 
@@ -1322,9 +1322,9 @@ body.mobile-mode #itemContextMenu .g-dd-item {
     min-height: 44px;
 }
 body.mobile-mode .item-resize-handle {
-    width: 18px;
-    height: 18px;
-    border-width: 2px;
+    width: 12px;
+    height: 12px;
+    border-width: 1.5px;
     z-index: 90;
     touch-action: none;
 }

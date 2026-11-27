@@ -1,5 +1,5 @@
 // Location Map - simple offline support (stale-while-revalidate)
-const CACHE = 'location-map-v2';
+const CACHE = 'location-map-v3';
 const CORE = [
   './', './index.html', './style.css', './script.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png'
